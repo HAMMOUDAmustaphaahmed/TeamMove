@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Utilisateurs - Gestion Personnels{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-shield me-2"></i>Gestion des Utilisateurs</h2>
+    <button class="btn btn-primary btn-custom" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-user-plus me-2"></i>Nouvel Utilisateur
+    </button>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Nom d'utilisateur</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th>Dernière connexion</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                {% if user.username != 'Hammouda' %}
+                <tr class="{{ 'table-secondary' if not user.is_active else '' }}">
+                    <td>{{ user.id }}</td>
+                    <td>
+                        <i class="fas fa-user-circle me-2 {{ 'text-warning' if user.is_admin else 'text-info' }}"></i>
+                        {{ user.username }}
+                        {% if user.id == current_user.id %}
+                            <span class="badge bg-primary ms-2">Vous</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.is_admin %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-crown me-1"></i>Admin</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Utilisateur</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.is_active %}
+                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Actif</span>
+                        {% else %}
+                            <span class="badge bg-danger"><i class="fas fa-ban me-1"></i>Inactif</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.last_login %}
+                            {{ user.last_login.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            <span class="text-muted">Jamais</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.id != current_user.id %}
+                        <form method="POST" action="{{ url_for('main.toggle_user', id=user.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }}">
+                                {% if user.is_active %}
+                                    <i class="fas fa-user-slash"></i> Désactiver
+                                {% else %}
+                                    <i class="fas fa-user-check"></i> Activer
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Ajout Utilisateur -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Nouvel Utilisateur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.add_user') }}" id="userForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom d'utilisateur *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" class="form-control" name="username" required 
+                                   pattern="[a-zA-Z0-9_]{3,20}" 
+                                   title="3-20 caractères, alphanumériques et underscore uniquement">
+                        </div>
+                        <div class="form-text">3 à 20 caractères, sans espaces</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Mot de passe *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" name="password" id="password" 
+                                   required minlength="8" 
+                                   pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                                   title="8 caractères minimum, avec majuscule, minuscule et chiffre">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
+                                <i class="fas fa-eye" id="toggleIcon"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">8 caractères min, 1 majuscule, 1 minuscule, 1 chiffre</div>
+                        <div class="progress mt-2" style="height: 5px;">
+                            <div class="progress-bar" id="passwordStrength" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Confirmer le mot de passe *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" name="password_confirm" id="passwordConfirm" required>
+                        </div>
+                        <div class="invalid-feedback" id="matchError">Les mots de passe ne correspondent pas</div>
+                    </div>
+                    
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+                        <label class="form-check-label" for="isAdmin">
+                            <i class="fas fa-crown text-warning me-1"></i> Privilèges Administrateur
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="fas fa-save me-2"></i>Créer l'utilisateur
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePassword() {
+    const password = document.getElementById('password');
+    const icon = document.getElementById('toggleIcon');
+    if (password.type === 'password') {
+        password.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        password.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+document.getElementById('password').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const strengthBar = document.getElementById('passwordStrength');
+    let strength = 0;
+    if (password.length >= 8) strength += 25;
+    if (password.match(/[a-z]+/)) strength += 25;
+    if (password.match(/[A-Z]+/)) strength += 25;
+    if (password.match(/[0-9]+/)) strength += 25;
+    strengthBar.style.width = strength + '%';
+    strengthBar.className = 'progress-bar ' +
+        (strength < 50 ? 'bg-danger' : strength < 75 ? 'bg-warning' : 'bg-success');
+});
+
+document.getElementById('userForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirm  = document.getElementById('passwordConfirm').value;
+    if (password !== confirm) {
+        e.preventDefault();
+        document.getElementById('passwordConfirm').classList.add('is-invalid');
+        document.getElementById('matchError').style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

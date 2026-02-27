@@ -1,0 +1,1098 @@
+{% extends "base.html" %}
+
+{% block title %}Déplacements — Gestion Personnels{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Page header ── */
+  .page-title { font-size: clamp(1.3rem,3vw,1.8rem); font-weight:800; letter-spacing:-0.03em; }
+  .page-title i { background: linear-gradient(135deg,#38bdf8,#4f8ef7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .page-sub { font-size:.8rem; color:rgba(240,244,255,.3); margin-top:.25rem; }
+
+  /* ── Filter card ── */
+  .filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Personnel row with avatar ── */
+  .p-avatar {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
+    display: flex; align-items:center; justify-content:center;
+    font-size: .7rem; font-weight:800; color:#4f8ef7;
+    flex-shrink:0;
+  }
+
+  /* ── Project chips ── */
+  .proj-chip {
+    display: inline-flex; align-items:center; gap:.3rem;
+    background: rgba(56,189,248,.1);
+    border: 1px solid rgba(56,189,248,.2);
+    color: #38bdf8;
+    border-radius: var(--r-full);
+    padding: .2em .65em;
+    font-size: .72rem; font-weight:700;
+  }
+
+  /* ── Nb badge ── */
+  .nb-badge {
+    display: inline-flex; align-items:center; gap:.3rem;
+    background: rgba(79,142,247,.12);
+    border: 1px solid rgba(79,142,247,.2);
+    color: #4f8ef7;
+    border-radius: var(--r-full);
+    padding: .2em .7em;
+    font-size: .72rem; font-weight:700;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Date badge ── */
+  .date-cell {
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    color: var(--text-secondary);
+  }
+  .date-cell .time-dim { color: var(--text-muted); }
+
+  /* ── Duration badge ── */
+  .dur-badge {
+    display: inline-flex; align-items:center; gap:.3rem;
+    background: rgba(6,214,160,.1);
+    border: 1px solid rgba(6,214,160,.2);
+    color: #06d6a0;
+    border-radius: var(--r-full);
+    padding: .2em .7em;
+    font-size: .72rem; font-weight:700;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Action buttons ── */
+  .action-btn {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: inline-flex; align-items:center; justify-content:center;
+    border: 1px solid;
+    transition: all .2s;
+    cursor: pointer;
+    font-size: .78rem;
+    background: transparent;
+  }
+  .action-btn.edit   { border-color: rgba(247,201,72,.3); color: #f7c948; }
+  .action-btn.edit:hover { background: rgba(247,201,72,.12); transform:translateY(-1px); }
+  .action-btn.del    { border-color: rgba(255,107,107,.3); color: #ff6b6b; }
+  .action-btn.del:hover  { background: rgba(255,107,107,.12); transform:translateY(-1px); }
+
+  /* ── Stats bar ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+  }
+  @media(max-width:768px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+  .stat-mini {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1rem 1.25rem;
+    position:relative; overflow:hidden;
+    transition: var(--t-base);
+  }
+  .stat-mini:hover { border-color: var(--border-md); transform:translateY(-2px); }
+  .stat-mini::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:2px;
+    background: var(--grad-primary);
+  }
+  .stat-mini.s  { }
+  .stat-mini.s2::before { background: var(--grad-success); }
+  .stat-mini.s3::before { background: var(--grad-warning); }
+  .stat-mini.s4::before { background: var(--grad-info); }
+
+  .stat-mini .num {
+    font-size:1.9rem; font-weight:800; letter-spacing:-.04em;
+    color: var(--text-primary); line-height:1;
+  }
+  .stat-mini .lbl {
+    font-size:.65rem; font-weight:700; letter-spacing:.1em;
+    text-transform:uppercase; color: var(--text-muted);
+    margin-top:.25rem;
+  }
+  .stat-mini .ico {
+    position:absolute; right:1rem; top:50%; transform:translateY(-50%);
+    font-size:1.5rem; opacity:.08;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align:center; padding:3rem 1rem;
+    color: var(--text-muted);
+  }
+  .empty-state i { font-size:3rem; opacity:.15; display:block; margin-bottom:.75rem; }
+  .empty-state h5 { font-size:1rem; color: var(--text-secondary); }
+  .empty-state p  { font-size:.82rem; margin:.25rem 0 1rem; }
+
+  /* ── Custom Personnel Picker ── */
+  .personnel-picker {
+    border: 1px solid var(--border-md);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: var(--bg-overlay);
+  }
+
+  .personnel-search-wrap {
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .personnel-search-wrap .search-icon {
+    position: absolute;
+    left: 1rem; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: .85rem;
+    pointer-events: none;
+    transition: color .2s;
+  }
+
+  #personnelSearch {
+    width: 100%;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: .75rem 1rem .75rem 2.6rem !important;
+    color: var(--text-primary) !important;
+    font-size: .9rem;
+    box-shadow: none !important;
+  }
+
+  #personnelSearch:focus {
+    background: rgba(255,255,255,.04) !important;
+    box-shadow: none !important;
+  }
+
+  #personnelSearch:focus ~ .search-icon { color: #4f8ef7; }
+
+  .personnel-list {
+    max-height: 260px;
+    overflow-y: auto;
+    padding: .4rem;
+  }
+
+  .personnel-list::-webkit-scrollbar { width: 5px; }
+  .personnel-list::-webkit-scrollbar-track { background: transparent; }
+  .personnel-list::-webkit-scrollbar-thumb { background: rgba(79,142,247,.3); border-radius: 99px; }
+
+  /* Each row */
+  .p-pick-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .55rem .75rem;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: background .15s;
+    user-select: none;
+  }
+
+  .p-pick-row:hover { background: rgba(255,255,255,.05); }
+
+  .p-pick-row.selected {
+    background: rgba(79,142,247,.12);
+  }
+
+  .p-pick-row input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: #4f8ef7;
+    cursor: pointer;
+    flex-shrink: 0;
+    border-radius: 4px;
+  }
+
+  .p-pick-avatar {
+    width: 32px; height: 32px;
+    border-radius: 9px;
+    background: linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
+    display: flex; align-items:center; justify-content:center;
+    font-size: .68rem; font-weight:800; color: #4f8ef7;
+    flex-shrink:0;
+  }
+
+  .p-pick-row.selected .p-pick-avatar {
+    background: linear-gradient(135deg,rgba(79,142,247,.4),rgba(155,92,246,.4));
+  }
+
+  .p-pick-info { flex:1; min-width:0; }
+  .p-pick-name {
+    font-size: .875rem; font-weight:600;
+    color: var(--text-secondary);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .p-pick-row.selected .p-pick-name { color: var(--text-primary); }
+
+  .p-pick-meta {
+    font-size: .7rem; color: var(--text-muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .p-pick-row.selected .p-pick-meta { color: rgba(79,142,247,.7); }
+
+  /* Loading / empty inside list */
+  .picker-msg {
+    text-align:center; padding:1.5rem;
+    color: var(--text-muted); font-size:.83rem;
+  }
+  .picker-msg i { display:block; font-size:1.3rem; margin-bottom:.4rem; opacity:.3; }
+
+  /* Footer: selected count + select-all */
+  .picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .55rem .85rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-surface);
+  }
+
+  .picker-count {
+    font-size: .75rem; font-weight:700;
+    color: var(--text-muted);
+    display: flex; align-items:center; gap:.35rem;
+  }
+
+  .picker-count .cnt-num {
+    background: rgba(79,142,247,.2);
+    color: #4f8ef7;
+    border-radius: var(--r-full);
+    padding: .1em .55em;
+    font-family: var(--font-mono);
+    font-size: .72rem;
+  }
+
+  #selectAllBtn {
+    font-size:.72rem; font-weight:700;
+    color: var(--text-muted); cursor:pointer;
+    background:none; border:none; padding:.2rem .5rem;
+    border-radius: var(--r-sm);
+    transition: all .15s;
+  }
+  #selectAllBtn:hover { color: #4f8ef7; background: rgba(79,142,247,.1); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title"><i class="fas fa-route"></i>Gestion des Déplacements</h2>
+    <p class="page-sub">Vue quotidienne des affectations par date</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeplacementModal">
+    <i class="fas fa-plus"></i>Nouveau Déplacement
+  </button>
+</div>
+
+<!-- ── STATS BAR ── -->
+<div class="stats-row">
+  <div class="stat-mini s">
+    <div class="num">{{ total_personnels_actifs }}</div>
+    <div class="lbl">Personnels actifs</div>
+    <i class="fas fa-users ico"></i>
+  </div>
+  <div class="stat-mini s2">
+    <div class="num">{{ total_en_deplacement }}</div>
+    <div class="lbl">En déplacement</div>
+    <i class="fas fa-route ico"></i>
+  </div>
+  <div class="stat-mini s3">
+    <div class="num">{{ total_projets_actifs }}</div>
+    <div class="lbl">Projets actifs</div>
+    <i class="fas fa-building ico"></i>
+  </div>
+  <div class="stat-mini s4">
+    <div class="num">{{ total_deplacements_mois }}</div>
+    <div class="lbl">Ce mois-ci</div>
+    <i class="fas fa-calendar-check ico"></i>
+  </div>
+</div>
+
+<!-- ── FILTER ── -->
+<div class="filter-card">
+  <form method="GET" class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Filtrer par date</label>
+      <input type="date" class="form-control" name="date_filter" value="{{ date_filter }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Rechercher personnel</label>
+      <input type="text" class="form-control" name="search" placeholder="Nom, prénom, matricule…"
+             value="{{ search if search else '' }}">
+    </div>
+    <div class="col-md-auto d-flex gap-2">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-filter"></i>Filtrer
+      </button>
+      <a href="{{ url_for('main.deplacements') }}" class="btn btn-secondary">
+        <i class="fas fa-undo"></i>Reset
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- ── TABLE ── -->
+<div class="table-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <p style="font-size:.82rem; color: var(--text-muted); margin:0;">
+      <i class="fas fa-calendar-day me-2" style="color:#38bdf8;"></i>
+      Situation du <strong style="color:var(--text-secondary);">{{ date_filter }}</strong>
+    </p>
+    <span class="nb-badge">
+      <i class="fas fa-users"></i>{{ personnels|length }} personnels
+    </span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="deplTable">
+      <thead>
+        <tr>
+          <th>Matricule</th>
+          <th>Personnel</th>
+          <th>Société</th>
+          <th>Projets actifs</th>
+          <th style="text-align:center;">Nb déplacements</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for personnel, projets_list, nb_deplacements in personnels %}
+        <tr>
+          <td>
+            <span class="badge bg-secondary" style="font-family:var(--font-mono);">
+              {{ personnel.matricule }}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:.6rem;">
+              <div class="p-avatar">{{ personnel.nom[0] }}{{ personnel.prenom[0] }}</div>
+              <div>
+                <div style="font-weight:700; font-size:.88rem;">{{ personnel.nom }} {{ personnel.prenom }}</div>
+                <div style="font-size:.7rem; color:var(--text-muted);">{{ personnel.type_salaire|title }}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:.85rem;">{{ personnel.societe }}</td>
+          <td>
+            {% if projets_list %}
+              {% for projet in projets_list.split(',') %}
+                <span class="proj-chip">
+                  <i class="fas fa-map-pin" style="font-size:.65rem;"></i>{{ projet }}
+                </span>
+              {% endfor %}
+            {% else %}
+              <span style="font-size:.78rem; color:var(--text-muted);">
+                <i class="fas fa-minus me-1" style="font-size:.6rem;"></i>Aucun
+              </span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            <span class="nb-badge">{{ nb_deplacements }}</span>
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <button class="action-btn edit"
+                      onclick="viewDeplacements({{ personnel.id }}, '{{ personnel.nom }} {{ personnel.prenom }}')"
+                      title="Voir les déplacements">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="action-btn del"
+                      onclick="quickAddDeplacement({{ personnel.id }}, '{{ personnel.nom }} {{ personnel.prenom }}')"
+                      title="Ajouter un déplacement pour ce personnel"
+                      style="border-color:rgba(79,142,247,.3);color:#4f8ef7;">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="fas fa-route"></i>
+              <h5>Aucun personnel trouvé</h5>
+              <p>Aucun résultat pour cette date ou recherche.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — AJOUTER DÉPLACEMENT (multi-personnel)
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="addDeplacementModal" tabindex="-1" aria-labelledby="addDeplacementLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="addDeplacementLabel">
+          <i class="fas fa-route"></i>Nouveau Déplacement
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('main.add_deplacement') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="modal-body">
+
+          <!-- ── Personnels — Searchable Checklist ── -->
+          <div class="mb-4">
+            <label class="form-label">
+              <i class="fas fa-users me-1" style="color:#4f8ef7;"></i>
+              Personnels
+              <span style="color:var(--text-muted);text-transform:none;font-weight:400;letter-spacing:0;">
+                — sélectionnez un ou plusieurs
+              </span>
+            </label>
+
+            <div class="personnel-picker">
+              <!-- Search bar -->
+              <div class="personnel-search-wrap">
+                <input type="text" id="personnelSearch"
+                       class="form-control"
+                       placeholder="Rechercher par nom ou prénom…"
+                       autocomplete="off">
+                <i class="fas fa-search search-icon"></i>
+              </div>
+
+              <!-- Scrollable list -->
+              <div class="personnel-list" id="personnelList">
+                <div class="picker-msg">
+                  <div class="spinner-border spinner-border-sm" role="status"
+                       style="width:1.2rem;height:1.2rem;color:#4f8ef7;"></div>
+                  <span style="display:block;margin-top:.4rem;">Chargement…</span>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="picker-footer">
+                <span class="picker-count">
+                  <i class="fas fa-check-square" style="color:#4f8ef7;"></i>
+                  Sélectionné(s) : <span class="cnt-num" id="selectedCount">0</span>
+                </span>
+                <button type="button" id="selectAllBtn">Tout sélectionner</button>
+              </div>
+            </div>
+
+            <!-- Hidden inputs built dynamically -->
+            <div id="personnelHiddenInputs"></div>
+          </div>
+
+          <!-- Projet -->
+          <div class="mb-4">
+            <label class="form-label">
+              <i class="fas fa-building me-1" style="color:#9b5cf6;"></i>Projet
+            </label>
+            <select class="form-select" name="projet_id" required>
+              <option value="">Choisir un projet…</option>
+              {% for projet in projets %}
+              <option value="{{ projet.id }}">{{ projet.nom }} — {{ projet.ville }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Dates -->
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label"><i class="fas fa-calendar-plus me-1" style="color:#06d6a0;"></i>Date début</label>
+              <input type="date" class="form-control" name="date_debut" id="dateDebut" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label"><i class="fas fa-clock me-1" style="color:#06d6a0;"></i>Heure début</label>
+              <input type="time" class="form-control" name="heure_debut" value="08:00" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label"><i class="fas fa-calendar-minus me-1" style="color:#f7c948;"></i>Date fin</label>
+              <input type="date" class="form-control" name="date_fin" id="dateFin" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label"><i class="fas fa-clock me-1" style="color:#f7c948;"></i>Heure fin</label>
+              <input type="time" class="form-control" name="heure_fin" value="17:00" required>
+            </div>
+          </div>
+
+          <!-- Duration preview -->
+          <div id="durationPreview" class="mt-3" style="display:none;">
+            <div style="
+              background: rgba(6,214,160,.08);
+              border: 1px solid rgba(6,214,160,.2);
+              border-radius: var(--r-lg);
+              padding: .75rem 1rem;
+              font-size:.83rem; color:#06d6a0;
+              display:flex; align-items:center; gap:.5rem;
+            ">
+              <i class="fas fa-info-circle"></i>
+              Durée : <strong id="durationText"></strong>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i>Enregistrer le déplacement
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — AJOUT RAPIDE (personnel pré-sélectionné)
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="quickAddModal" tabindex="-1" aria-labelledby="quickAddLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="quickAddLabel">
+          <i class="fas fa-bolt"></i>Déplacement Rapide
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('main.add_deplacement') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="personnel_ids[]" id="quickPersonnelId">
+
+        <div class="modal-body">
+          <div class="mb-3 p-3" style="
+            background:rgba(79,142,247,.08);
+            border:1px solid rgba(79,142,247,.2);
+            border-radius:var(--r-lg);
+            font-size:.85rem; color:#4f8ef7;
+            display:flex; align-items:center; gap:.6rem;">
+            <i class="fas fa-user"></i>
+            <span id="quickPersonnelName" style="font-weight:700;"></span>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Projet</label>
+            <select class="form-select" name="projet_id" required>
+              <option value="">Choisir un projet…</option>
+              {% for projet in projets %}
+              <option value="{{ projet.id }}">{{ projet.nom }} — {{ projet.ville }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Date début</label>
+              <input type="date" class="form-control" name="date_debut" id="quickDateDebut" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Heure début</label>
+              <input type="time" class="form-control" name="heure_debut" value="08:00" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Date fin</label>
+              <input type="date" class="form-control" name="date_fin" id="quickDateFin" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Heure fin</label>
+              <input type="time" class="form-control" name="heure_fin" value="17:00" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — VOIR LES DÉPLACEMENTS D'UN PERSONNEL
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="viewDeplacementsModal" tabindex="-1" aria-labelledby="viewDeplacementsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#38bdf8,#4f8ef7);">
+        <h5 class="modal-title" id="viewDeplacementsLabel">
+          <i class="fas fa-history"></i>
+          Historique — <span id="viewPersonnelName"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-0">
+        <div id="viewDeplacementsContent">
+          <div style="text-align:center; padding:3rem;">
+            <div class="spinner-border"></div>
+            <p style="color:var(--text-muted); margin-top:1rem; font-size:.85rem;">Chargement…</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — ÉDITER UN DÉPLACEMENT
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="editDeplacementModal" tabindex="-1" aria-labelledby="editDeplacementLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#f7c948,#fb923c);">
+        <h5 class="modal-title" id="editDeplacementLabel">
+          <i class="fas fa-edit"></i>Modifier le Déplacement
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form id="editDeplacementForm" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">Projet</label>
+            <select class="form-select" name="projet_id" id="editProjetId" required>
+              {% for projet in projets %}
+              <option value="{{ projet.id }}">{{ projet.nom }} — {{ projet.ville }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Date début</label>
+              <input type="date" class="form-control" name="date_debut" id="editDateDebut" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Heure début</label>
+              <input type="time" class="form-control" name="heure_debut" id="editHeureDebut" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date fin</label>
+              <input type="date" class="form-control" name="date_fin" id="editDateFin" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Heure fin</label>
+              <input type="time" class="form-control" name="heure_fin" id="editHeureFin" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-save"></i>Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — CONFIRMATION SUPPRESSION
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteDeplacementModal" tabindex="-1" aria-labelledby="deleteDeplacementLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title" id="deleteDeplacementLabel">
+          <i class="fas fa-trash-alt"></i>Confirmer la suppression
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" style="text-align:center; padding:2rem;">
+        <div style="
+          width:60px; height:60px; border-radius:18px;
+          background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.25);
+          display:flex; align-items:center; justify-content:center;
+          font-size:1.5rem; color:#ff6b6b; margin:0 auto 1.25rem;
+        ">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p style="font-size:.92rem; color:var(--text-secondary); margin:0;">
+          Êtes-vous sûr de vouloir supprimer ce déplacement ?<br>
+          <small style="color:var(--text-muted);">Cette action est irréversible.</small>
+        </p>
+      </div>
+
+      <div class="modal-footer" style="justify-content:center; gap:.75rem;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form id="deleteDeplacementForm" method="POST" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+/* ════════════════════════════════════════════════════════
+   CUSTOM PERSONNEL PICKER
+   — Loads all personnel on modal open via AJAX
+   — Live-filters the list as the user types
+   — Builds hidden inputs for form submission
+   ════════════════════════════════════════════════════════ */
+
+const SEARCH_URL = '{{ url_for("main.search_personnels") }}';
+let allPersonnels = [];        // full list fetched once
+let selectedIds   = new Set(); // currently checked IDs
+let searchTimer   = null;      // debounce handle
+
+/* ── Render the picker list ── */
+function renderPickerList(items) {
+  const list = document.getElementById('personnelList');
+
+  if (!items.length) {
+    list.innerHTML = `
+      <div class="picker-msg">
+        <i class="fas fa-user-slash"></i>Aucun résultat trouvé
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(p => {
+    const initials  = (p.nom[0] + p.prenom[0]).toUpperCase();
+    const checked   = selectedIds.has(p.id);
+    const selClass  = checked ? 'selected' : '';
+    return `
+      <label class="p-pick-row ${selClass}" data-id="${p.id}">
+        <input type="checkbox" value="${p.id}" ${checked ? 'checked' : ''}
+               onchange="togglePersonnel(${p.id}, this.checked, '${p.nom}', '${p.prenom}', '${p.matricule}')">
+        <div class="p-pick-avatar">${initials}</div>
+        <div class="p-pick-info">
+          <div class="p-pick-name">${p.nom} ${p.prenom}</div>
+          <div class="p-pick-meta">${p.matricule} &middot; ${p.societe}</div>
+        </div>
+      </label>`;
+  }).join('');
+}
+
+/* ── Toggle a personnel in/out of selection ── */
+function togglePersonnel(id, checked, nom, prenom, matricule) {
+  if (checked) {
+    selectedIds.add(id);
+  } else {
+    selectedIds.delete(id);
+  }
+
+  // Update row visual
+  const row = document.querySelector(`.p-pick-row[data-id="${id}"]`);
+  if (row) row.classList.toggle('selected', checked);
+
+  // Re-sync hidden inputs
+  syncHiddenInputs();
+  updateCount();
+}
+
+/* ── Build hidden <input> elements for form POST ── */
+function syncHiddenInputs() {
+  const container = document.getElementById('personnelHiddenInputs');
+  container.innerHTML = '';
+  selectedIds.forEach(id => {
+    const inp = document.createElement('input');
+    inp.type  = 'hidden';
+    inp.name  = 'personnel_ids[]';
+    inp.value = id;
+    container.appendChild(inp);
+  });
+}
+
+/* ── Update the "X selected" counter ── */
+function updateCount() {
+  const el = document.getElementById('selectedCount');
+  if (el) el.textContent = selectedIds.size;
+
+  const btn = document.getElementById('selectAllBtn');
+  if (!btn) return;
+
+  const visible = allPersonnels.filter(p => {
+    const term = (document.getElementById('personnelSearch')?.value || '').toLowerCase();
+    return !term || `${p.nom} ${p.prenom} ${p.matricule}`.toLowerCase().includes(term);
+  });
+
+  const allChecked = visible.length > 0 && visible.every(p => selectedIds.has(p.id));
+  btn.textContent  = allChecked ? 'Tout désélectionner' : 'Tout sélectionner';
+}
+
+/* ── Select / deselect all visible rows ── */
+document.getElementById('selectAllBtn')?.addEventListener('click', function () {
+  const term    = (document.getElementById('personnelSearch')?.value || '').toLowerCase();
+  const visible = allPersonnels.filter(p =>
+    !term || `${p.nom} ${p.prenom} ${p.matricule}`.toLowerCase().includes(term)
+  );
+
+  const allChecked = visible.every(p => selectedIds.has(p.id));
+
+  visible.forEach(p => {
+    if (allChecked) selectedIds.delete(p.id);
+    else            selectedIds.add(p.id);
+  });
+
+  syncHiddenInputs();
+  renderPickerList(visible.length ? visible : allPersonnels);
+  updateCount();
+});
+
+/* ── Live search with 200ms debounce ── */
+document.getElementById('personnelSearch')?.addEventListener('input', function () {
+  clearTimeout(searchTimer);
+  const term = this.value.trim().toLowerCase();
+
+  searchTimer = setTimeout(() => {
+    /* Client-side filter on the already-loaded list */
+    const filtered = term
+      ? allPersonnels.filter(p =>
+          `${p.nom} ${p.prenom} ${p.matricule}`.toLowerCase().includes(term))
+      : allPersonnels;
+
+    renderPickerList(filtered);
+    updateCount();
+  }, 150);
+});
+
+/* ── Load all personnel when the modal opens ── */
+$('#addDeplacementModal').on('show.bs.modal', function () {
+  /* Reset search input */
+  const searchEl = document.getElementById('personnelSearch');
+  if (searchEl) searchEl.value = '';
+
+  /* Show spinner */
+  document.getElementById('personnelList').innerHTML = `
+    <div class="picker-msg">
+      <div class="spinner-border spinner-border-sm" role="status"
+           style="width:1.2rem;height:1.2rem;color:#4f8ef7;"></div>
+      <span style="display:block;margin-top:.4rem;">Chargement…</span>
+    </div>`;
+
+  /* Fetch with empty term → backend returns up to 100 results */
+  $.getJSON(SEARCH_URL, { term: '' }, function (data) {
+    allPersonnels = data;
+    renderPickerList(allPersonnels);
+    updateCount();
+  }).fail(function () {
+    document.getElementById('personnelList').innerHTML = `
+      <div class="picker-msg" style="color:var(--accent-red);">
+        <i class="fas fa-exclamation-circle"></i>
+        Erreur de chargement. Réessayez.
+      </div>`;
+  });
+});
+
+/* ── Reset selection when modal is closed ── */
+$('#addDeplacementModal').on('hidden.bs.modal', function () {
+  selectedIds.clear();
+  syncHiddenInputs();
+  updateCount();
+  allPersonnels = [];
+  document.getElementById('personnelList').innerHTML = '';
+});
+
+/* ── Validate: at least 1 personnel selected ── */
+document.getElementById('addDeplacementModal')
+  ?.querySelector('form')
+  ?.addEventListener('submit', function (e) {
+    if (selectedIds.size === 0) {
+      e.preventDefault();
+      const list = document.getElementById('personnelList');
+      list.insertAdjacentHTML('beforebegin', `
+        <div id="pickerError" style="
+          background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);
+          border-radius:var(--r-md);padding:.6rem 1rem;margin-bottom:.5rem;
+          font-size:.8rem;color:#ff6b6b;display:flex;align-items:center;gap:.5rem;">
+          <i class="fas fa-exclamation-circle"></i>
+          Veuillez sélectionner au moins un personnel.
+        </div>`);
+      setTimeout(() => document.getElementById('pickerError')?.remove(), 3000);
+    }
+  });
+
+
+/* ════════════════════════════════════════════════════════
+   DURATION PREVIEW
+   ════════════════════════════════════════════════════════ */
+function calcDuration(startId, endId, previewId, textId) {
+  const start = document.getElementById(startId)?.value;
+  const end   = document.getElementById(endId)?.value;
+  const prev  = document.getElementById(previewId);
+  const txt   = document.getElementById(textId);
+  if (!start || !end || !prev || !txt) return;
+
+  const d1 = new Date(start), d2 = new Date(end);
+  if (d2 < d1) { prev.style.display = 'none'; return; }
+
+  const diff = Math.round((d2 - d1) / 86400000) + 1;
+  txt.textContent  = diff + (diff > 1 ? ' jours' : ' jour');
+  prev.style.display = '';
+}
+
+document.getElementById('dateDebut')?.addEventListener('change', () =>
+  calcDuration('dateDebut','dateFin','durationPreview','durationText'));
+document.getElementById('dateFin')?.addEventListener('change', () =>
+  calcDuration('dateDebut','dateFin','durationPreview','durationText'));
+
+
+/* ════════════════════════════════════════════════════════
+   DEFAULT TODAY FOR DATE INPUTS
+   ════════════════════════════════════════════════════════ */
+(function () {
+  const today = new Date().toISOString().split('T')[0];
+  ['dateDebut','dateFin','quickDateDebut','quickDateFin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = today;
+  });
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   QUICK ADD (personnel pré-sélectionné depuis le tableau)
+   ════════════════════════════════════════════════════════ */
+function quickAddDeplacement(id, name) {
+  document.getElementById('quickPersonnelId').value        = id;
+  document.getElementById('quickPersonnelName').textContent = name;
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('quickDateDebut').value = today;
+  document.getElementById('quickDateFin').value   = today;
+  new bootstrap.Modal(document.getElementById('quickAddModal')).show();
+}
+
+
+/* ════════════════════════════════════════════════════════
+   VOIR LES DÉPLACEMENTS D'UN PERSONNEL
+   ════════════════════════════════════════════════════════ */
+function viewDeplacements(personnelId, name) {
+  document.getElementById('viewPersonnelName').textContent = name;
+  document.getElementById('viewDeplacementsContent').innerHTML = `
+    <div style="text-align:center; padding:3rem;">
+      <div class="spinner-border"></div>
+      <p style="color:var(--text-muted); margin-top:1rem; font-size:.85rem;">Chargement…</p>
+    </div>`;
+  new bootstrap.Modal(document.getElementById('viewDeplacementsModal')).show();
+
+  fetch(`/api/personnel/${personnelId}/deplacements`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.length) {
+        document.getElementById('viewDeplacementsContent').innerHTML = `
+          <div style="text-align:center; padding:3rem; color:var(--text-muted);">
+            <i class="fas fa-route" style="font-size:2.5rem; opacity:.15; display:block; margin-bottom:.75rem;"></i>
+            <p style="font-size:.9rem;">Aucun déplacement enregistré.</p>
+          </div>`;
+        return;
+      }
+
+      const rows = data.map(d => `
+        <tr>
+          <td><span class="badge bg-info">${d.projet}</span></td>
+          <td><span class="date-cell">${d.date_debut}<br><span class="time-dim">${d.heure_debut}</span></span></td>
+          <td><span class="date-cell">${d.date_fin}<br><span class="time-dim">${d.heure_fin}</span></span></td>
+          <td><span class="dur-badge"><i class="fas fa-clock"></i>${d.jours}j</span></td>
+          <td>
+            <div class="d-flex gap-1">
+              <button class="action-btn edit" onclick="editDeplacement(${d.id})" title="Modifier">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="action-btn del" onclick="confirmDelete(${d.id})" title="Supprimer">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+
+      document.getElementById('viewDeplacementsContent').innerHTML = `
+        <div class="p-3">
+          <table class="table">
+            <thead>
+              <tr><th>Projet</th><th>Début</th><th>Fin</th><th>Durée</th><th>Actions</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    })
+    .catch(() => {
+      document.getElementById('viewDeplacementsContent').innerHTML = `
+        <div style="text-align:center; padding:3rem; color:var(--accent-red);">
+          <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>Erreur de chargement.
+        </div>`;
+    });
+}
+
+
+/* ════════════════════════════════════════════════════════
+   ÉDITER UN DÉPLACEMENT
+   ════════════════════════════════════════════════════════ */
+function editDeplacement(id) {
+  fetch(`/api/deplacement/${id}`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('editDeplacementForm').action = `/deplacements/edit/${id}`;
+      document.getElementById('editProjetId').value   = d.projet_id;
+      document.getElementById('editDateDebut').value  = d.date_debut;
+      document.getElementById('editHeureDebut').value = d.heure_debut;
+      document.getElementById('editDateFin').value    = d.date_fin;
+      document.getElementById('editHeureFin').value   = d.heure_fin;
+
+      bootstrap.Modal.getInstance(document.getElementById('viewDeplacementsModal'))?.hide();
+      setTimeout(() => {
+        new bootstrap.Modal(document.getElementById('editDeplacementModal')).show();
+      }, 300);
+    })
+    .catch(() => alert('Erreur lors du chargement des données.'));
+}
+
+
+/* ════════════════════════════════════════════════════════
+   SUPPRIMER UN DÉPLACEMENT
+   ════════════════════════════════════════════════════════ */
+function confirmDelete(id) {
+  document.getElementById('deleteDeplacementForm').action = `/deplacements/delete/${id}`;
+  bootstrap.Modal.getInstance(document.getElementById('viewDeplacementsModal'))?.hide();
+  setTimeout(() => {
+    new bootstrap.Modal(document.getElementById('deleteDeplacementModal')).show();
+  }, 300);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,741 @@
+{% extends "base.html" %}
+
+{% block title %}Projets — Gestion Personnels{% endblock %}
+
+{% block extra_css %}
+<style>
+  .project-card {
+    transition: var(--t-base);
+    border-left: 3px solid transparent;
+    cursor: default;
+  }
+  .project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    border-left-color: var(--accent-purple);
+  }
+
+  .location-badge {
+    display: inline-flex; align-items:center; gap:.3rem;
+    padding: .3rem .75rem;
+    background: rgba(79,142,247,.08);
+    color: var(--accent-blue);
+    border-radius: var(--r-full);
+    font-size: .75rem; font-weight:600;
+    border: 1px solid rgba(79,142,247,.18);
+    margin-right: .3rem; margin-bottom:.3rem;
+  }
+  .location-badge i { font-size:.68rem; }
+
+  .stats-mini {
+    display: flex; gap:.5rem; margin-top:1rem;
+    padding-top:1rem;
+    border-top: 1px solid var(--border);
+  }
+  .stat-item {
+    text-align:center; flex:1;
+    padding: .5rem;
+    background: var(--bg-overlay);
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+  }
+  .stat-value {
+    font-size:1.35rem; font-weight:800;
+    letter-spacing:-.03em;
+    font-family: var(--font-mono);
+  }
+  .stat-label {
+    font-size:.62rem; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:.06em; margin-top:.1rem;
+  }
+
+  .map-preview {
+    height:85px;
+    background: rgba(79,142,247,.05);
+    border: 1px dashed rgba(79,142,247,.15);
+    border-radius: var(--r-lg);
+    display:flex; align-items:center; justify-content:center;
+    color: rgba(79,142,247,.3);
+    font-size:2.2rem; margin-bottom:1rem;
+    transition: var(--t-base);
+  }
+  .project-card:hover .map-preview {
+    background: rgba(79,142,247,.1);
+    border-color: rgba(79,142,247,.3);
+    color: var(--accent-blue);
+  }
+
+  .filter-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--r-xl);
+    margin-bottom: 1.5rem;
+  }
+
+  .region-filter { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .region-btn {
+    padding: .35rem .9rem;
+    border: 1px solid var(--border-md);
+    background: var(--bg-overlay);
+    color: var(--text-muted);
+    border-radius: var(--r-full);
+    cursor:pointer; transition: var(--t-fast);
+    font-size:.78rem; font-weight:600;
+    font-family: var(--font-body);
+  }
+  .region-btn:hover {
+    background: rgba(79,142,247,.1);
+    border-color: rgba(79,142,247,.3);
+    color: var(--accent-blue);
+  }
+  .region-btn.active {
+    background: linear-gradient(135deg,rgba(79,142,247,.25),rgba(155,92,246,.25));
+    border-color: rgba(79,142,247,.45);
+    color: var(--accent-blue);
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 1.25rem;
+  }
+  @media(max-width:768px){ .project-grid { grid-template-columns:1fr; } }
+
+  /* 3-dot menu button */
+  .project-menu-btn {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-md);
+    color: var(--text-muted);
+    border-radius: 9px;
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    transition: var(--t-fast);
+    padding:0; cursor:pointer;
+    flex-shrink:0;
+  }
+  .project-menu-btn:hover {
+    background: var(--bg-overlay-md);
+    color: var(--text-primary);
+  }
+
+  /* stats bar */
+  .stats-row {
+    display:grid;
+    grid-template-columns: repeat(4,1fr);
+    gap:.75rem; margin-bottom:1.25rem;
+  }
+  @media(max-width:768px){ .stats-row { grid-template-columns:repeat(2,1fr); } }
+  .stat-mini {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); padding:1rem 1.25rem;
+    position:relative; overflow:hidden; transition: var(--t-base);
+  }
+  .stat-mini:hover { border-color:var(--border-md); transform:translateY(-2px); }
+  .stat-mini::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:2px;
+    background: var(--grad-primary);
+  }
+  .stat-mini.s2::before { background: var(--grad-success); }
+  .stat-mini.s3::before { background: var(--grad-warning); }
+  .stat-mini.s4::before { background: var(--grad-info); }
+  .stat-mini .num {
+    font-size:2rem; font-weight:800; letter-spacing:-.04em;
+    color: var(--text-primary); line-height:1;
+  }
+  .stat-mini .lbl {
+    font-size:.65rem; font-weight:700; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-muted); margin-top:.25rem;
+  }
+  .stat-mini .ico {
+    position:absolute; right:1rem; top:50%; transform:translateY(-50%);
+    font-size:1.5rem; opacity:.07;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <span style="background:linear-gradient(135deg,#9b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        <i class="fas fa-building"></i>
+      </span>
+      Gestion des Projets
+    </h2>
+    <p class="page-sub">Gérez vos chantiers et suivez leur occupation</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjetModal">
+    <i class="fas fa-plus"></i>Nouveau Projet
+  </button>
+</div>
+
+<!-- ── STATS ── -->
+<div class="stats-row">
+  <div class="stat-mini">
+    <div class="num">{{ projets|length }}</div>
+    <div class="lbl">Total projets</div>
+    <i class="fas fa-building ico"></i>
+  </div>
+  <div class="stat-mini s2">
+    <div class="num" id="activeCount">{{ projets|length }}</div>
+    <div class="lbl">Affichés</div>
+    <i class="fas fa-eye ico"></i>
+  </div>
+  <div class="stat-mini s3">
+    <div class="num" id="regionCount">0</div>
+    <div class="lbl">Régions</div>
+    <i class="fas fa-map ico"></i>
+  </div>
+  <div class="stat-mini s4">
+    <div class="num">{{ total_deplacements }}</div>
+    <div class="lbl">Déplacements</div>
+    <i class="fas fa-route ico"></i>
+  </div>
+</div>
+
+<!-- ── FILTRES ── -->
+<div class="filter-section">
+  <div class="row align-items-center g-3">
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <input type="text" class="form-control" id="searchProjet" placeholder="Rechercher un projet…">
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="region-filter">
+        <button class="region-btn active" data-filter="all">Tous</button>
+        <button class="region-btn" data-filter="Tunis">Tunis</button>
+        <button class="region-btn" data-filter="Sfax">Sfax</button>
+        <button class="region-btn" data-filter="Sousse">Sousse</button>
+        <button class="region-btn" data-filter="Nabeul">Nabeul</button>
+        <button class="region-btn" data-filter="Monastir">Monastir</button>
+        <button class="region-btn" data-filter="Bizerte">Bizerte</button>
+        <button class="region-btn" data-filter="Gabès">Gabès</button>
+        <button class="region-btn" data-filter="Kairouan">Kairouan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROJECT GRID ── -->
+<div class="project-grid" id="projetsGrid">
+  {% for projet in projets %}
+  <div class="card project-card p-0"
+       data-region="{{ projet.region }}"
+       data-name="{{ projet.nom.lower() }}"
+       style="overflow:hidden;">
+
+    <!-- Accent top bar -->
+    <div style="height:3px; background:linear-gradient(90deg,#9b5cf6,#4f8ef7);"></div>
+
+    <div class="card-body p-4">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <h5 class="mb-0 text-truncate"
+            style="max-width:75%;font-weight:700;color:var(--text-primary);"
+            title="{{ projet.nom }}">
+          {{ projet.nom }}
+        </h5>
+        <div class="dropdown">
+          <button class="project-menu-btn"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  aria-label="Options du projet">
+            <i class="fas fa-ellipsis-v" style="font-size:.8rem;"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="editProjet({{ projet.id }}); return false;">
+                <i class="fas fa-edit me-2" style="color:#f7c948;"></i>Modifier
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="viewStats({{ projet.id }}); return false;">
+                <i class="fas fa-chart-bar me-2" style="color:#38bdf8;"></i>Statistiques
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="deleteProjet({{ projet.id }}); return false;"
+                 style="color:var(--accent-red);">
+                <i class="fas fa-trash me-2"></i>Supprimer
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Map placeholder -->
+      <div class="map-preview">
+        <i class="fas fa-map-marker-alt"></i>
+      </div>
+
+      <!-- Location badges -->
+      <div class="mb-3">
+        <span class="location-badge"><i class="fas fa-map"></i>{{ projet.region }}</span>
+        <span class="location-badge"><i class="fas fa-city"></i>{{ projet.gouvernorat }}</span>
+        <span class="location-badge"><i class="fas fa-home"></i>{{ projet.ville }}</span>
+      </div>
+
+      <!-- Address -->
+      <p style="font-size:.76rem; color:var(--text-muted); margin-bottom:0;">
+        <i class="fas fa-map-pin me-2" style="color:rgba(240,244,255,.15);"></i>
+        {{ projet.adresse[:65] }}{% if projet.adresse|length > 65 %}…{% endif %}
+      </p>
+
+      <!-- Mini stats -->
+      <div class="stats-mini">
+        <div class="stat-item">
+          <div class="stat-value" style="color:var(--accent-blue);">{{ projet.nb_deplacements }}</div>
+          <div class="stat-label">Déplacements</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-success dep-personnel" data-id="{{ projet.id }}">—</div>
+          <div class="stat-label">Personnels</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-info dep-jours" data-id="{{ projet.id }}">—</div>
+          <div class="stat-label">Jours</div>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-2" style="border-top:1px solid var(--border);">
+        <small style="font-size:.7rem; color:var(--text-disabled);">
+          <i class="fas fa-calendar-alt me-1"></i>
+          Créé le {{ projet.created_at.strftime('%d/%m/%Y') }}
+        </small>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column:1/-1;">
+    <div class="table-container" style="text-align:center; padding:4rem 2rem;">
+      <i class="fas fa-building fa-3x d-block mb-3" style="color:rgba(240,244,255,.07);"></i>
+      <h5 style="color:var(--text-muted); margin-bottom:.5rem;">Aucun projet trouvé</h5>
+      <p style="font-size:.85rem; color:var(--text-disabled);">Commencez par créer votre premier chantier</p>
+      <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addProjetModal">
+        <i class="fas fa-plus"></i>Créer un projet
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — AJOUTER PROJET
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="addProjetModal" tabindex="-1" aria-labelledby="addProjetLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProjetLabel">
+          <i class="fas fa-plus-circle"></i>Nouveau Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('main.add_projet') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">Nom du Projet *</label>
+            <input type="text" class="form-control" name="nom" required
+                   placeholder="Ex : Chantier Lac Nord">
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Région *</label>
+              <input type="text" class="form-control" name="region" id="regionSelect"
+                     required list="regionsList" placeholder="Ex : Tunis" autocomplete="off">
+              <datalist id="regionsList">
+                <option value="Tunis"><option value="Sfax"><option value="Sousse">
+                <option value="Nabeul"><option value="Bizerte"><option value="Monastir">
+                <option value="Gabès"><option value="Kairouan"><option value="Gafsa">
+                <option value="Tozeur"><option value="Kébili"><option value="Tataouine">
+                <option value="Médenine"><option value="Mahdia"><option value="Sidi Bouzid">
+                <option value="Zaghouan"><option value="Jendouba"><option value="Le Kef">
+                <option value="Siliana"><option value="Kasserine"><option value="Béja">
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Gouvernorat *</label>
+              <input type="text" class="form-control" name="gouvernorat" id="gouvernoratInput"
+                     required placeholder="Ex : Tunis" autocomplete="off">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ville *</label>
+              <input type="text" class="form-control" name="ville" required
+                     placeholder="Ex : La Marsa">
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Adresse complète *</label>
+            <textarea class="form-control" name="adresse" rows="2" required
+                      placeholder="Rue, numéro, code postal…"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — ÉDITER PROJET
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="editProjetModal" tabindex="-1" aria-labelledby="editProjetLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#f7c948,#fb923c);">
+        <h5 class="modal-title" id="editProjetLabel">
+          <i class="fas fa-edit"></i>Modifier le Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form id="editProjetForm" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">Nom du Projet *</label>
+            <input type="text" class="form-control" name="nom" id="editNom" required>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Région *</label>
+              <input type="text" class="form-control" name="region" id="editRegion"
+                     required list="regionsList2" autocomplete="off">
+              <datalist id="regionsList2">
+                <option value="Tunis"><option value="Sfax"><option value="Sousse">
+                <option value="Nabeul"><option value="Bizerte"><option value="Monastir">
+                <option value="Gabès"><option value="Kairouan"><option value="Gafsa">
+                <option value="Tozeur"><option value="Kébili"><option value="Tataouine">
+                <option value="Médenine"><option value="Mahdia"><option value="Sidi Bouzid">
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Gouvernorat *</label>
+              <input type="text" class="form-control" name="gouvernorat" id="editGouvernorat" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ville *</label>
+              <input type="text" class="form-control" name="ville" id="editVille" required>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Adresse complète *</label>
+            <textarea class="form-control" name="adresse" id="editAdresse" rows="2" required></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-save"></i>Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — CONFIRMATION SUPPRESSION
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteProjetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title">
+          <i class="fas fa-trash-alt"></i>Confirmer la suppression
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" style="text-align:center; padding:2rem;">
+        <div style="
+          width:60px;height:60px;border-radius:18px;
+          background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);
+          display:flex;align-items:center;justify-content:center;
+          font-size:1.5rem;color:#ff6b6b;margin:0 auto 1.25rem;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p style="font-size:.9rem;color:var(--text-secondary);margin:0;">
+          Êtes-vous sûr de vouloir supprimer ce projet ?<br>
+          <small style="color:var(--text-muted);">Tous les déplacements associés seront supprimés.</small>
+        </p>
+      </div>
+
+      <div class="modal-footer" style="justify-content:center;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form id="deleteProjetForm" method="POST" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — STATISTIQUES
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="statsProjetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#38bdf8,#4f8ef7);">
+        <h5 class="modal-title">
+          <i class="fas fa-chart-pie"></i>Statistiques du Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" id="statsContent">
+        <div style="text-align:center;padding:3rem;">
+          <div class="spinner-border"></div>
+          <p style="color:var(--text-muted);margin-top:1rem;font-size:.85rem;">Chargement…</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+/* ──────────────────────────────────────────
+   Données gouvernorats par région (Tunisie)
+   ────────────────────────────────────────── */
+const regionsData = {
+  'Tunis':    ['Tunis','Ariana','Manouba','Ben Arous'],
+  'Sfax':     ['Sfax Ville','Sfax Est','Sfax Sud','Sfax Ouest'],
+  'Sousse':   ['Sousse','Monastir','Mahdia'],
+  'Nabeul':   ['Nabeul','Zaghouan'],
+  'Bizerte':  ['Bizerte','Jendouba','Le Kef'],
+  'Gabès':    ['Gabès','Médenine','Tataouine'],
+  'Kairouan': ['Kairouan','Sidi Bouzid','Gafsa'],
+  'Gafsa':    ['Gafsa','Tozeur','Kébili']
+};
+
+/* ── Auto-complétion gouvernorat ── */
+document.getElementById('regionSelect')?.addEventListener('input', function () {
+  const region = this.value;
+  const gov    = document.getElementById('gouvernoratInput');
+  document.getElementById('gouvernoratList')?.remove();
+
+  if (regionsData[region]) {
+    const dl = document.createElement('datalist');
+    dl.id = 'gouvernoratList';
+    regionsData[region].forEach(g => {
+      const o = document.createElement('option'); o.value = g; dl.appendChild(o);
+    });
+    document.body.appendChild(dl);
+    gov.setAttribute('list', 'gouvernoratList');
+    if (regionsData[region].length === 1) gov.value = regionsData[region][0];
+  }
+});
+
+/* ──────────────────────────────────────────
+   Filtrage par région (boutons)
+   ────────────────────────────────────────── */
+document.querySelectorAll('.region-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const filter = this.dataset.filter;
+    document.querySelectorAll('.project-card').forEach(card => {
+      card.style.display = (filter === 'all' || card.dataset.region === filter) ? '' : 'none';
+    });
+    updateStats();
+  });
+});
+
+/* ── Recherche en temps réel ── */
+document.getElementById('searchProjet')?.addEventListener('input', function () {
+  const term = this.value.toLowerCase();
+  document.querySelectorAll('.project-card').forEach(card => {
+    const match = (card.dataset.name || '').includes(term) ||
+                  (card.dataset.region || '').toLowerCase().includes(term);
+    card.style.display = match ? '' : 'none';
+  });
+  updateStats();
+});
+
+/* ── Mise à jour compteurs ── */
+function updateStats() {
+  const visible = [...document.querySelectorAll('.project-card')].filter(c => c.style.display !== 'none');
+  document.getElementById('activeCount').textContent = visible.length;
+  const regions = new Set(visible.map(c => c.dataset.region));
+  document.getElementById('regionCount').textContent = regions.size;
+}
+
+/* ──────────────────────────────────────────
+   Stats dynamiques (personnels, jours)
+   ────────────────────────────────────────── */
+function loadProjectStats() {
+  document.querySelectorAll('.dep-personnel[data-id]').forEach(el => {
+    const id = el.dataset.id;
+    fetch(`/api/projet/${id}/stats`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        el.textContent = data.nb_personnels ?? '—';
+        const j = document.querySelector(`.dep-jours[data-id="${id}"]`);
+        if (j) j.textContent = data.nb_jours ?? '—';
+      })
+      .catch(() => { el.textContent = '—'; });
+  });
+}
+
+/* ──────────────────────────────────────────
+   ÉDITION — ouvre le modal pré-rempli
+   ────────────────────────────────────────── */
+function editProjet(id) {
+  fetch(`/api/projet/${id}`)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur réseau');
+      return r.json();
+    })
+    .then(data => {
+      document.getElementById('editNom').value         = data.nom         || '';
+      document.getElementById('editRegion').value      = data.region      || '';
+      document.getElementById('editGouvernorat').value = data.gouvernorat || '';
+      document.getElementById('editVille').value       = data.ville       || '';
+      document.getElementById('editAdresse').value     = data.adresse     || '';
+      document.getElementById('editProjetForm').action = `/projets/edit/${id}`;
+      new bootstrap.Modal(document.getElementById('editProjetModal')).show();
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Impossible de charger les données du projet. Vérifiez votre connexion.');
+    });
+}
+
+/* ──────────────────────────────────────────
+   SUPPRESSION — ouvre le modal de confirmation
+   ────────────────────────────────────────── */
+function deleteProjet(id) {
+  document.getElementById('deleteProjetForm').action = `/projets/delete/${id}`;
+  new bootstrap.Modal(document.getElementById('deleteProjetModal')).show();
+}
+
+/* ──────────────────────────────────────────
+   STATISTIQUES — charge et affiche le modal
+   ────────────────────────────────────────── */
+function viewStats(id) {
+  document.getElementById('statsContent').innerHTML = `
+    <div style="text-align:center;padding:3rem;">
+      <div class="spinner-border"></div>
+      <p style="color:var(--text-muted);margin-top:1rem;font-size:.85rem;">Chargement…</p>
+    </div>`;
+  new bootstrap.Modal(document.getElementById('statsProjetModal')).show();
+
+  fetch(`/api/projet/${id}/stats`)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur réseau');
+      return r.json();
+    })
+    .then(data => {
+      const rows = (data.personnels || []).map(p => `
+        <tr>
+          <td><span class="badge bg-secondary" style="font-family:var(--font-mono);">${p.matricule}</span></td>
+          <td style="font-weight:600;">${p.nom} ${p.prenom}</td>
+          <td style="font-family:var(--font-mono);font-size:.78rem;">${p.date_debut} → ${p.date_fin}</td>
+          <td><span class="badge bg-primary">${p.jours}j</span></td>
+        </tr>`).join('');
+
+      document.getElementById('statsContent').innerHTML = `
+        <div class="p-4">
+          <h6 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:1rem;">
+            <i class="fas fa-chart-bar me-2" style="color:var(--accent-cyan);"></i>${data.nom || 'Projet'}
+          </h6>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);
+                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-blue);">${data.nb_deplacements ?? 0}</div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Déplacements</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.2);
+                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-green);">${data.nb_personnels ?? 0}</div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Personnels distincts</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-cyan);">${data.nb_jours ?? 0}</div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Jours cumulés</div>
+              </div>
+            </div>
+          </div>
+
+          <h6 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.75rem;">
+            <i class="fas fa-users me-2" style="color:var(--accent-blue);"></i>Personnels affectés
+          </h6>
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>Matricule</th><th>Nom</th><th>Période</th><th>Jours</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun déplacement enregistré</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>`;
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('statsContent').innerHTML = `
+        <div style="text-align:center;padding:3rem;color:var(--accent-red);">
+          <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>
+          <p style="font-size:.9rem;">Erreur lors du chargement des statistiques.</p>
+          <small style="color:var(--text-muted);">Vérifiez que le serveur est en cours d'exécution.</small>
+        </div>`;
+    });
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateStats();
+  loadProjectStats();
+});
+</script>
+{% endblock %}

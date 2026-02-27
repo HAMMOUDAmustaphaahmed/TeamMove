@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Personnels — Accueil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --accent-1: #4f8ef7;
+            --accent-2: #9b5cf6;
+            --accent-3: #06d6a0;
+            --accent-gold: #f7c948;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: #07090f;
+            color: #f0f4ff;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─ HERO ─ */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 2rem;
+        }
+
+        /* Mesh gradient background */
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 60% at 20% 20%, rgba(79,142,247,0.18) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 70%, rgba(155,92,246,0.20) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 50% 50%, rgba(6,214,160,0.07) 0%, transparent 70%),
+                #07090f;
+        }
+
+        /* Grid overlay */
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+        }
+
+        /* Floating orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            animation: orb-float 20s infinite ease-in-out;
+        }
+        .orb-1 { width: 400px; height: 400px; background: var(--accent-1); top: -100px; left: -100px; animation-delay: 0s; }
+        .orb-2 { width: 500px; height: 500px; background: var(--accent-2); bottom: -150px; right: -150px; animation-delay: -7s; }
+        .orb-3 { width: 300px; height: 300px; background: var(--accent-3); top: 40%; left: 60%; animation-delay: -14s; }
+
+        @keyframes orb-float {
+            0%,100% { transform: translate(0, 0) scale(1); }
+            33%      { transform: translate(30px, -30px) scale(1.05); }
+            66%      { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
+        /* Particles */
+        .particles { position: absolute; inset: 0; overflow: hidden; }
+        .particle {
+            position: absolute;
+            width: 2px; height: 2px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            animation: particle-rise linear infinite;
+        }
+        @keyframes particle-rise {
+            from { transform: translateY(110vh) translateX(0); opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 0.5; }
+            to   { transform: translateY(-10vh) translateX(30px); opacity: 0; }
+        }
+
+        /* Hero content */
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(79,142,247,0.12);
+            border: 1px solid rgba(79,142,247,0.3);
+            border-radius: 30px;
+            padding: 0.4rem 1.1rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent-1);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease both;
+        }
+
+        .hero-badge .dot {
+            width: 6px; height: 6px;
+            background: var(--accent-3);
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 7vw, 5.5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.1s both;
+        }
+
+        .hero h1 .word-highlight {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            color: rgba(240,244,255,0.55);
+            margin-bottom: 3rem;
+            font-weight: 400;
+            line-height: 1.7;
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .hero-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.3s both;
+        }
+
+        .btn-hero-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.9rem 2.2rem;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 30px rgba(79,142,247,0.4);
+            font-family: 'Sora', sans-serif;
+        }
+
+        .btn-hero-primary:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 16px 40px rgba(79,142,247,0.55);
+            color: #fff;
+        }
+
+        .btn-hero-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.9rem 2rem;
+            background: rgba(255,255,255,0.06);
+            color: rgba(240,244,255,0.75);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-family: 'Sora', sans-serif;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-hero-secondary:hover {
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.22);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        /* Stats bar */
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 4rem;
+            animation: fadeInUp 0.8s ease 0.5s both;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat .num {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-stat .label {
+            font-size: 0.75rem;
+            color: rgba(240,244,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 0.25rem;
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(240,244,255,0.3);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-indicator i { font-size: 1rem; }
+
+        @keyframes bounce {
+            0%,100% { transform: translateX(-50%) translateY(0); }
+            50%      { transform: translateX(-50%) translateY(6px); }
+        }
+
+        /* ─ FEATURES SECTION ─ */
+        .features {
+            padding: 100px 0;
+            position: relative;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent-1);
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: clamp(1.75rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #f0f4ff;
+            margin-bottom: 1rem;
+        }
+
+        .section-sub {
+            color: rgba(240,244,255,0.45);
+            font-size: 1rem;
+            max-width: 500px;
+            margin: 0 auto 4rem;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .feature-card:hover::before { opacity: 1; }
+        .feature-card:hover {
+            background: rgba(255,255,255,0.055);
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        }
+
+        .feature-card.card-blue::before { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+        .feature-card.card-purple::before { background: linear-gradient(90deg, var(--accent-2), #ec4899); }
+        .feature-card.card-green::before { background: linear-gradient(90deg, var(--accent-3), #0ea5e9); }
+
+        .feature-icon-wrap {
+            width: 70px; height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 1.8rem;
+            position: relative;
+        }
+
+        .card-blue .feature-icon-wrap   { background: rgba(79,142,247,0.12); color: var(--accent-1); }
+        .card-purple .feature-icon-wrap { background: rgba(155,92,246,0.12); color: var(--accent-2); }
+        .card-green .feature-icon-wrap  { background: rgba(6,214,160,0.12);  color: var(--accent-3); }
+
+        .feature-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f0f4ff;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            color: rgba(240,244,255,0.45);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* ─ FOOTER ─ */
+        .landing-footer {
+            text-align: center;
+            padding: 2rem;
+            color: rgba(240,244,255,0.2);
+            font-size: 0.78rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .hero-stats { gap: 2rem; }
+            .feature-card { margin-bottom: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ─ HERO ─ -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-grid"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="particles" id="particles"></div>
+
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                Système de gestion v2.0
+            </div>
+
+            <h1>
+                Gérez vos équipes<br>
+                avec <span class="word-highlight">précision</span>
+            </h1>
+
+            <p>Solution complète pour la gestion de vos ressources humaines, projets et déplacements — en temps réel.</p>
+
+            <div class="hero-cta">
+                <a href="{{ url_for('main.login') }}" class="btn-hero-primary">
+                    <i class="fas fa-sign-in-alt"></i> Accéder à l'espace
+                </a>
+                <a href="#features" class="btn-hero-secondary">
+                    <i class="fas fa-play-circle"></i> Découvrir
+                </a>
+            </div>
+
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="num">100%</div>
+                    <div class="label">Sécurisé</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="num">∞</div>
+                    <div class="label">Personnels</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="num">24/7</div>
+                    <div class="label">Disponible</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+    </section>
+
+    <!-- ─ FEATURES ─ -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="text-center mb-2">
+                <span class="section-label">Fonctionnalités</span>
+            </div>
+            <h2 class="section-title text-center">Tout ce dont vous avez besoin</h2>
+            <p class="section-sub text-center">Une plateforme unifiée pour piloter vos ressources humaines avec efficacité et clarté.</p>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card card-blue">
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>Gestion des Personnels</h3>
+                        <p>Ajoutez, modifiez et suivez vos employés avec leurs informations complètes — matricule, société, salaire et type de contrat.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card card-purple">
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>Gestion des Projets</h3>
+                        <p>Créez et gérez vos chantiers avec leur localisation géographique et affectez vos équipes en quelques clics.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card card-green">
+                        <div class="feature-icon-wrap">
+                            <i class="fas fa-route"></i>
+                        </div>
+                        <h3>Suivi des Déplacements</h3>
+                        <p>Affectez vos personnels aux projets, définissez des plages horaires précises et consultez l'historique complet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="landing-footer">
+        © {{ now().year if now is defined else '2026' }} Gestion Personnels — Tous droits réservés
+        Designed by <a href="https://github.com/HAMMOUDAmustaphaahmed">AMH</a>
+    </footer>
+
+    <script>
+        // Génère les particules flottantes
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 60; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            p.style.animationDelay = (Math.random() * 15) + 's';
+            p.style.opacity = Math.random() * 0.5 + 0.1;
+            p.style.width = p.style.height = (Math.random() * 2 + 1) + 'px';
+            container.appendChild(p);
+        }
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

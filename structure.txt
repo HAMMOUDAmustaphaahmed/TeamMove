@@ -1,0 +1,105 @@
+GESTION-PERSONNELS/
+│
+├── app.py                  # Point d'entrée principal de l'application
+├── config.py               # Configuration et paramètres de sécurité
+├── routes.py               # Définition des routes et logique métier
+├── models.py               # Modèles de données SQLAlchemy
+├── requirements.txt        # Dépendances Python
+├── structure.txt           # Ce fichier - Structure du projet
+│
+├── static/                 # Fichiers statiques (CSS, JS, images)
+│   ├── css/
+│   │   └── style.css       # Styles globaux et thème de l'application
+│   ├── js/
+│   │   └── script.js       # Scripts JavaScript et fonctions de sécurité
+│   └── img/                # Images et ressources graphiques (si besoin)
+│
+├── templates/              # Templates HTML Jinja2
+│   ├── base.html           # Template de base avec navbar commun
+│   ├── landing.html        # Page d'accueil publique
+│   ├── login.html          # Page de connexion sécurisée
+│   ├── dashboard.html      # Tableau de bord avec statistiques
+│   ├── personnels.html     # Gestion des personnels (CRUD)
+│   ├── projets.html        # Gestion des projets/chantiers
+│   ├── deplacements.html   # Gestion des déplacements avec Select2
+│   └── users.html          # Gestion des utilisateurs (admin)
+│
+└── instance/               # Données de l'instance (créé automatiquement)
+    └── config.py           # Configuration locale (non versionnée)
+
+========================================
+ARCHITECTURE DE SÉCURITÉ
+========================================
+
+1. PROTECTION XSS (Cross-Site Scripting)
+   - Échappement automatique Jinja2
+   - Fonction sanitizeInput() dans script.js
+   - Bibliothèque Bleach pour nettoyage HTML
+
+2. PROTECTION SQL INJECTION
+   - Utilisation exclusive de SQLAlchemy ORM
+   - Requêtes paramétrées automatiques
+   - Pas de concaténation SQL brute
+
+3. PROTECTION CSRF (Cross-Site Request Forgery)
+   - Tokens CSRF sur tous les formulaires
+   - Validation côté serveur systématique
+   - Flask-WTF pour gestion automatique
+
+4. AUTHENTIFICATION SÉCURISÉE
+   - Mots de passe hashés avec PBKDF2-SHA256
+   - Sels cryptographiques de 16 caractères
+   - Rate limiting sur les tentatives de connexion
+   - Sessions sécurisées (HttpOnly, Secure, SameSite)
+
+5. HEADERS DE SÉCURITÉ
+   - Content-Security-Policy (CSP)
+   - X-Frame-Options (protection clickjacking)
+   - X-Content-Type-Options
+   - Strict-Transport-Security (HSTS)
+   - Via Flask-Talisman
+
+6. VALIDATION DES DONNÉES
+   - Validation côté client (JavaScript)
+   - Validation côté serveur (Python)
+   - Regex patterns sur les inputs
+   - Types de données stricts
+
+========================================
+FONCTIONNALITÉS CLÉS
+========================================
+
+• Landing Page : Présentation avec animation
+• Authentification : Login sécurisé avec protection brute-force
+• Dashboard : Statistiques visuelles (Chart.js) et indicateurs clés
+• Personnels : CRUD complet avec matricule, salaire (mensuel/horaire)
+• Projets : Gestion géographique (Région, Gouvernorat, Ville)
+• Déplacements : Affectation multi-personnels avec Select2 AJAX
+• Utilisateurs : Gestion des accès avec rôles (Admin/User)
+• Responsive : Design adaptatif Bootstrap 5
+• Animations : Micro-interactions et transitions fluides
+
+========================================
+BASE DE DONNÉES MYSQL (XAMPP)
+========================================
+
+Tables:
+- users (id, username, email, password_hash, is_admin, is_active, created_at, last_login)
+- personnels (id, matricule, nom, prenom, societe, salaire, type_salaire, active, created_at)
+- projets (id, nom, region, gouvernorat, ville, adresse, active, created_at)
+- deplacements (id, personnel_id, projet_id, date_debut, heure_debut, date_fin, heure_fin, created_at, created_by)
+
+Relations:
+- personnel 1:N deplacements
+- projet 1:N deplacements
+- user 1:N deplacements (created_by)
+
+========================================
+INSTALLATION RAPIDE
+========================================
+
+1. Installer XAMPP et démarrer Apache + MySQL
+2. Créer la BDD : CREATE DATABASE gestion_personnels;
+3. pip install -r requirements.txt
+4. python app.py
+5. Accès : http://localhost:5000
