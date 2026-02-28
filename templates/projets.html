@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Projets — Gestion Personnels{% endblock %}
+{% block title %}Projets — TeamMove{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -65,6 +65,36 @@
     color: var(--accent-blue);
   }
 
+  /* Date estimée badge on card */
+  .date-range-badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: rgba(155,92,246,.09);
+    border: 1px solid rgba(155,92,246,.22);
+    border-radius: var(--r-full);
+    padding: .28rem .75rem;
+    font-size: .72rem; font-weight: 600;
+    color: #c084fc;
+    margin-top: .6rem;
+  }
+  .date-range-badge i { font-size:.62rem; }
+
+  /* Progress bar for project timeline */
+  .timeline-bar {
+    margin-top:.5rem;
+    height:4px; border-radius:99px;
+    background: rgba(255,255,255,.06); overflow:hidden;
+  }
+  .timeline-bar-fill {
+    height:100%; border-radius:99px;
+    background: linear-gradient(90deg,#9b5cf6,#38bdf8);
+    transition: width .9s cubic-bezier(.16,1,.3,1);
+  }
+  .timeline-label {
+    display:flex; justify-content:space-between;
+    font-size:.62rem; color:var(--text-disabled);
+    margin-top:.25rem;
+  }
+
   .filter-section {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -102,7 +132,6 @@
   }
   @media(max-width:768px){ .project-grid { grid-template-columns:1fr; } }
 
-  /* 3-dot menu button */
   .project-menu-btn {
     background: var(--bg-overlay);
     border: 1px solid var(--border-md);
@@ -119,7 +148,6 @@
     color: var(--text-primary);
   }
 
-  /* stats bar */
   .stats-row {
     display:grid;
     grid-template-columns: repeat(4,1fr);
@@ -151,6 +179,32 @@
     position:absolute; right:1rem; top:50%; transform:translateY(-50%);
     font-size:1.5rem; opacity:.07;
   }
+
+  /* Form styles */
+  .form-label { font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+  .form-control, .form-select {
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.85rem; padding:.55rem .85rem;
+    transition:var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); color:var(--text-primary);
+    outline:none;
+  }
+  .form-control[type="date"] { color-scheme: dark; }
+
+  /* Date section divider in modals */
+  .date-section-title {
+    font-size:.7rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--text-muted);
+    display:flex; align-items:center; gap:.5rem;
+    padding:.65rem 0 .5rem;
+    border-top: 1px solid var(--border);
+    margin-top:.75rem;
+  }
+  .date-section-title i { color:#9b5cf6; }
 </style>
 {% endblock %}
 
@@ -201,7 +255,9 @@
   <div class="row align-items-center g-3">
     <div class="col-md-4">
       <div class="input-group">
-        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">
+          <i class="fas fa-search" style="font-size:.8rem;"></i>
+        </span>
         <input type="text" class="form-control" id="searchProjet" placeholder="Rechercher un projet…">
       </div>
     </div>
@@ -279,17 +335,53 @@
       </div>
 
       <!-- Location badges -->
-      <div class="mb-3">
+      <div class="mb-2">
         <span class="location-badge"><i class="fas fa-map"></i>{{ projet.region }}</span>
         <span class="location-badge"><i class="fas fa-city"></i>{{ projet.gouvernorat }}</span>
         <span class="location-badge"><i class="fas fa-home"></i>{{ projet.ville }}</span>
       </div>
 
       <!-- Address -->
-      <p style="font-size:.76rem; color:var(--text-muted); margin-bottom:0;">
+      <p style="font-size:.76rem; color:var(--text-muted); margin-bottom:.5rem;">
         <i class="fas fa-map-pin me-2" style="color:rgba(240,244,255,.15);"></i>
         {{ projet.adresse[:65] }}{% if projet.adresse|length > 65 %}…{% endif %}
       </p>
+
+      <!-- Dates estimées -->
+      {% if projet.date_debut_estimee or projet.date_fin_estimee %}
+      <div>
+        <span class="date-range-badge">
+          <i class="fas fa-calendar-alt"></i>
+          {% if projet.date_debut_estimee %}{{ projet.date_debut_estimee.strftime('%d/%m/%Y') }}{% else %}?{% endif %}
+          <span style="opacity:.5;">→</span>
+          {% if projet.date_fin_estimee %}{{ projet.date_fin_estimee.strftime('%d/%m/%Y') }}{% else %}?{% endif %}
+        </span>
+        {% if projet.date_debut_estimee and projet.date_fin_estimee %}
+          {# Calcul du pourcentage d'avancement #}
+          {% set today_date = namespace(val=now().date() if now is defined else none) %}
+          {% set total_days = (projet.date_fin_estimee - projet.date_debut_estimee).days %}
+          {% if total_days > 0 %}
+            {% set import_date = namespace() %}
+            {% set pct = 0 %}
+            <div class="timeline-bar">
+              <div class="timeline-bar-fill"
+                   data-debut="{{ projet.date_debut_estimee.isoformat() }}"
+                   data-fin="{{ projet.date_fin_estimee.isoformat() }}"
+                   style="width:0%;"></div>
+            </div>
+            <div class="timeline-label">
+              <span>Début estimé</span>
+              <span>Fin estimée</span>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="font-size:.7rem;color:var(--text-disabled);display:flex;align-items:center;gap:.35rem;margin-top:.25rem;">
+        <i class="fas fa-calendar-times" style="font-size:.65rem;"></i>
+        Dates estimées non définies
+      </div>
+      {% endif %}
 
       <!-- Mini stats -->
       <div class="stats-mini">
@@ -386,8 +478,25 @@
             <textarea class="form-control" name="adresse" rows="2" required
                       placeholder="Rue, numéro, code postal…"></textarea>
           </div>
-        </div>
 
+          <!-- ── Dates estimées ── -->
+          <div class="date-section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Dates estimées du projet
+            <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Date de début estimée</label>
+              <input type="date" class="form-control" name="date_debut_estimee">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date de fin estimée</label>
+              <input type="date" class="form-control" name="date_fin_estimee">
+            </div>
+          </div>
+
+        </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
           <button type="submit" class="btn btn-primary">
@@ -450,8 +559,25 @@
             <label class="form-label">Adresse complète *</label>
             <textarea class="form-control" name="adresse" id="editAdresse" rows="2" required></textarea>
           </div>
-        </div>
 
+          <!-- ── Dates estimées ── -->
+          <div class="date-section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Dates estimées du projet
+            <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Date de début estimée</label>
+              <input type="date" class="form-control" name="date_debut_estimee" id="editDateDebut">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date de fin estimée</label>
+              <input type="date" class="form-control" name="date_fin_estimee" id="editDateFin">
+            </div>
+          </div>
+
+        </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
           <button type="submit" class="btn btn-warning">
@@ -553,7 +679,7 @@ const regionsData = {
   'Gafsa':    ['Gafsa','Tozeur','Kébili']
 };
 
-/* ── Auto-complétion gouvernorat ── */
+/* ── Auto-complétion gouvernorat (modal add) ── */
 document.getElementById('regionSelect')?.addEventListener('input', function () {
   const region = this.value;
   const gov    = document.getElementById('gouvernoratInput');
@@ -605,6 +731,24 @@ function updateStats() {
   document.getElementById('regionCount').textContent = regions.size;
 }
 
+/* ── Timeline progress bars ── */
+function animateTimelines() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.querySelectorAll('.timeline-bar-fill[data-debut][data-fin]').forEach(el => {
+    const debut = new Date(el.dataset.debut);
+    const fin   = new Date(el.dataset.fin);
+    const total = fin - debut;
+    if (total <= 0) { el.style.width = '0%'; return; }
+    const elapsed = Math.min(Math.max(today - debut, 0), total);
+    const pct = Math.round((elapsed / total) * 100);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.width = pct + '%';
+      // change color if overdue
+      if (today > fin) el.style.background = 'linear-gradient(90deg,#ff6b6b,#dc2626)';
+    }));
+  });
+}
+
 /* ──────────────────────────────────────────
    Stats dynamiques (personnels, jours)
    ────────────────────────────────────────── */
@@ -633,12 +777,14 @@ function editProjet(id) {
       return r.json();
     })
     .then(data => {
-      document.getElementById('editNom').value         = data.nom         || '';
-      document.getElementById('editRegion').value      = data.region      || '';
-      document.getElementById('editGouvernorat').value = data.gouvernorat || '';
-      document.getElementById('editVille').value       = data.ville       || '';
-      document.getElementById('editAdresse').value     = data.adresse     || '';
-      document.getElementById('editProjetForm').action = `/projets/edit/${id}`;
+      document.getElementById('editNom').value          = data.nom          || '';
+      document.getElementById('editRegion').value       = data.region       || '';
+      document.getElementById('editGouvernorat').value  = data.gouvernorat  || '';
+      document.getElementById('editVille').value        = data.ville        || '';
+      document.getElementById('editAdresse').value      = data.adresse      || '';
+      document.getElementById('editDateDebut').value    = data.date_debut_estimee || '';
+      document.getElementById('editDateFin').value      = data.date_fin_estimee   || '';
+      document.getElementById('editProjetForm').action  = `/projets/edit/${id}`;
       new bootstrap.Modal(document.getElementById('editProjetModal')).show();
     })
     .catch(err => {
@@ -676,47 +822,137 @@ function viewStats(id) {
         <tr>
           <td><span class="badge bg-secondary" style="font-family:var(--font-mono);">${p.matricule}</span></td>
           <td style="font-weight:600;">${p.nom} ${p.prenom}</td>
+          <td style="font-size:.72rem;color:var(--text-muted);">${p.fonction || '—'}</td>
           <td style="font-family:var(--font-mono);font-size:.78rem;">${p.date_debut} → ${p.date_fin}</td>
           <td><span class="badge bg-primary">${p.jours}j</span></td>
         </tr>`).join('');
 
+      /* ── Durée réelle du projet ── */
+      const hasDuree = data.duree_projet_jours != null && data.duree_projet_jours > 0;
+      const dureeHtml = hasDuree ? (() => {
+        const j   = data.duree_projet_jours;
+        const mois = Math.floor(j / 30);
+        const rest = j % 30;
+        const dureeLabel = mois > 0
+          ? `${mois} mois${rest > 0 ? ' ' + rest + ' j' : ''}`
+          : `${j} jours`;
+        return `
+          <div style="
+            background: linear-gradient(135deg,rgba(247,201,72,.1),rgba(251,146,60,.08));
+            border: 1px solid rgba(247,201,72,.28);
+            border-radius: var(--r-xl);
+            padding: 1.1rem 1.4rem;
+            margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 1.1rem;
+            flex-wrap: wrap;">
+            <!-- Icône -->
+            <div style="width:48px;height:48px;border-radius:14px;
+              background:rgba(247,201,72,.15);border:1px solid rgba(247,201,72,.3);
+              display:flex;align-items:center;justify-content:center;
+              font-size:1.3rem;color:#f7c948;flex-shrink:0;">
+              <i class="fas fa-stopwatch"></i>
+            </div>
+            <!-- Texte principal -->
+            <div style="flex:1;min-width:180px;">
+              <div style="font-size:.66rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:.1em;color:rgba(247,201,72,.65);margin-bottom:.2rem;">
+                Durée du projet (déplacements réels)
+              </div>
+              <div style="font-size:1.65rem;font-weight:800;letter-spacing:-.04em;
+                color:#f7c948;line-height:1.1;">
+                ${dureeLabel}
+                <span style="font-size:.75rem;font-weight:600;color:rgba(247,201,72,.6);margin-left:.35rem;">
+                  (${j} j)
+                </span>
+              </div>
+            </div>
+            <!-- Intervalle -->
+            <div style="
+              background:rgba(247,201,72,.08);border:1px solid rgba(247,201,72,.18);
+              border-radius:var(--r-lg);padding:.55rem 1rem;font-size:.76rem;
+              font-family:var(--font-mono,monospace);color:#fcd34d;
+              display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+              <i class="fas fa-calendar-day" style="font-size:.65rem;opacity:.7;"></i>
+              ${data.date_premiere_activite}
+              <span style="opacity:.45;margin:0 .1rem;">→</span>
+              ${data.date_derniere_activite}
+            </div>
+          </div>`;
+      })() : '';
+
+      /* ── Dates estimées (si définies) ── */
+      const datesEstHtml = (data.date_debut_estimee || data.date_fin_estimee) ? `
+        <div style="display:inline-flex;align-items:center;gap:.5rem;
+          background:rgba(155,92,246,.1);border:1px solid rgba(155,92,246,.2);
+          border-radius:20px;padding:.3rem .9rem;font-size:.78rem;color:#c084fc;
+          margin-bottom:1.25rem;">
+          <i class="fas fa-calendar-alt"></i>
+          ${data.date_debut_estimee || '?'} → ${data.date_fin_estimee || '?'}
+          <span style="font-size:.65rem;opacity:.6;">(estimées)</span>
+        </div>` : '';
+
       document.getElementById('statsContent').innerHTML = `
         <div class="p-4">
-          <h6 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:1rem;">
-            <i class="fas fa-chart-bar me-2" style="color:var(--accent-cyan);"></i>${data.nom || 'Projet'}
+          <!-- Titre projet -->
+          <h6 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;
+            color:var(--text-muted);margin-bottom:1rem;">
+            <i class="fas fa-chart-bar me-2" style="color:var(--accent-cyan);"></i>
+            ${data.nom || 'Projet'}
           </h6>
 
+          ${datesEstHtml}
+          ${dureeHtml}
+
+          <!-- KPI cards -->
           <div class="row g-3 mb-4">
             <div class="col-md-4">
               <div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);
-                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
-                <div style="font-size:2rem;font-weight:800;color:var(--accent-blue);">${data.nb_deplacements ?? 0}</div>
-                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Déplacements</div>
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-blue);">
+                  ${data.nb_deplacements ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Déplacements</div>
               </div>
             </div>
             <div class="col-md-4">
               <div style="background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.2);
-                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
-                <div style="font-size:2rem;font-weight:800;color:var(--accent-green);">${data.nb_personnels ?? 0}</div>
-                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Personnels distincts</div>
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-green);">
+                  ${data.nb_personnels ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Personnels distincts</div>
               </div>
             </div>
             <div class="col-md-4">
               <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
-                          border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
-                <div style="font-size:2rem;font-weight:800;color:var(--accent-cyan);">${data.nb_jours ?? 0}</div>
-                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Jours cumulés</div>
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-cyan);">
+                  ${data.nb_jours ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Jours-homme cumulés</div>
               </div>
             </div>
           </div>
 
-          <h6 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.75rem;">
+          <!-- Tableau personnels -->
+          <h6 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;
+            color:var(--text-muted);margin-bottom:.75rem;">
             <i class="fas fa-users me-2" style="color:var(--accent-blue);"></i>Personnels affectés
           </h6>
           <div class="table-responsive">
             <table class="table">
-              <thead><tr><th>Matricule</th><th>Nom</th><th>Période</th><th>Jours</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun déplacement enregistré</td></tr>'}</tbody>
+              <thead>
+                <tr>
+                  <th>Matricule</th><th>Nom</th><th>Fonction</th>
+                  <th>Période</th><th>Jours</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun déplacement enregistré</td></tr>'}
+              </tbody>
             </table>
           </div>
         </div>`;
@@ -736,6 +972,7 @@ function viewStats(id) {
 document.addEventListener('DOMContentLoaded', () => {
   updateStats();
   loadProjectStats();
+  animateTimelines();
 });
 </script>
 {% endblock %}

@@ -24,6 +24,16 @@ def sanitize_input(data):
         return html.escape(data.strip())
     return data
 
+# ── Helper date ISO → date object ──
+def parse_date_opt(val):
+    """Retourne un objet date ou None si val est vide."""
+    if val and val.strip():
+        try:
+            return datetime.strptime(val.strip(), '%Y-%m-%d').date()
+        except ValueError:
+            return None
+    return None
+
 # ==================== ROUTES PUBLIQUES ====================
 
 @main.route('/')
@@ -87,7 +97,6 @@ def dashboard():
     ).count()
 
     # ── Chart 1 (DRH) : Top personnels les plus mobiles en JOURS ──
-    # On calcule la somme des (date_fin - date_debut + 1) par personnel
     all_deps = db.session.query(
         Personnel.nom,
         Personnel.prenom,
@@ -96,7 +105,6 @@ def dashboard():
     ).join(Deplacement, Deplacement.personnel_id == Personnel.id)\
      .filter(Personnel.active == True).all()
 
-    # Agréger les jours par personnel côté Python (portable MySQL/SQLite)
     from collections import defaultdict
     jours_par_personnel = defaultdict(int)
     for nom, prenom, dd, df in all_deps:
@@ -105,7 +113,7 @@ def dashboard():
 
     top_personnel_jours = sorted(
         jours_par_personnel.items(), key=lambda x: x[1], reverse=True
-    )[:5]  # Top 5
+    )[:5]
 
     # ── Chart 2 (DRH) : Déplacements par société ──
     deps_par_societe = db.session.query(
@@ -115,7 +123,7 @@ def dashboard():
      .group_by(Personnel.societe)\
      .order_by(func.count(Deplacement.id).desc()).all()
 
-    # ── Chart 3 (DG) : Répartition géographique — nb déplacements par région ──
+    # ── Chart 3 (DG) : Répartition géographique ──
     deps_par_region = db.session.query(
         Projet.region,
         func.count(Deplacement.id).label('nb')
@@ -133,13 +141,9 @@ def dashboard():
         total_projets=total_projets,
         total_deplacements=total_deplacements,
         total_deplacements_mois=total_deplacements_mois,
-        # Chart 1
         top_personnel_jours=top_personnel_jours,
-        # Chart 2
         deps_par_societe=deps_par_societe,
-        # Chart 3
         deps_par_region=deps_par_region,
-        # Récents
         recent_deplacements=recent_deplacements,
     )
 
@@ -156,23 +160,43 @@ def personnels():
         query = query.filter(or_(
             Personnel.nom.ilike(f'%{search}%'),
             Personnel.prenom.ilike(f'%{search}%'),
-            Personnel.matricule.ilike(f'%{search}%')
+            Personnel.matricule.ilike(f'%{search}%'),
+            Personnel.fonction.ilike(f'%{search}%'),
         ))
 
     personnels = query.order_by(Personnel.nom).paginate(page=page, per_page=10)
     return render_template('personnels.html', personnels=personnels, search=search)
+
+
+# ── API : données d'un personnel (pour modal édition) ──
+@main.route('/api/personnel/<int:id>')
+@login_required
+def api_personnel(id):
+    p = Personnel.query.get_or_404(id)
+    return jsonify({
+        'id':           p.id,
+        'matricule':    p.matricule,
+        'nom':          p.nom,
+        'prenom':       p.prenom,
+        'fonction':     p.fonction or '',
+        'societe':      p.societe,
+        'salaire':      float(p.salaire),
+        'type_salaire': p.type_salaire,
+    })
+
 
 @main.route('/personnels/add', methods=['POST'])
 @login_required
 def add_personnel():
     try:
         personnel = Personnel(
-            matricule=sanitize_input(request.form['matricule']),
-            nom=sanitize_input(request.form['nom']),
-            prenom=sanitize_input(request.form['prenom']),
-            societe=sanitize_input(request.form['societe']),
-            salaire=float(request.form['salaire']),
-            type_salaire=request.form['type_salaire']
+            matricule    = sanitize_input(request.form['matricule']),
+            nom          = sanitize_input(request.form['nom']),
+            prenom       = sanitize_input(request.form['prenom']),
+            fonction     = sanitize_input(request.form.get('fonction', '')),
+            societe      = sanitize_input(request.form['societe']),
+            salaire      = float(request.form['salaire']),
+            type_salaire = request.form['type_salaire'],
         )
         db.session.add(personnel)
         db.session.commit()
@@ -182,6 +206,7 @@ def add_personnel():
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.personnels'))
 
+
 @main.route('/personnels/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_personnel(id):
@@ -190,6 +215,7 @@ def edit_personnel(id):
         personnel.matricule    = sanitize_input(request.form['matricule'])
         personnel.nom          = sanitize_input(request.form['nom'])
         personnel.prenom       = sanitize_input(request.form['prenom'])
+        personnel.fonction     = sanitize_input(request.form.get('fonction', ''))
         personnel.societe      = sanitize_input(request.form['societe'])
         personnel.salaire      = float(request.form['salaire'])
         personnel.type_salaire = request.form['type_salaire']
@@ -199,6 +225,7 @@ def edit_personnel(id):
         db.session.rollback()
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.personnels'))
+
 
 @main.route('/personnels/delete/<int:id>', methods=['POST'])
 @login_required
@@ -226,16 +253,19 @@ def projets():
                            projets=projets_list,
                            total_deplacements=total_deplacements)
 
+
 @main.route('/projets/add', methods=['POST'])
 @login_required
 def add_projet():
     try:
         projet = Projet(
-            nom=sanitize_input(request.form['nom']),
-            region=sanitize_input(request.form['region']),
-            gouvernorat=sanitize_input(request.form['gouvernorat']),
-            ville=sanitize_input(request.form['ville']),
-            adresse=sanitize_input(request.form['adresse'])
+            nom                = sanitize_input(request.form['nom']),
+            region             = sanitize_input(request.form['region']),
+            gouvernorat        = sanitize_input(request.form['gouvernorat']),
+            ville              = sanitize_input(request.form['ville']),
+            adresse            = sanitize_input(request.form['adresse']),
+            date_debut_estimee = parse_date_opt(request.form.get('date_debut_estimee', '')),
+            date_fin_estimee   = parse_date_opt(request.form.get('date_fin_estimee', '')),
         )
         db.session.add(projet)
         db.session.commit()
@@ -245,22 +275,26 @@ def add_projet():
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.projets'))
 
+
 @main.route('/projets/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_projet(id):
     projet = Projet.query.get_or_404(id)
     try:
-        projet.nom         = sanitize_input(request.form['nom'])
-        projet.region      = sanitize_input(request.form['region'])
-        projet.gouvernorat = sanitize_input(request.form['gouvernorat'])
-        projet.ville       = sanitize_input(request.form['ville'])
-        projet.adresse     = sanitize_input(request.form['adresse'])
+        projet.nom                = sanitize_input(request.form['nom'])
+        projet.region             = sanitize_input(request.form['region'])
+        projet.gouvernorat        = sanitize_input(request.form['gouvernorat'])
+        projet.ville              = sanitize_input(request.form['ville'])
+        projet.adresse            = sanitize_input(request.form['adresse'])
+        projet.date_debut_estimee = parse_date_opt(request.form.get('date_debut_estimee', ''))
+        projet.date_fin_estimee   = parse_date_opt(request.form.get('date_fin_estimee', ''))
         db.session.commit()
         flash('Projet modifié avec succès.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.projets'))
+
 
 @main.route('/projets/delete/<int:id>', methods=['POST'])
 @login_required
@@ -275,20 +309,24 @@ def delete_projet(id):
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.projets'))
 
+
 # ── API: données projet (modal édition) ──
 @main.route('/api/projet/<int:id>')
 @login_required
 def api_projet(id):
     projet = Projet.query.get_or_404(id)
     return jsonify({
-        'id':          projet.id,
-        'nom':         projet.nom,
-        'region':      projet.region,
-        'gouvernorat': projet.gouvernorat,
-        'ville':       projet.ville,
-        'adresse':     projet.adresse,
-        'created_at':  projet.created_at.strftime('%d/%m/%Y') if projet.created_at else ''
+        'id':                  projet.id,
+        'nom':                 projet.nom,
+        'region':              projet.region,
+        'gouvernorat':         projet.gouvernorat,
+        'ville':               projet.ville,
+        'adresse':             projet.adresse,
+        'date_debut_estimee':  projet.date_debut_estimee.isoformat() if projet.date_debut_estimee else '',
+        'date_fin_estimee':    projet.date_fin_estimee.isoformat()   if projet.date_fin_estimee   else '',
+        'created_at':          projet.created_at.strftime('%d/%m/%Y') if projet.created_at else '',
     })
+
 
 # ── API: statistiques projet ──
 @main.route('/api/projet/<int:id>/stats')
@@ -304,24 +342,40 @@ def api_projet_stats(id):
     deplacements_list = projet.deplacements.all()
     nb_jours = sum((d.date_fin - d.date_debut).days + 1 for d in deplacements_list)
 
+    # ── Durée réelle du projet : min(date_debut) → max(date_fin) ──
+    date_premiere_activite = None
+    date_derniere_activite = None
+    duree_projet_jours     = None
+
+    if deplacements_list:
+        date_premiere_activite = min(d.date_debut for d in deplacements_list)
+        date_derniere_activite = max(d.date_fin   for d in deplacements_list)
+        duree_projet_jours     = (date_derniere_activite - date_premiere_activite).days + 1
+
     personnels_data = [{
         'matricule':  d.personnel.matricule,
         'nom':        d.personnel.nom,
         'prenom':     d.personnel.prenom,
+        'fonction':   d.personnel.fonction or '',
         'date_debut': d.date_debut.strftime('%d/%m/%Y'),
         'date_fin':   d.date_fin.strftime('%d/%m/%Y'),
         'jours':      (d.date_fin - d.date_debut).days + 1
     } for d in deplacements_list]
 
     return jsonify({
-        'nom':             projet.nom,
-        'ville':           projet.ville,
-        'gouvernorat':     projet.gouvernorat,
-        'created_at':      projet.created_at.strftime('%d/%m/%Y') if projet.created_at else '',
-        'nb_deplacements': nb_deplacements,
-        'nb_personnels':   nb_personnels,
-        'nb_jours':        nb_jours,
-        'personnels':      personnels_data
+        'nom':                     projet.nom,
+        'ville':                   projet.ville,
+        'gouvernorat':             projet.gouvernorat,
+        'date_debut_estimee':      projet.date_debut_estimee.strftime('%d/%m/%Y') if projet.date_debut_estimee else '',
+        'date_fin_estimee':        projet.date_fin_estimee.strftime('%d/%m/%Y')   if projet.date_fin_estimee   else '',
+        'created_at':              projet.created_at.strftime('%d/%m/%Y') if projet.created_at else '',
+        'nb_deplacements':         nb_deplacements,
+        'nb_personnels':           nb_personnels,
+        'nb_jours':                nb_jours,
+        'date_premiere_activite':  date_premiere_activite.strftime('%d/%m/%Y') if date_premiere_activite else '',
+        'date_derniere_activite':  date_derniere_activite.strftime('%d/%m/%Y') if date_derniere_activite else '',
+        'duree_projet_jours':      duree_projet_jours,
+        'personnels':              personnels_data,
     })
 
 # ==================== DÉPLACEMENTS ====================
@@ -377,6 +431,7 @@ def deplacements():
                            total_projets_actifs=total_projets_actifs,
                            total_deplacements_mois=total_deplacements_mois)
 
+
 @main.route('/api/search-personnels')
 @login_required
 def search_personnels():
@@ -394,13 +449,15 @@ def search_personnels():
     personnels = query.order_by(Personnel.nom, Personnel.prenom).limit(limit).all()
 
     return jsonify([{
-        'id':       p.id,
+        'id':        p.id,
         'matricule': p.matricule,
-        'nom':      p.nom,
-        'prenom':   p.prenom,
-        'societe':  p.societe,
-        'display':  f"{p.matricule} — {p.nom} {p.prenom}"
+        'nom':       p.nom,
+        'prenom':    p.prenom,
+        'fonction':  p.fonction or '',
+        'societe':   p.societe,
+        'display':   f"{p.matricule} — {p.nom} {p.prenom}"
     } for p in personnels])
+
 
 @main.route('/api/personnel/<int:id>/deplacements')
 @login_required
@@ -411,28 +468,30 @@ def api_personnel_deplacements(id):
         .order_by(Deplacement.date_debut.desc()).all()
 
     return jsonify([{
-        'id':         d.id,
-        'projet':     d.projet.nom,
-        'projet_id':  d.projet_id,
-        'date_debut': d.date_debut.strftime('%d/%m/%Y'),
-        'date_fin':   d.date_fin.strftime('%d/%m/%Y'),
+        'id':          d.id,
+        'projet':      d.projet.nom,
+        'projet_id':   d.projet_id,
+        'date_debut':  d.date_debut.strftime('%d/%m/%Y'),
+        'date_fin':    d.date_fin.strftime('%d/%m/%Y'),
         'heure_debut': d.heure_debut.strftime('%H:%M'),
         'heure_fin':   d.heure_fin.strftime('%H:%M'),
-        'jours':      (d.date_fin - d.date_debut).days + 1
+        'jours':       (d.date_fin - d.date_debut).days + 1
     } for d in deps])
+
 
 @main.route('/api/deplacement/<int:id>')
 @login_required
 def api_deplacement(id):
     d = Deplacement.query.get_or_404(id)
     return jsonify({
-        'id':         d.id,
-        'projet_id':  d.projet_id,
-        'date_debut': d.date_debut.isoformat(),
-        'date_fin':   d.date_fin.isoformat(),
+        'id':          d.id,
+        'projet_id':   d.projet_id,
+        'date_debut':  d.date_debut.isoformat(),
+        'date_fin':    d.date_fin.isoformat(),
         'heure_debut': d.heure_debut.strftime('%H:%M'),
         'heure_fin':   d.heure_fin.strftime('%H:%M')
     })
+
 
 @main.route('/deplacements/add', methods=['POST'])
 @login_required
@@ -473,6 +532,7 @@ def add_deplacement():
 
     return redirect(url_for('main.deplacements'))
 
+
 @main.route('/deplacements/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_deplacement(id):
@@ -489,6 +549,7 @@ def edit_deplacement(id):
         db.session.rollback()
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.deplacements'))
+
 
 @main.route('/deplacements/delete/<int:id>', methods=['POST'])
 @login_required
@@ -512,6 +573,7 @@ def users():
     users = User.query.all()
     return render_template('users.html', users=users)
 
+
 @main.route('/users/add', methods=['POST'])
 @login_required
 @admin_required
@@ -530,6 +592,7 @@ def add_user():
         db.session.rollback()
         flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('main.users'))
+
 
 @main.route('/users/toggle/<int:id>', methods=['POST'])
 @login_required
@@ -621,7 +684,7 @@ def api_dash_deps_par_personnel():
 @main.route('/api/dashboard/personnel/<int:pid>/deplacements')
 @login_required
 def api_dash_personnel_deps(pid):
-    Personnel.query.get_or_404(pid)          # 404 si inexistant
+    Personnel.query.get_or_404(pid)
     date_debut = request.args.get('date_debut', '').strip()
     date_fin   = request.args.get('date_fin',   '').strip()
 
@@ -687,7 +750,7 @@ def api_dash_projets_intervalle():
 @main.route('/api/dashboard/projet/<int:pid>/personnels')
 @login_required
 def api_dash_projet_personnels(pid):
-    Projet.query.get_or_404(pid)             # 404 si inexistant
+    Projet.query.get_or_404(pid)
     date_debut = request.args.get('date_debut', '').strip()
     date_fin   = request.args.get('date_fin',   '').strip()
 

@@ -30,6 +30,7 @@ class Personnel(db.Model):
     matricule = db.Column(db.String(50), unique=True, nullable=False, index=True)
     nom = db.Column(db.String(100), nullable=False)
     prenom = db.Column(db.String(100), nullable=False)
+    fonction = db.Column(db.String(150), nullable=True)          # ← NOUVEAU
     societe = db.Column(db.String(100), nullable=False)
     salaire = db.Column(db.Numeric(10, 2), nullable=False)
     type_salaire = db.Column(db.Enum('mensuel', 'horaire'), nullable=False)
@@ -47,6 +48,8 @@ class Projet(db.Model):
     gouvernorat = db.Column(db.String(100), nullable=False)
     ville = db.Column(db.String(100), nullable=False)
     adresse = db.Column(db.Text, nullable=False)
+    date_debut_estimee = db.Column(db.Date, nullable=True)       # ← NOUVEAU
+    date_fin_estimee = db.Column(db.Date, nullable=True)         # ← NOUVEAU
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     active = db.Column(db.Boolean, default=True)
     

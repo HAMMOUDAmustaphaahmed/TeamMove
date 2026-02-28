@@ -9,8 +9,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'votre-cle-super-secrete-teammove-2024'
     
     # Base de données — Aiven MySQL
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or (
-        
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or (    
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

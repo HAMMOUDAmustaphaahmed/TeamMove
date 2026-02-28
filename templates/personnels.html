@@ -1,172 +1,472 @@
 {% extends "base.html" %}
 
-{% block title %}Personnels - Gestion Personnels{% endblock %}
+{% block title %}Personnels — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── PAGE HEADER ── */
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  /* ── SEARCH BAR ── */
+  .search-bar {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); padding:1rem 1.25rem; margin-bottom:1.5rem;
+  }
+
+  /* ── TABLE WRAPPER ── */
+  .table-wrap {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); overflow:hidden;
+  }
+  .table { margin:0; }
+  .table thead th {
+    background: rgba(255,255,255,.03);
+    font-size:.68rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--text-muted);
+    border-bottom:1px solid var(--border); padding:.85rem 1rem;
+    white-space:nowrap;
+  }
+  .table tbody td {
+    padding:.85rem 1rem; font-size:.84rem;
+    color:var(--text-secondary); border-color:var(--border);
+    vertical-align:middle;
+  }
+  .table tbody tr:hover td { background:rgba(255,255,255,.025); }
+  .table tbody tr:last-child td { border-bottom:none; }
+
+  /* ── BADGES ── */
+  .badge-matricule {
+    font-family:var(--font-mono,monospace); font-size:.72rem; font-weight:700;
+    background:rgba(79,142,247,.12); color:#4f8ef7;
+    border:1px solid rgba(79,142,247,.25); border-radius:8px;
+    padding:.2em .65em;
+  }
+  .badge-fonction {
+    font-size:.7rem; font-weight:600;
+    background:rgba(56,189,248,.1); color:#38bdf8;
+    border:1px solid rgba(56,189,248,.2); border-radius:20px;
+    padding:.15em .6em; white-space:nowrap;
+  }
+  .badge-mensuel { background:rgba(6,214,160,.12);  color:#06d6a0; border:1px solid rgba(6,214,160,.25);  border-radius:20px; padding:.15em .6em; font-size:.7rem; font-weight:700; }
+  .badge-horaire  { background:rgba(56,189,248,.12); color:#38bdf8; border:1px solid rgba(56,189,248,.25); border-radius:20px; padding:.15em .6em; font-size:.7rem; font-weight:700; }
+
+  /* ── ACTION BUTTONS ── */
+  .btn-action {
+    width:32px; height:32px; border-radius:9px; border:1px solid var(--border-md);
+    background:var(--bg-overlay); color:var(--text-muted);
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:.75rem; cursor:pointer; transition:var(--t-fast);
+  }
+  .btn-action:hover { background:var(--bg-overlay-md); color:var(--text-primary); }
+  .btn-action.edit:hover  { border-color:rgba(247,201,72,.4); color:#f7c948; background:rgba(247,201,72,.1); }
+  .btn-action.del:hover   { border-color:rgba(255,107,107,.4); color:#ff6b6b; background:rgba(255,107,107,.1); }
+
+  /* ── PAGINATION ── */
+  .pagination .page-link {
+    background:var(--bg-overlay); border-color:var(--border-md);
+    color:var(--text-muted); font-size:.8rem;
+  }
+  .pagination .page-item.active .page-link {
+    background:linear-gradient(135deg,#4f8ef7,#9b5cf6);
+    border-color:transparent; color:#fff;
+  }
+  .pagination .page-link:hover { background:var(--bg-overlay-md); color:var(--text-primary); }
+
+  /* ── FORM LABELS ── */
+  .form-label { font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+  .form-control, .form-select {
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.85rem; padding:.55rem .85rem;
+    transition:var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); color:var(--text-primary);
+    outline:none;
+  }
+  .form-select option { background:#1a1d2e; color:var(--text-primary); }
+
+  /* ── DELETE MODAL CONFIRM ── */
+  #deletePersonnelName { font-weight:800; color:#ff6b6b; }
+</style>
+{% endblock %}
+
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-users me-2"></i>Gestion des Personnels</h2>
-    <button class="btn btn-primary btn-custom" data-bs-toggle="modal" data-bs-target="#addModal">
-        <i class="fas fa-plus me-2"></i>Ajouter Personnel
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <span style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        <i class="fas fa-users"></i>
+      </span>
+      Gestion des Personnels
+    </h2>
+    <p class="page-sub">{{ personnels.total }} personnel{{ 's' if personnels.total > 1 else '' }} actif{{ 's' if personnels.total > 1 else '' }}</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="fas fa-user-plus me-2"></i>Ajouter Personnel
+  </button>
+</div>
+
+<!-- ── SEARCH ── -->
+<div class="search-bar">
+  <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
+    <div class="input-group" style="max-width:380px;">
+      <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">
+        <i class="fas fa-search" style="font-size:.8rem;"></i>
+      </span>
+      <input type="text" class="form-control" name="search"
+             placeholder="Nom, prénom, matricule ou fonction…"
+             value="{{ search }}">
+    </div>
+    <button class="btn btn-primary" type="submit" style="padding:.5rem 1rem;font-size:.82rem;">
+      <i class="fas fa-search me-1"></i>Rechercher
     </button>
+    {% if search %}
+    <a href="{{ url_for('main.personnels') }}" class="btn btn-secondary" style="padding:.5rem 1rem;font-size:.82rem;">
+      <i class="fas fa-times me-1"></i>Effacer
+    </a>
+    {% endif %}
+  </form>
 </div>
 
-<!-- Filtre de recherche -->
-<div class="card p-3 mb-4">
-    <form method="GET" class="row g-3">
-        <div class="col-md-4">
-            <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-search"></i></span>
-                <input type="text" class="form-control" name="search" placeholder="Rechercher..." value="{{ search }}">
-                <button class="btn btn-outline-secondary" type="submit">Rechercher</button>
+<!-- ── TABLE ── -->
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Matricule</th>
+          <th>Nom &amp; Prénom</th>
+          <th>Fonction</th>
+          <th>Société</th>
+          <th>Salaire</th>
+          <th>Type</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in personnels.items %}
+        <tr>
+          <td><span class="badge-matricule">{{ p.matricule }}</span></td>
+          <td>
+            <div style="font-weight:700;color:var(--text-primary);">{{ p.nom }} {{ p.prenom }}</div>
+          </td>
+          <td>
+            {% if p.fonction %}
+              <span class="badge-fonction"><i class="fas fa-briefcase me-1" style="font-size:.6rem;"></i>{{ p.fonction }}</span>
+            {% else %}
+              <span style="color:var(--text-disabled);font-size:.75rem;">—</span>
+            {% endif %}
+          </td>
+          <td>{{ p.societe }}</td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.82rem;">
+            {{ "{:,.2f}".format(p.salaire) }} <span style="font-size:.7rem;color:var(--text-muted);">DT</span>
+          </td>
+          <td>
+            <span class="badge-{{ p.type_salaire }}">{{ p.type_salaire|title }}</span>
+          </td>
+          <td style="text-align:right;">
+            <div class="d-flex gap-1 justify-content-end">
+              <button class="btn-action edit" title="Modifier" onclick="editPersonnel({{ p.id }})">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-action del" title="Supprimer" onclick="confirmDeletePersonnel({{ p.id }}, '{{ p.nom|e }} {{ p.prenom|e }}')">
+                <i class="fas fa-trash"></i>
+              </button>
             </div>
-        </div>
-    </form>
-</div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted);">
+            <i class="fas fa-users" style="font-size:2rem;opacity:.1;display:block;margin-bottom:.75rem;"></i>
+            Aucun personnel trouvé
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-<div class="table-container">
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Matricule</th>
-                    <th>Nom</th>
-                    <th>Prénom</th>
-                    <th>Société</th>
-                    <th>Salaire</th>
-                    <th>Type</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for personnel in personnels.items %}
-                <tr>
-                    <td><span class="badge bg-secondary">{{ personnel.matricule }}</span></td>
-                    <td>{{ personnel.nom }}</td>
-                    <td>{{ personnel.prenom }}</td>
-                    <td>{{ personnel.societe }}</td>
-                    <td>{{ "{:,.2f}".format(personnel.salaire) }} DT</td>
-                    <td>
-                        <span class="badge bg-{{ 'success' if personnel.type_salaire == 'mensuel' else 'info' }}">
-                            {{ personnel.type_salaire|title }}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-warning" onclick="editPersonnel({{ personnel.id }})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deletePersonnel({{ personnel.id }})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Pagination -->
-    <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center">
-            {% for page_num in personnels.iter_pages() %}
-                {% if page_num %}
-                    <li class="page-item {{ 'active' if page_num == personnels.page else '' }}">
-                        <a class="page-link" href="{{ url_for('main.personnels', page=page_num, search=search) }}">{{ page_num }}</a>
-                    </li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-            {% endfor %}
-        </ul>
+  {% if personnels.pages > 1 %}
+  <div style="padding:1rem;border-top:1px solid var(--border);">
+    <nav>
+      <ul class="pagination justify-content-center mb-0">
+        {% if personnels.has_prev %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('main.personnels', page=personnels.prev_num, search=search) }}">
+            <i class="fas fa-chevron-left" style="font-size:.7rem;"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for page_num in personnels.iter_pages() %}
+          {% if page_num %}
+            <li class="page-item {{ 'active' if page_num == personnels.page else '' }}">
+              <a class="page-link" href="{{ url_for('main.personnels', page=page_num, search=search) }}">{{ page_num }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if personnels.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('main.personnels', page=personnels.next_num, search=search) }}">
+            <i class="fas fa-chevron-right" style="font-size:.7rem;"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
     </nav>
+  </div>
+  {% endif %}
 </div>
 
-<!-- Modal Ajout -->
-<div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Ajouter Personnel</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+
+<!-- ════════════════════════════════════════════════
+     MODAL — AJOUTER PERSONNEL
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Ajouter un Personnel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('main.add_personnel') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+
+          <!-- Ligne 1 : Matricule -->
+          <div class="mb-3">
+            <label class="form-label">Matricule *</label>
+            <input type="text" class="form-control" name="matricule" required
+                   placeholder="Ex : EMP001"
+                   pattern="[A-Za-z0-9]+" title="Lettres et chiffres uniquement">
+          </div>
+
+          <!-- Ligne 2 : Nom / Prénom -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Nom *</label>
+              <input type="text" class="form-control" name="nom" required placeholder="Ex : BEN ALI">
             </div>
-            <form method="POST" action="{{ url_for('main.add_personnel') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Matricule</label>
-                        <input type="text" class="form-control" name="matricule" required pattern="[A-Z0-9]+" title="Majuscules et chiffres uniquement">
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Nom</label>
-                            <input type="text" class="form-control" name="nom" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Prénom</label>
-                            <input type="text" class="form-control" name="prenom" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Société</label>
-                        <input type="text" class="form-control" name="societe" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Salaire</label>
-                            <input type="number" step="0.01" class="form-control" name="salaire" required min="0">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Type Salaire</label>
-                            <select class="form-select" name="type_salaire" required>
-                                <option value="mensuel">Mensuel</option>
-                                <option value="horaire">Horaire</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Édition -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifier Personnel</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="col-md-6">
+              <label class="form-label">Prénom *</label>
+              <input type="text" class="form-control" name="prenom" required placeholder="Ex : Mohamed">
             </div>
-            <form id="editForm" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          </div>
 
-                <div class="modal-body">
-                    <!-- Mêmes champs que addModal avec id -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-warning">Modifier</button>
-                </div>
-            </form>
+          <!-- Ligne 3 : Fonction -->
+          <div class="mb-3">
+            <label class="form-label">Fonction</label>
+            <input type="text" class="form-control" name="fonction"
+                   placeholder="Ex : Technicien, Ingénieur, Chef de chantier…">
+          </div>
+
+          <!-- Ligne 4 : Société -->
+          <div class="mb-3">
+            <label class="form-label">Société *</label>
+            <input type="text" class="form-control" name="societe" required placeholder="Nom de la société">
+          </div>
+
+          <!-- Ligne 5 : Salaire / Type -->
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Salaire *</label>
+              <div class="input-group">
+                <input type="number" step="0.01" class="form-control" name="salaire" required min="0" placeholder="0.00">
+                <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">DT</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Type de Salaire *</label>
+              <select class="form-select" name="type_salaire" required>
+                <option value="mensuel">Mensuel</option>
+                <option value="horaire">Horaire</option>
+              </select>
+            </div>
+          </div>
+
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
 
+
+<!-- ════════════════════════════════════════════════
+     MODAL — MODIFIER PERSONNEL
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#f7c948,#fb923c);">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifier le Personnel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editForm" method="POST" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body" id="editModalBody">
+          <!-- Skeleton loading -->
+          <div id="editSkeleton" style="display:flex;align-items:center;justify-content:center;min-height:200px;gap:.6rem;color:var(--text-muted);font-size:.84rem;">
+            <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#f7c948;"></div>
+            Chargement des données…
+          </div>
+          <!-- Champs (cachés tant que le chargement n'est pas fini) -->
+          <div id="editFields" style="display:none;">
+
+            <!-- Matricule -->
+            <div class="mb-3">
+              <label class="form-label">Matricule *</label>
+              <input type="text" class="form-control" name="matricule" id="editMatricule" required>
+            </div>
+
+            <!-- Nom / Prénom -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Nom *</label>
+                <input type="text" class="form-control" name="nom" id="editNom" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prénom *</label>
+                <input type="text" class="form-control" name="prenom" id="editPrenom" required>
+              </div>
+            </div>
+
+            <!-- Fonction -->
+            <div class="mb-3">
+              <label class="form-label">Fonction</label>
+              <input type="text" class="form-control" name="fonction" id="editFonction"
+                     placeholder="Ex : Technicien, Ingénieur, Chef de chantier…">
+            </div>
+
+            <!-- Société -->
+            <div class="mb-3">
+              <label class="form-label">Société *</label>
+              <input type="text" class="form-control" name="societe" id="editSociete" required>
+            </div>
+
+            <!-- Salaire / Type -->
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Salaire *</label>
+                <div class="input-group">
+                  <input type="number" step="0.01" class="form-control" name="salaire" id="editSalaire" required min="0">
+                  <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">DT</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Type de Salaire *</label>
+                <select class="form-select" name="type_salaire" id="editTypeSalaire" required>
+                  <option value="mensuel">Mensuel</option>
+                  <option value="horaire">Horaire</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning" id="editSubmitBtn" disabled>
+            <i class="fas fa-save me-1"></i>Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — CONFIRMATION SUPPRESSION
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Confirmer la suppression</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="text-align:center;padding:2rem;">
+        <div style="width:60px;height:60px;border-radius:18px;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);
+          display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#ff6b6b;margin:0 auto 1.25rem;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p style="font-size:.88rem;color:var(--text-secondary);margin:0;">
+          Supprimer <span id="deletePersonnelName"></span> ?<br>
+          <small style="color:var(--text-muted);">Tous ses déplacements seront supprimés.</small>
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content:center;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form id="deletePersonnelForm" method="POST" action="" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt me-1"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
 <script>
+/* ── EDIT PERSONNEL — chargement AJAX ── */
 function editPersonnel(id) {
-    document.getElementById('editForm').action = `/personnels/edit/${id}`;
-    // Remplir les champs via AJAX ou données inline
-    new bootstrap.Modal(document.getElementById('editModal')).show();
+  // Réinitialiser le modal
+  document.getElementById('editSkeleton').style.display = 'flex';
+  document.getElementById('editFields').style.display   = 'none';
+  document.getElementById('editSubmitBtn').disabled     = true;
+  document.getElementById('editForm').action = `/personnels/edit/${id}`;
+
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+
+  fetch(`/api/personnel/${id}`)
+    .then(r => { if (!r.ok) throw new Error('Erreur réseau'); return r.json(); })
+    .then(data => {
+      document.getElementById('editMatricule').value   = data.matricule   || '';
+      document.getElementById('editNom').value         = data.nom         || '';
+      document.getElementById('editPrenom').value      = data.prenom      || '';
+      document.getElementById('editFonction').value    = data.fonction    || '';
+      document.getElementById('editSociete').value     = data.societe     || '';
+      document.getElementById('editSalaire').value     = data.salaire     ?? '';
+      document.getElementById('editTypeSalaire').value = data.type_salaire|| 'mensuel';
+
+      document.getElementById('editSkeleton').style.display = 'none';
+      document.getElementById('editFields').style.display   = '';
+      document.getElementById('editSubmitBtn').disabled     = false;
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('editSkeleton').innerHTML =
+        `<div style="text-align:center;color:var(--accent-red);">
+           <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>
+           Impossible de charger les données. Réessayez.
+         </div>`;
+    });
 }
 
-function deletePersonnel(id) {
-    if(confirm('Êtes-vous sûr de vouloir supprimer ce personnel ?')) {
-        fetch(`/personnels/delete/${id}`, {method: 'POST'})
-            .then(() => location.reload());
-    }
+/* ── DELETE PERSONNEL — modal de confirmation ── */
+function confirmDeletePersonnel(id, name) {
+  document.getElementById('deletePersonnelName').textContent = name;
+  document.getElementById('deletePersonnelForm').action = `/personnels/delete/${id}`;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 </script>
 {% endblock %}
