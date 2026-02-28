@@ -543,3 +543,171 @@ def toggle_user(id):
     else:
         flash("Vous ne pouvez pas désactiver votre propre compte.", 'danger')
     return redirect(url_for('main.users'))
+
+
+# ── CHART A : déplacements par projet sur intervalle ──────────────────
+@main.route('/api/dashboard/deps-par-projet')
+@login_required
+def api_dash_deps_par_projet():
+    date_debut = request.args.get('date_debut', '').strip()
+    date_fin   = request.args.get('date_fin',   '').strip()
+
+    query = db.session.query(
+        Projet.id,
+        Projet.nom,
+        Projet.gouvernorat,
+        Projet.ville,
+        Projet.region,
+        func.count(Deplacement.id).label('nb')
+    ).join(Deplacement, Deplacement.projet_id == Projet.id)
+
+    if date_debut:
+        query = query.filter(Deplacement.date_debut >= date_debut)
+    if date_fin:
+        query = query.filter(Deplacement.date_fin <= date_fin)
+
+    rows = query.group_by(
+        Projet.id, Projet.nom, Projet.gouvernorat, Projet.ville, Projet.region
+    ).order_by(func.count(Deplacement.id).desc()).all()
+
+    return jsonify([{
+        'id':          r.id,
+        'nom':         r.nom,
+        'gouvernorat': r.gouvernorat,
+        'ville':       r.ville,
+        'region':      r.region,
+        'nb':          r.nb,
+    } for r in rows])
+
+
+# ── CHART B : déplacements par personnel sur intervalle ───────────────
+@main.route('/api/dashboard/deps-par-personnel')
+@login_required
+def api_dash_deps_par_personnel():
+    date_debut = request.args.get('date_debut', '').strip()
+    date_fin   = request.args.get('date_fin',   '').strip()
+
+    query = db.session.query(
+        Personnel.id,
+        Personnel.nom,
+        Personnel.prenom,
+        Personnel.matricule,
+        Personnel.societe,
+        func.count(Deplacement.id).label('nb')
+    ).join(Deplacement, Deplacement.personnel_id == Personnel.id)\
+     .filter(Personnel.active == True)
+
+    if date_debut:
+        query = query.filter(Deplacement.date_debut >= date_debut)
+    if date_fin:
+        query = query.filter(Deplacement.date_fin <= date_fin)
+
+    rows = query.group_by(
+        Personnel.id, Personnel.nom, Personnel.prenom,
+        Personnel.matricule, Personnel.societe
+    ).order_by(func.count(Deplacement.id).desc()).all()
+
+    return jsonify([{
+        'id':        r.id,
+        'nom':       r.nom,
+        'prenom':    r.prenom,
+        'matricule': r.matricule,
+        'societe':   r.societe,
+        'nb':        r.nb,
+    } for r in rows])
+
+
+# ── MODAL B : détail déplacements d'un personnel sur intervalle ───────
+@main.route('/api/dashboard/personnel/<int:pid>/deplacements')
+@login_required
+def api_dash_personnel_deps(pid):
+    Personnel.query.get_or_404(pid)          # 404 si inexistant
+    date_debut = request.args.get('date_debut', '').strip()
+    date_fin   = request.args.get('date_fin',   '').strip()
+
+    query = Deplacement.query.filter_by(personnel_id=pid)
+
+    if date_debut:
+        query = query.filter(Deplacement.date_debut >= date_debut)
+    if date_fin:
+        query = query.filter(Deplacement.date_fin <= date_fin)
+
+    deps = query.order_by(Deplacement.date_debut.desc()).all()
+
+    return jsonify([{
+        'projet':      d.projet.nom,
+        'gouvernorat': d.projet.gouvernorat,
+        'ville':       d.projet.ville,
+        'region':      d.projet.region,
+        'date_debut':  d.date_debut.strftime('%d/%m/%Y'),
+        'heure_debut': d.heure_debut.strftime('%H:%M'),
+        'date_fin':    d.date_fin.strftime('%d/%m/%Y'),
+        'heure_fin':   d.heure_fin.strftime('%H:%M'),
+        'jours':       (d.date_fin - d.date_debut).days + 1,
+    } for d in deps])
+
+
+# ── CHART C : projets avec nb personnels distincts sur intervalle ─────
+@main.route('/api/dashboard/projets-intervalle')
+@login_required
+def api_dash_projets_intervalle():
+    date_debut = request.args.get('date_debut', '').strip()
+    date_fin   = request.args.get('date_fin',   '').strip()
+
+    query = db.session.query(
+        Projet.id,
+        Projet.nom,
+        Projet.gouvernorat,
+        Projet.ville,
+        Projet.region,
+        func.count(Deplacement.personnel_id.distinct()).label('nb_personnels')
+    ).join(Deplacement, Deplacement.projet_id == Projet.id)\
+     .filter(Projet.active == True)
+
+    if date_debut:
+        query = query.filter(Deplacement.date_debut >= date_debut)
+    if date_fin:
+        query = query.filter(Deplacement.date_fin <= date_fin)
+
+    rows = query.group_by(
+        Projet.id, Projet.nom, Projet.gouvernorat, Projet.ville, Projet.region
+    ).order_by(func.count(Deplacement.personnel_id.distinct()).desc()).all()
+
+    return jsonify([{
+        'id':            r.id,
+        'nom':           r.nom,
+        'gouvernorat':   r.gouvernorat,
+        'ville':         r.ville,
+        'region':        r.region,
+        'nb_personnels': r.nb_personnels,
+    } for r in rows])
+
+
+# ── MODAL C : personnels d'un projet sur intervalle ───────────────────
+@main.route('/api/dashboard/projet/<int:pid>/personnels')
+@login_required
+def api_dash_projet_personnels(pid):
+    Projet.query.get_or_404(pid)             # 404 si inexistant
+    date_debut = request.args.get('date_debut', '').strip()
+    date_fin   = request.args.get('date_fin',   '').strip()
+
+    query = Deplacement.query.filter_by(projet_id=pid)
+
+    if date_debut:
+        query = query.filter(Deplacement.date_debut >= date_debut)
+    if date_fin:
+        query = query.filter(Deplacement.date_fin <= date_fin)
+
+    deps = query.order_by(Deplacement.date_debut.asc()).all()
+
+    return jsonify([{
+        'nom':         d.personnel.nom,
+        'prenom':      d.personnel.prenom,
+        'matricule':   d.personnel.matricule,
+        'societe':     d.personnel.societe,
+        'date_debut':  d.date_debut.strftime('%d/%m/%Y'),
+        'heure_debut': d.heure_debut.strftime('%H:%M'),
+        'date_fin':    d.date_fin.strftime('%d/%m/%Y'),
+        'heure_fin':   d.heure_fin.strftime('%H:%M'),
+        'jours':       (d.date_fin - d.date_debut).days + 1,
+    } for d in deps])

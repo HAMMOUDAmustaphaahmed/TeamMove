@@ -10,8 +10,7 @@ class Config:
     
     # Base de données — Aiven MySQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or (
-        "mysql+pymysql://avnadmin:AVNS_dUMjJ2E59Wukr5K8bea@"
-        "mysql-17627854-contact-f2d2.a.aivencloud.com:10154/defaultdb"
+        
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -36,7 +35,7 @@ class Config:
     
     # Sécurité session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
-    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     

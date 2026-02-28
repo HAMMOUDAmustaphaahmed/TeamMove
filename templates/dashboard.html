@@ -42,27 +42,45 @@
     position: relative;
     overflow: hidden;
     transition: var(--t-base);
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block;
   }
-  .kpi-card:hover { border-color: var(--border-md); transform: translateY(-2px); }
+  .kpi-card:hover {
+    border-color: var(--border-md);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.38);
+    color: inherit !important;
+  }
+  .kpi-card.no-link { cursor: default; }
+  .kpi-card.no-link:hover { transform: translateY(-1px); box-shadow: none; }
 
-  /* Accent bar top */
   .kpi-card::before {
     content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
+    position: absolute; top: 0; left: 0; right: 0;
     height: 2px;
-    background: var(--kpi-grad, var(--grad-primary));
+    background: var(--grad-primary);
   }
   .kpi-card.k2::before { background: linear-gradient(90deg,#06d6a0,#0ea5e9); }
   .kpi-card.k3::before { background: linear-gradient(90deg,#f7c948,#fb923c); }
   .kpi-card.k4::before { background: linear-gradient(90deg,#9b5cf6,#ec4899); }
 
+  .kpi-arrow {
+    position: absolute; right: 1.1rem; top: 50%;
+    transform: translateY(-50%);
+    color: rgba(240,244,255,0.12);
+    font-size: 0.72rem;
+    transition: var(--t-fast);
+  }
+  .kpi-card:not(.no-link):hover .kpi-arrow {
+    color: rgba(240,244,255,0.55);
+    right: 0.8rem;
+  }
+
   .kpi-icon {
-    width: 42px; height: 42px;
-    border-radius: 12px;
+    width: 42px; height: 42px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem;
-    margin-bottom: 0.9rem;
+    font-size: 1.1rem; margin-bottom: 0.9rem;
   }
   .kpi-icon.blue  { background: rgba(79,142,247,.15);  color: #4f8ef7; }
   .kpi-icon.green { background: rgba(6,214,160,.15);   color: #06d6a0; }
@@ -70,105 +88,63 @@
   .kpi-icon.purple{ background: rgba(155,92,246,.15);  color: #9b5cf6; }
 
   .kpi-num {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.05em;
-    line-height: 1;
+    font-size: 2.2rem; font-weight: 800;
+    letter-spacing: -0.05em; line-height: 1;
     color: var(--text-primary);
   }
   .kpi-label {
-    font-size: 0.67rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-top: 0.3rem;
+    font-size: 0.67rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-muted); margin-top: 0.3rem;
   }
   .kpi-sub {
-    font-size: 0.7rem;
-    color: rgba(240,244,255,.25);
-    margin-top: 0.4rem;
-    display: flex; align-items: center; gap: 0.3rem;
+    font-size: 0.7rem; color: rgba(240,244,255,.25);
+    margin-top: 0.4rem; display: flex; align-items: center; gap: 0.3rem;
   }
 
   /* ══ SECTION LABELS ══ */
   .section-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--text-muted);
-    margin-bottom: 0.85rem;
     display: flex; align-items: center; gap: 0.5rem;
   }
-  .section-label .badge-tag {
+  .badge-tag {
     font-size: 0.6rem;
-    background: rgba(79,142,247,.15);
-    color: #4f8ef7;
+    background: rgba(79,142,247,.15); color: #4f8ef7;
     border: 1px solid rgba(79,142,247,.25);
-    border-radius: 20px;
-    padding: .15em .6em;
-    letter-spacing: .06em;
-    font-weight: 700;
+    border-radius: 20px; padding: .15em .6em;
+    letter-spacing: .06em; font-weight: 700;
   }
-  .section-label .badge-tag.dg {
-    background: rgba(155,92,246,.15);
-    color: #9b5cf6;
-    border-color: rgba(155,92,246,.25);
-  }
+  .badge-tag.dg    { background: rgba(155,92,246,.15); color: #9b5cf6; border-color: rgba(155,92,246,.25); }
+  .badge-tag.orange{ background: rgba(247,201,72,.12); color: #f7c948; border-color: rgba(247,201,72,.25); }
 
   /* ══ CHART CARDS ══ */
   .chart-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: 1.5rem;
-    height: 100%;
-    transition: var(--t-base);
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: 1.5rem;
+    height: 100%; transition: var(--t-base);
   }
   .chart-card:hover { border-color: var(--border-md); }
-
   .chart-title {
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    margin-bottom: 1.25rem;
+    font-size: 0.82rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 1.25rem;
     display: flex; align-items: center; gap: 0.5rem;
   }
-  .chart-title i { font-size: 0.85rem; }
 
-  /* ══ HORIZONTAL BAR (Top Personnel) ══ */
+  /* ══ STATIC BAR charts ══ */
   .hbar-list { display: flex; flex-direction: column; gap: 0.85rem; }
-
-  .hbar-item { }
-  .hbar-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 0.35rem;
-  }
-  .hbar-name {
-    font-size: 0.84rem; font-weight: 600;
-    color: var(--text-secondary);
-  }
+  .hbar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
+  .hbar-name { font-size: 0.84rem; font-weight: 600; color: var(--text-secondary); }
   .hbar-val {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.75rem; font-weight: 700;
-    color: #4f8ef7;
-    background: rgba(79,142,247,.1);
-    border: 1px solid rgba(79,142,247,.2);
-    border-radius: 20px;
-    padding: .1em .6em;
+    font-family: var(--font-mono, monospace); font-size: 0.75rem; font-weight: 700;
+    color: #4f8ef7; background: rgba(79,142,247,.1);
+    border: 1px solid rgba(79,142,247,.2); border-radius: 20px; padding: .1em .6em;
   }
-  .hbar-track {
-    height: 7px;
-    background: rgba(255,255,255,.05);
-    border-radius: 99px;
-    overflow: hidden;
-  }
+  .hbar-track { height: 7px; background: rgba(255,255,255,.05); border-radius: 99px; overflow: hidden; }
   .hbar-fill {
-    height: 100%;
-    border-radius: 99px;
+    height: 100%; border-radius: 99px;
     background: linear-gradient(90deg, #4f8ef7, #9b5cf6);
     transition: width 1.2s cubic-bezier(.16,1,.3,1);
   }
@@ -176,80 +152,171 @@
   .hbar-fill.rank-2 { background: linear-gradient(90deg,#06d6a0,#4f8ef7); }
   .hbar-fill.rank-3 { background: linear-gradient(90deg,#9b5cf6,#4f8ef7); }
 
-  /* ══ DOUGHNUT (Sociétés) ══ */
-  .donut-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    max-height: 200px;
-  }
+  .donut-wrap { position: relative; display: flex; align-items: center; justify-content: center; max-height: 200px; }
 
-  /* ══ REGION BARS (DG chart) ══ */
   .region-list { display: flex; flex-direction: column; gap: 0.9rem; }
-  .region-item { }
-  .region-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 0.3rem;
-  }
-  .region-name {
-    font-size: 0.84rem; font-weight: 600;
-    color: var(--text-secondary);
-    display: flex; align-items: center; gap: 0.45rem;
-  }
-  .region-name i { color: var(--text-muted); font-size: 0.7rem; }
+  .region-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; }
+  .region-name { font-size: 0.84rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 0.45rem; }
   .region-val {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.75rem; font-weight: 700;
-    color: #9b5cf6;
-    background: rgba(155,92,246,.1);
-    border: 1px solid rgba(155,92,246,.2);
-    border-radius: 20px;
-    padding: .1em .6em;
+    font-family: var(--font-mono, monospace); font-size: 0.75rem; font-weight: 700;
+    color: #9b5cf6; background: rgba(155,92,246,.1); border: 1px solid rgba(155,92,246,.2);
+    border-radius: 20px; padding: .1em .6em;
   }
-  .region-track {
-    height: 6px;
-    background: rgba(255,255,255,.05);
-    border-radius: 99px;
-    overflow: hidden;
-  }
+  .region-track { height: 6px; background: rgba(255,255,255,.05); border-radius: 99px; overflow: hidden; }
   .region-fill {
-    height: 100%;
-    border-radius: 99px;
+    height: 100%; border-radius: 99px;
     background: linear-gradient(90deg, #9b5cf6, #38bdf8);
     transition: width 1.2s cubic-bezier(.16,1,.3,1);
   }
 
   /* ══ RECENT TABLE ══ */
   .recent-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: 1.5rem;
-    margin-top: 1.25rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: 1.5rem; margin-top: 1.25rem;
   }
-
   .dur-badge {
     display: inline-flex; align-items: center; gap: 0.3rem;
-    background: rgba(79,142,247,.1);
-    border: 1px solid rgba(79,142,247,.2);
-    color: #4f8ef7;
-    border-radius: 20px;
-    padding: 0.2em 0.7em;
-    font-size: 0.72rem; font-weight: 700;
-    font-family: var(--font-mono, monospace);
+    background: rgba(79,142,247,.1); border: 1px solid rgba(79,142,247,.2);
+    color: #4f8ef7; border-radius: 20px; padding: 0.2em 0.7em;
+    font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono, monospace);
   }
 
-  /* Empty state */
-  .chart-empty {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    height: 180px;
-    color: var(--text-muted); font-size: .83rem; gap: .5rem;
+  /* ══ DATE FILTER BAR ══ */
+  .date-filter-bar {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.75rem 1rem; margin-bottom: 1.25rem;
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
+    border-radius: var(--r-lg); flex-wrap: wrap;
   }
-  .chart-empty i { font-size: 2rem; opacity: .12; }
+  .date-filter-bar label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); margin: 0; white-space: nowrap;
+  }
+  .date-filter-bar input[type="date"] {
+    background: rgba(255,255,255,.06); border: 1px solid var(--border-md);
+    border-radius: var(--r-md); padding: 0.35rem 0.75rem; font-size: 0.82rem;
+    color: var(--text-primary); font-family: var(--font-body);
+    cursor: pointer; transition: var(--t-fast); color-scheme: dark;
+  }
+  .date-filter-bar input[type="date"]:focus {
+    outline: none; border-color: rgba(79,142,247,.6);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12);
+  }
+  .btn-filter {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: linear-gradient(135deg,#4f8ef7,#9b5cf6);
+    color: #fff; border: none; border-radius: var(--r-md);
+    padding: 0.38rem 0.9rem; font-size: 0.78rem; font-weight: 700;
+    cursor: pointer; transition: var(--t-base); font-family: var(--font-body);
+    box-shadow: 0 3px 12px rgba(79,142,247,.25);
+  }
+  .btn-filter:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(79,142,247,.38); }
+  .btn-filter:active { transform: scale(0.97); }
+  .btn-reset {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: rgba(255,255,255,.05); color: var(--text-muted);
+    border: 1px solid var(--border-md); border-radius: var(--r-md);
+    padding: 0.38rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: var(--t-fast); font-family: var(--font-body);
+  }
+  .btn-reset:hover { color: var(--text-primary); background: rgba(255,255,255,.09); }
+  .periode-label { font-size: 0.71rem; color: var(--text-muted); font-style: italic; }
+
+  /* ══ DYNAMIC LIST ══ */
+  .dyn-row {
+    display: flex; flex-direction: column; gap: 0.6rem;
+    max-height: 440px; overflow-y: auto; padding-right: 0.2rem;
+  }
+  .dyn-row::-webkit-scrollbar { width: 4px; }
+  .dyn-row::-webkit-scrollbar-track { background: transparent; }
+  .dyn-row::-webkit-scrollbar-thumb { background: rgba(79,142,247,.2); border-radius: 99px; }
+
+  .dyn-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
+    border-radius: var(--r-lg); transition: var(--t-fast);
+  }
+  .dyn-item:hover { border-color: var(--border-md); background: rgba(255,255,255,.055); }
+
+  .dyn-rank {
+    width: 28px; height: 28px; border-radius: 9px;
+    background: var(--grad-primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .dyn-rank.r1 { background: linear-gradient(135deg,#f7c948,#fb923c); }
+  .dyn-rank.r2 { background: linear-gradient(135deg,#06d6a0,#0ea5e9); }
+  .dyn-rank.r3 { background: linear-gradient(135deg,#9b5cf6,#4f8ef7); }
+
+  .dyn-info { flex: 1; min-width: 0; }
+  .dyn-name { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dyn-sub { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.1rem; }
+  .dyn-bar-wrap { margin-top: 0.3rem; max-width: 220px; }
+  .dyn-bar-track { height: 4px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; }
+  .dyn-bar-fill { height: 100%; border-radius: 99px; transition: width 1.1s cubic-bezier(.16,1,.3,1); }
+
+  /* Clickable count badges */
+  .cnt-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-family: var(--font-mono, monospace); font-size: 0.74rem; font-weight: 800;
+    border-radius: 20px; padding: 0.28em 0.75em;
+    white-space: nowrap; flex-shrink: 0; border: 1px solid;
+    transition: var(--t-fast);
+  }
+  .cnt-badge.clickable { cursor: pointer; }
+  .cnt-badge.clickable:hover { transform: scale(1.07); }
+  .cnt-badge.blue   { background: rgba(79,142,247,.12); color: #4f8ef7; border-color: rgba(79,142,247,.3); }
+  .cnt-badge.blue.clickable:hover   { background: rgba(79,142,247,.22); }
+  .cnt-badge.purple { background: rgba(155,92,246,.12); color: #9b5cf6; border-color: rgba(155,92,246,.3); }
+  .cnt-badge.purple.clickable:hover { background: rgba(155,92,246,.22); }
+
+  /* Loading / empty */
+  .chart-loading {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 160px; gap: 0.6rem;
+    color: var(--text-muted); font-size: 0.82rem;
+  }
+  .chart-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 160px; color: var(--text-muted); font-size: .83rem; gap: .5rem;
+  }
+  .chart-empty i { font-size: 2rem; opacity: .1; }
+
+  /* ══ MODAL TABLES ══ */
+  .modal-table th {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border); background: rgba(255,255,255,.03);
+  }
+  .modal-table td {
+    padding: 0.75rem 1rem; font-size: 0.83rem; color: var(--text-secondary);
+    border-bottom: 1px solid var(--border); vertical-align: middle;
+  }
+  .modal-table tr:last-child td { border-bottom: none; }
+  .modal-table tr:hover td { background: rgba(255,255,255,.025); }
+  .modal-empty {
+    text-align: center; padding: 2.5rem 1rem;
+    color: var(--text-muted); font-size: 0.85rem;
+  }
+  .modal-empty i { display: block; font-size: 2rem; opacity: 0.1; margin-bottom: 0.5rem; }
+
+  /* ══ EXPORT BUTTON ══ */
+  .btn-export-xlsx {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: #fff; border: none; border-radius: var(--r-md);
+    padding: 0.38rem 0.9rem; font-size: 0.76rem; font-weight: 700;
+    cursor: pointer; transition: var(--t-base); font-family: var(--font-body);
+    box-shadow: 0 3px 12px rgba(22,163,74,.25);
+    white-space: nowrap;
+  }
+  .btn-export-xlsx:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(22,163,74,.38); opacity: .92; }
+  .btn-export-xlsx:active { transform: scale(0.97); }
+  .btn-export-xlsx:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 </style>
 {% endblock %}
+
 
 {% block content %}
 
@@ -265,33 +332,43 @@
   </span>
 </div>
 
-<!-- ── KPI CARDS ── -->
+
+<!-- ══ KPI CARDS ══ -->
 <div class="kpi-grid">
-  <div class="kpi-card">
+
+  <a href="{{ url_for('main.personnels') }}" class="kpi-card">
     <div class="kpi-icon blue"><i class="fas fa-users"></i></div>
     <div class="kpi-num">{{ total_personnels }}</div>
     <div class="kpi-label">Personnels actifs</div>
     <div class="kpi-sub"><i class="fas fa-circle" style="font-size:.4rem;color:#06d6a0;"></i> En activité</div>
-  </div>
-  <div class="kpi-card k2">
+    <i class="fas fa-arrow-right kpi-arrow"></i>
+  </a>
+
+  <a href="{{ url_for('main.projets') }}" class="kpi-card k2">
     <div class="kpi-icon green"><i class="fas fa-building"></i></div>
     <div class="kpi-num">{{ total_projets }}</div>
     <div class="kpi-label">Projets actifs</div>
     <div class="kpi-sub"><i class="fas fa-circle" style="font-size:.4rem;color:#06d6a0;"></i> Chantiers en cours</div>
-  </div>
-  <div class="kpi-card k3">
+    <i class="fas fa-arrow-right kpi-arrow"></i>
+  </a>
+
+  <a href="{{ url_for('main.deplacements') }}" class="kpi-card k3">
     <div class="kpi-icon amber"><i class="fas fa-route"></i></div>
     <div class="kpi-num">{{ total_deplacements }}</div>
     <div class="kpi-label">Déplacements total</div>
     <div class="kpi-sub"><i class="fas fa-circle" style="font-size:.4rem;color:#f7c948;"></i> Depuis le début</div>
-  </div>
-  <div class="kpi-card k4">
+    <i class="fas fa-arrow-right kpi-arrow"></i>
+  </a>
+
+  <div class="kpi-card k4 no-link">
     <div class="kpi-icon purple"><i class="fas fa-calendar-check"></i></div>
     <div class="kpi-num">{{ total_deplacements_mois }}</div>
     <div class="kpi-label">Ce mois-ci</div>
     <div class="kpi-sub"><i class="fas fa-circle" style="font-size:.4rem;color:#9b5cf6;"></i> 30 derniers jours</div>
   </div>
+
 </div>
+
 
 <!-- ══════════════════════════════════════
      SECTION DRH
@@ -304,7 +381,6 @@
 
 <div class="row g-3 mb-4">
 
-  <!-- Chart 1 — Top personnels les plus mobiles (jours) -->
   <div class="col-md-6">
     <div class="chart-card h-100">
       <div class="chart-title">
@@ -315,7 +391,7 @@
         {% set max_jours = top_personnel_jours[0][1] %}
         <div class="hbar-list">
           {% for name, jours in top_personnel_jours %}
-          <div class="hbar-item">
+          <div>
             <div class="hbar-header">
               <span class="hbar-name">
                 {% if loop.index == 1 %}<i class="fas fa-crown" style="color:#f7c948;font-size:.7rem;margin-right:.3rem;"></i>{% endif %}
@@ -331,15 +407,11 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="chart-empty">
-          <i class="fas fa-user-clock"></i>
-          Aucune donnée disponible
-        </div>
+        <div class="chart-empty"><i class="fas fa-user-clock"></i>Aucune donnée disponible</div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Chart 2 — Déplacements par société (Doughnut) -->
   <div class="col-md-6">
     <div class="chart-card h-100">
       <div class="chart-title">
@@ -351,15 +423,13 @@
           <canvas id="societeChart" height="200"></canvas>
         </div>
       {% else %}
-        <div class="chart-empty">
-          <i class="fas fa-building"></i>
-          Aucune donnée disponible
-        </div>
+        <div class="chart-empty"><i class="fas fa-building"></i>Aucune donnée disponible</div>
       {% endif %}
     </div>
   </div>
 
 </div>
+
 
 <!-- ══════════════════════════════════════
      SECTION DG
@@ -370,9 +440,8 @@
   <span class="badge-tag dg">Directeur Général</span>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-5">
 
-  <!-- Chart 3 — Répartition par région -->
   <div class="col-md-7">
     <div class="chart-card h-100">
       <div class="chart-title">
@@ -383,30 +452,23 @@
         {% set max_region = deps_par_region[0][1] %}
         <div class="region-list">
           {% for region, nb in deps_par_region %}
-          <div class="region-item">
+          <div>
             <div class="region-header">
-              <span class="region-name">
-                <i class="fas fa-map-pin"></i>{{ region|capitalize }}
-              </span>
+              <span class="region-name"><i class="fas fa-map-pin"></i>{{ region|capitalize }}</span>
               <span class="region-val">{{ nb }} dépl.</span>
             </div>
             <div class="region-track">
-              <div class="region-fill"
-                   style="width: {{ ((nb / max_region) * 100)|round|int }}%"></div>
+              <div class="region-fill" style="width: {{ ((nb / max_region) * 100)|round|int }}%"></div>
             </div>
           </div>
           {% endfor %}
         </div>
       {% else %}
-        <div class="chart-empty">
-          <i class="fas fa-map"></i>
-          Aucune donnée géographique disponible
-        </div>
+        <div class="chart-empty"><i class="fas fa-map"></i>Aucune donnée géographique disponible</div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Résumé textuel régions -->
   <div class="col-md-5">
     <div class="chart-card h-100">
       <div class="chart-title">
@@ -416,23 +478,15 @@
       {% if deps_par_region %}
         <div style="display:flex;flex-direction:column;gap:.65rem;">
           {% for region, nb in deps_par_region %}
-          <div style="
-            display:flex;justify-content:space-between;align-items:center;
+          <div style="display:flex;justify-content:space-between;align-items:center;
             padding:.65rem 1rem;
             background:rgba(155,92,246,{% if loop.index == 1 %}.1{% else %}.05{% endif %});
             border:1px solid rgba(155,92,246,{% if loop.index == 1 %}.2{% else %}.08{% endif %});
-            border-radius:var(--r-lg);
-          ">
+            border-radius:var(--r-lg);">
             <div style="display:flex;align-items:center;gap:.6rem;">
-              <div style="
-                width:28px;height:28px;border-radius:8px;
-                background:rgba(155,92,246,.15);
-                display:flex;align-items:center;justify-content:center;
-                font-size:.65rem;font-weight:800;color:#9b5cf6;
-              ">{{ loop.index }}</div>
-              <span style="font-size:.84rem;font-weight:600;color:var(--text-secondary);">
-                {{ region|capitalize }}
-              </span>
+              <div style="width:28px;height:28px;border-radius:8px;background:rgba(155,92,246,.15);
+                display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:#9b5cf6;">{{ loop.index }}</div>
+              <span style="font-size:.84rem;font-weight:600;color:var(--text-secondary);">{{ region|capitalize }}</span>
             </div>
             <div style="text-align:right;">
               <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary);letter-spacing:-.03em;">{{ nb }}</div>
@@ -442,21 +496,116 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="chart-empty">
-          <i class="fas fa-globe"></i>
-          Aucune région renseignée
-        </div>
+        <div class="chart-empty"><i class="fas fa-globe"></i>Aucune région renseignée</div>
       {% endif %}
     </div>
   </div>
 
 </div>
 
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION DYNAMIQUE — ANALYSE PAR INTERVALLE
+     ══════════════════════════════════════════════════════ -->
+<div class="section-label mb-3">
+  <i class="fas fa-sliders-h" style="color:#f7c948;"></i>
+  Analyse par Intervalle de Temps
+  <span class="badge-tag orange">Filtres interactifs</span>
+</div>
+
+
+<!-- ────────────────────────────────────────────────
+     CHART A — Déplacements par Projet
+     ──────────────────────────────────────────────── -->
+<div class="chart-card mb-3" style="height:auto;">
+  <div class="chart-title">
+    <i class="fas fa-building" style="color:#4f8ef7;"></i>
+    Déplacements par Projet
+  </div>
+  <div class="date-filter-bar">
+    <label><i class="fas fa-calendar-day me-1"></i>Du</label>
+    <input type="date" id="projDebut">
+    <label>Au</label>
+    <input type="date" id="projFin">
+    <button class="btn-filter" onclick="loadProjetsChart()">
+      <i class="fas fa-filter"></i>Filtrer
+    </button>
+    <button class="btn-reset" onclick="clearFilter('proj'); loadProjetsChart();">
+      <i class="fas fa-undo"></i>Tout
+    </button>
+    <span id="projLabel" class="periode-label"></span>
+  </div>
+  <div id="projContainer">
+    <div class="chart-loading">
+      <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#4f8ef7;"></div> Chargement…
+    </div>
+  </div>
+</div>
+
+
+<!-- ────────────────────────────────────────────────
+     CHART B — Déplacements par Personnel
+     ──────────────────────────────────────────────── -->
+<div class="chart-card mb-3" style="height:auto;">
+  <div class="chart-title">
+    <i class="fas fa-users" style="color:#06d6a0;"></i>
+    Déplacements par Personnel
+  </div>
+  <div class="date-filter-bar">
+    <label><i class="fas fa-calendar-day me-1"></i>Du</label>
+    <input type="date" id="persDebut">
+    <label>Au</label>
+    <input type="date" id="persFin">
+    <button class="btn-filter" onclick="loadPersonnelsChart()">
+      <i class="fas fa-filter"></i>Filtrer
+    </button>
+    <button class="btn-reset" onclick="clearFilter('pers'); loadPersonnelsChart();">
+      <i class="fas fa-undo"></i>Tout
+    </button>
+    <span id="persLabel" class="periode-label"></span>
+  </div>
+  <div id="persContainer">
+    <div class="chart-loading">
+      <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#06d6a0;"></div> Chargement…
+    </div>
+  </div>
+</div>
+
+
+<!-- ────────────────────────────────────────────────
+     CHART C — Projets avec personnels affectés
+     ──────────────────────────────────────────────── -->
+<div class="chart-card mb-5" style="height:auto;">
+  <div class="chart-title">
+    <i class="fas fa-hard-hat" style="color:#9b5cf6;"></i>
+    Projets — Personnels Affectés par Période
+  </div>
+  <div class="date-filter-bar">
+    <label><i class="fas fa-calendar-day me-1"></i>Du</label>
+    <input type="date" id="chantDebut">
+    <label>Au</label>
+    <input type="date" id="chantFin">
+    <button class="btn-filter" onclick="loadChantiersChart()">
+      <i class="fas fa-filter"></i>Filtrer
+    </button>
+    <button class="btn-reset" onclick="clearFilter('chant'); loadChantiersChart();">
+      <i class="fas fa-undo"></i>Tout
+    </button>
+    <span id="chantLabel" class="periode-label"></span>
+  </div>
+  <div id="chantContainer">
+    <div class="chart-loading">
+      <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#9b5cf6;"></div> Chargement…
+    </div>
+  </div>
+</div>
+
+
 <!-- ══════════════════════════════════════
      TABLEAU RÉCENTS
      ══════════════════════════════════════ -->
 <div class="recent-card">
-  <div class="section-label" style="margin-bottom:1.25rem;">
+  <div class="section-label mb-3">
     <i class="fas fa-history" style="color:#38bdf8;"></i>
     Derniers Déplacements Enregistrés
   </div>
@@ -476,30 +625,22 @@
         <tr>
           <td>
             <div style="display:flex;align-items:center;gap:.6rem;">
-              <div style="
-                width:30px;height:30px;border-radius:10px;
+              <div style="width:30px;height:30px;border-radius:10px;
                 background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
                 display:flex;align-items:center;justify-content:center;
-                font-size:.68rem;font-weight:800;color:#4f8ef7;
-              ">{{ dep.personnel.nom[0] }}{{ dep.personnel.prenom[0] }}</div>
+                font-size:.68rem;font-weight:800;color:#4f8ef7;">
+                {{ dep.personnel.nom[0] }}{{ dep.personnel.prenom[0] }}</div>
               <div>
-                <div style="font-weight:700;font-size:.85rem;">
-                  {{ dep.personnel.nom }} {{ dep.personnel.prenom }}
-                </div>
+                <div style="font-weight:700;font-size:.85rem;">{{ dep.personnel.nom }} {{ dep.personnel.prenom }}</div>
                 <div style="font-size:.68rem;color:var(--text-muted);">{{ dep.personnel.societe }}</div>
               </div>
             </div>
           </td>
           <td>
-            <span style="
-              display:inline-flex;align-items:center;gap:.3rem;
-              background:rgba(56,189,248,.08);
-              border:1px solid rgba(56,189,248,.2);
-              color:#38bdf8;border-radius:20px;
-              padding:.2em .7em;font-size:.75rem;font-weight:700;
-            ">
-              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>
-              {{ dep.projet.nom }}
+            <span style="display:inline-flex;align-items:center;gap:.3rem;
+              background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+              color:#38bdf8;border-radius:20px;padding:.2em .7em;font-size:.75rem;font-weight:700;">
+              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>{{ dep.projet.nom }}
             </span>
           </td>
           <td style="font-family:var(--font-mono,monospace);font-size:.78rem;">
@@ -528,86 +669,646 @@
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════
+     MODAL A — Déplacements d'un Projet (Chart A)
+     ═══════════════════════════════════════════ -->
+<div class="modal fade" id="modalProjetDeps" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#4f8ef7,#06d6a0);">
+        <h5 class="modal-title">
+          <i class="fas fa-route me-2"></i>
+          Déplacements — <span id="modalProjetDepsName" style="font-weight:800;"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="modalProjetDepsBody"></div>
+      </div>
+      <div class="modal-footer">
+        <span id="modalProjetDepsPeriode" style="font-size:.74rem;color:var(--text-muted);margin-right:auto;font-style:italic;"></span>
+        <button type="button" id="btnExportProjetDeps" class="btn-export-xlsx" disabled>
+          <i class="fas fa-file-excel"></i>Exporter XLSX
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MODAL B — Déplacements d'un Personnel (Chart B)
+     ═══════════════════════════════════════════ -->
+<div class="modal fade" id="modalPersonnelDeps" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-route me-2"></i>
+          Déplacements — <span id="modalPersName" style="font-weight:800;"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="modalPersBody"></div>
+      </div>
+      <div class="modal-footer">
+        <span id="modalPersPeriode" style="font-size:.74rem;color:var(--text-muted);margin-right:auto;font-style:italic;"></span>
+        <button type="button" id="btnExportPersDeps" class="btn-export-xlsx" disabled>
+          <i class="fas fa-file-excel"></i>Exporter XLSX
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MODAL C — Personnels d'un Projet (Chart C)
+     ═══════════════════════════════════════════ -->
+<div class="modal fade" id="modalProjetPersonnels" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#9b5cf6,#4f8ef7);">
+        <h5 class="modal-title">
+          <i class="fas fa-users me-2"></i>
+          Personnels affectés — <span id="modalProjetName" style="font-weight:800;"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="modalProjetBody"></div>
+      </div>
+      <div class="modal-footer">
+        <span id="modalProjetPeriode" style="font-size:.74rem;color:var(--text-muted);margin-right:auto;font-style:italic;"></span>
+        <button type="button" id="btnExportProjetPersonnels" class="btn-export-xlsx" disabled>
+          <i class="fas fa-file-excel"></i>Exporter XLSX
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 
 {% block extra_js %}
+<!-- SheetJS pour export XLSX côté client -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script>
-// ── Chart defaults (dark theme) ──
-Chart.defaults.color        = 'rgba(240,244,255,0.45)';
-Chart.defaults.borderColor  = 'rgba(255,255,255,0.05)';
-Chart.defaults.font.family  = "'Sora', sans-serif";
+/* ═══════════════════════════════════════════
+   STATIC CHARTS — Chart.js (dark theme)
+   ═══════════════════════════════════════════ */
+Chart.defaults.color       = 'rgba(240,244,255,0.45)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+Chart.defaults.font.family = "'Sora', sans-serif";
 
-// ── Doughnut — Déplacements par société ──
 {% if deps_par_societe %}
-(function () {
+(function(){
   const ctx = document.getElementById('societeChart');
-  if (!ctx) return;
-
+  if(!ctx) return;
   const labels = {{ deps_par_societe | map(attribute=0) | list | tojson }};
   const data   = {{ deps_par_societe | map(attribute=1) | list | tojson }};
-
-  const COLORS = [
-    'rgba(79,142,247,.78)',
-    'rgba(6,214,160,.78)',
-    'rgba(247,201,72,.78)',
-    'rgba(155,92,246,.78)',
-    'rgba(56,189,248,.78)',
-    'rgba(255,107,107,.78)',
-    'rgba(236,72,153,.78)',
-    'rgba(16,185,129,.78)',
-  ];
-
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: COLORS.slice(0, data.length),
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,.06)',
-        hoverBorderColor: 'rgba(255,255,255,.2)',
-        hoverOffset: 8,
-      }]
-    },
-    options: {
-      responsive: true,
-      cutout: '65%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            padding: 14,
-            boxWidth: 9,
-            borderRadius: 5,
-            usePointStyle: true,
-            pointStyle: 'circle',
-            font: { size: 11 },
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.label} : ${ctx.parsed} déplacement${ctx.parsed > 1 ? 's' : ''}`
-          }
-        }
-      }
-    }
-  });
+  const COLORS = ['rgba(79,142,247,.8)','rgba(6,214,160,.8)','rgba(247,201,72,.8)',
+    'rgba(155,92,246,.8)','rgba(56,189,248,.8)','rgba(255,107,107,.8)',
+    'rgba(236,72,153,.8)','rgba(16,185,129,.8)'];
+  new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,
+    backgroundColor:COLORS.slice(0,data.length),
+    borderWidth:2,borderColor:'rgba(255,255,255,.06)',
+    hoverBorderColor:'rgba(255,255,255,.2)',hoverOffset:8}]},
+    options:{responsive:true,cutout:'65%',plugins:{
+      legend:{position:'bottom',labels:{padding:14,boxWidth:9,borderRadius:5,
+        usePointStyle:true,pointStyle:'circle',font:{size:11}}},
+      tooltip:{callbacks:{label:c=>` ${c.label} : ${c.parsed} déplacement${c.parsed>1?'s':''}`}}
+    }}});
 })();
 {% endif %}
 
-// ── Animate progress bars on load ──
-(function () {
-  // All hbar-fill and region-fill start at width:0 then animate to their target
-  document.querySelectorAll('.hbar-fill, .region-fill').forEach(el => {
-    const target = el.style.width;
-    el.style.width = '0%';
-    // Small delay so transition fires
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => { el.style.width = target; });
-    });
+/* Animate static bars */
+(function(){
+  document.querySelectorAll('.hbar-fill,.region-fill').forEach(el=>{
+    const t=el.style.width; el.style.width='0%';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.width=t;}));
   });
 })();
+
+
+/* ═══════════════════════════════════════════
+   DYNAMIC CHARTS — helpers
+   ═══════════════════════════════════════════ */
+
+function getVal(id){ return document.getElementById(id)?.value||''; }
+
+function buildUrl(base,debut,fin){
+  const p=new URLSearchParams();
+  if(debut) p.set('date_debut',debut);
+  if(fin)   p.set('date_fin',fin);
+  return p.toString()?`${base}?${p}`:base;
+}
+
+function labelFor(debut,fin){
+  const f=iso=>iso?iso.split('-').reverse().join('/'):'';
+  if(!debut&&!fin) return 'Toute la période';
+  if(debut&&!fin)  return `À partir du ${f(debut)}`;
+  if(!debut&&fin)  return `Jusqu'au ${f(fin)}`;
+  return `${f(debut)} → ${f(fin)}`;
+}
+
+function clearFilter(prefix){
+  ['Debut','Fin'].forEach(s=>{
+    const el=document.getElementById(prefix+s);
+    if(el) el.value='';
+  });
+}
+
+function rankCls(i){ return ['r1','r2','r3'][i]||''; }
+
+function setLoading(id,color){
+  document.getElementById(id).innerHTML=
+    `<div class="chart-loading"><div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:${color};"></div> Chargement…</div>`;
+}
+function setEmpty(id,icon,msg){
+  document.getElementById(id).innerHTML=
+    `<div class="chart-empty"><i class="fas fa-${icon}"></i>${msg}</div>`;
+}
+function setError(id){
+  document.getElementById(id).innerHTML=
+    `<div class="chart-empty"><i class="fas fa-exclamation-circle"></i>Erreur de chargement. Veuillez réessayer.</div>`;
+}
+
+function animateBars(){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('.dyn-bar-fill[data-target]').forEach(el=>{
+      el.style.width=el.dataset.target+'%';
+    });
+  }));
+}
+
+/* XSS-safe html escape */
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ═══════════════════════════════════════════
+   XLSX EXPORT HELPER
+   ═══════════════════════════════════════════ */
+function exportXlsx(rows, columns, filename){
+  if(!rows||!rows.length) return;
+  /* columns = [{header:'Label', key:'field'}, ...] */
+  const wsData = [columns.map(c=>c.header)];
+  rows.forEach(r=>{
+    wsData.push(columns.map(c=> r[c.key] !== undefined ? r[c.key] : ''));
+  });
+  const wb  = XLSX.utils.book_new();
+  const ws  = XLSX.utils.aoa_to_sheet(wsData);
+  /* Auto column width */
+  const colWidths = columns.map((c,i)=>{
+    const max = Math.max(c.header.length, ...rows.map(r=>String(r[c.key]||'').length));
+    return {wch: Math.min(max+2, 50)};
+  });
+  ws['!cols'] = colWidths;
+  XLSX.utils.book_append_sheet(wb, ws, 'Export');
+  XLSX.writeFile(wb, filename+'.xlsx');
+}
+
+/* ─────────────────────────────────────────
+   CHART A — Déplacements par Projet
+   Each count badge opens Modal A showing all
+   deployments (with personnel) for that project.
+   ───────────────────────────────────────── */
+function loadProjetsChart(){
+  const debut=getVal('projDebut'), fin=getVal('projFin');
+  document.getElementById('projLabel').textContent=labelFor(debut,fin);
+  setLoading('projContainer','#4f8ef7');
+
+  fetch(buildUrl('/api/dashboard/deps-par-projet',debut,fin))
+    .then(r=>{if(!r.ok) throw new Error(); return r.json();})
+    .then(data=>{
+      if(!data.length){ setEmpty('projContainer','building','Aucun déplacement sur cette période'); return; }
+      const max=data[0].nb;
+      const list=document.createElement('div');
+      list.className='dyn-row';
+      data.forEach((p,i)=>{
+        const pct=Math.round((p.nb/max)*100);
+        const el=document.createElement('div');
+        el.className='dyn-item';
+        el.innerHTML=`
+          <div class="dyn-rank ${rankCls(i)}">${i+1}</div>
+          <div class="dyn-info">
+            <div class="dyn-name">${esc(p.nom)}</div>
+            <div class="dyn-sub">
+              <i class="fas fa-map-pin" style="font-size:.58rem;margin-right:.2rem;"></i>
+              ${esc(p.gouvernorat)} · ${esc(p.ville)} · ${esc(p.region)}
+            </div>
+            <div class="dyn-bar-wrap"><div class="dyn-bar-track">
+              <div class="dyn-bar-fill" data-target="${pct}"
+                   style="background:linear-gradient(90deg,#4f8ef7,#9b5cf6);"></div>
+            </div></div>
+          </div>
+          <span class="cnt-badge blue clickable"
+                data-pid="${p.id}" data-name="${esc(p.nom)}"
+                data-debut="${esc(debut)}" data-fin="${esc(fin)}"
+                title="Voir les déplacements de ce projet">
+            <i class="fas fa-eye" style="font-size:.6rem;"></i>${p.nb} dépl.
+          </span>`;
+        list.appendChild(el);
+        el.querySelector('.cnt-badge').addEventListener('click', function(){
+          openProjetDepsModal(
+            this.dataset.pid,
+            this.dataset.name,
+            this.dataset.debut,
+            this.dataset.fin
+          );
+        });
+      });
+      document.getElementById('projContainer').innerHTML='';
+      document.getElementById('projContainer').appendChild(list);
+      animateBars();
+    })
+    .catch(()=>setError('projContainer'));
+}
+
+
+/* ─────────────────────────────────────────
+   MODAL A — Déplacements d'un Projet
+   Uses /api/dashboard/projet/<pid>/personnels
+   ───────────────────────────────────────── */
+let _projetDepsData = [];   // stockage pour export
+
+function openProjetDepsModal(pid, name, debut, fin){
+  document.getElementById('modalProjetDepsName').textContent = name;
+  document.getElementById('modalProjetDepsPeriode').textContent = labelFor(debut, fin);
+  document.getElementById('modalProjetDepsBody').innerHTML =
+    `<div class="chart-loading" style="min-height:160px;">
+       <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#4f8ef7;"></div> Chargement…
+     </div>`;
+  const btn = document.getElementById('btnExportProjetDeps');
+  btn.disabled = true;
+  _projetDepsData = [];
+
+  new bootstrap.Modal(document.getElementById('modalProjetDeps')).show();
+
+  fetch(buildUrl(`/api/dashboard/projet/${pid}/personnels`, debut, fin))
+    .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+    .then(deps=>{
+      if(!deps.length){
+        document.getElementById('modalProjetDepsBody').innerHTML =
+          `<div class="modal-empty"><i class="fas fa-route"></i>Aucun déplacement trouvé sur cette période.</div>`;
+        return;
+      }
+      _projetDepsData = deps;
+      btn.disabled = false;
+
+      const rows = deps.map(d=>`
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <div style="width:30px;height:30px;border-radius:9px;
+                background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
+                display:flex;align-items:center;justify-content:center;
+                font-size:.68rem;font-weight:800;color:#4f8ef7;flex-shrink:0;">
+                ${esc((d.nom[0]||'')+(d.prenom[0]||''))}</div>
+              <div>
+                <div style="font-weight:700;font-size:.85rem;">${esc(d.nom)} ${esc(d.prenom)}</div>
+                <div style="font-size:.68rem;color:var(--text-muted);">${esc(d.matricule)} · ${esc(d.societe)}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_debut)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_debut)}</div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_fin)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_fin)}</div>
+          </td>
+          <td><span class="dur-badge"><i class="fas fa-clock"></i>${d.jours}j</span></td>
+        </tr>`).join('');
+
+      document.getElementById('modalProjetDepsBody').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="table modal-table" style="margin:0;">
+            <thead><tr>
+              <th>Personnel</th><th>Date début</th><th>Date fin</th><th>Durée</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      /* Wire export button */
+      btn.onclick = ()=>{
+        exportXlsx(_projetDepsData, [
+          {header:'Nom',         key:'nom'},
+          {header:'Prénom',      key:'prenom'},
+          {header:'Matricule',   key:'matricule'},
+          {header:'Société',     key:'societe'},
+          {header:'Date Début',  key:'date_debut'},
+          {header:'Heure Début', key:'heure_debut'},
+          {header:'Date Fin',    key:'date_fin'},
+          {header:'Heure Fin',   key:'heure_fin'},
+          {header:'Durée (j)',   key:'jours'},
+        ], `deplacements_${name.replace(/\s+/g,'_')}`);
+      };
+    })
+    .catch(()=>{
+      document.getElementById('modalProjetDepsBody').innerHTML =
+        `<div class="modal-empty"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>`;
+    });
+}
+
+
+/* ─────────────────────────────────────────
+   CHART B — Déplacements par Personnel (+ Modal B)
+   ───────────────────────────────────────── */
+let _persDepsData = [];   // stockage pour export
+
+function loadPersonnelsChart(){
+  const debut=getVal('persDebut'), fin=getVal('persFin');
+  document.getElementById('persLabel').textContent=labelFor(debut,fin);
+  setLoading('persContainer','#06d6a0');
+
+  fetch(buildUrl('/api/dashboard/deps-par-personnel',debut,fin))
+    .then(r=>{if(!r.ok) throw new Error(); return r.json();})
+    .then(data=>{
+      if(!data.length){ setEmpty('persContainer','users','Aucun déplacement sur cette période'); return; }
+      const max=data[0].nb;
+      const list=document.createElement('div');
+      list.className='dyn-row';
+      data.forEach((p,i)=>{
+        const pct=Math.round((p.nb/max)*100);
+        const initials=esc((p.nom[0]||'')+(p.prenom[0]||''));
+        const el=document.createElement('div');
+        el.className='dyn-item';
+        el.innerHTML=`
+          <div class="dyn-rank ${rankCls(i)}" style="font-size:.7rem;">${initials}</div>
+          <div class="dyn-info">
+            <div class="dyn-name">${esc(p.nom)} ${esc(p.prenom)}</div>
+            <div class="dyn-sub">${esc(p.matricule)} · ${esc(p.societe)}</div>
+            <div class="dyn-bar-wrap"><div class="dyn-bar-track">
+              <div class="dyn-bar-fill" data-target="${pct}"
+                   style="background:linear-gradient(90deg,#06d6a0,#4f8ef7);"></div>
+            </div></div>
+          </div>
+          <span class="cnt-badge blue clickable"
+                data-pid="${p.id}" data-name="${esc(p.nom+' '+p.prenom)}"
+                data-debut="${esc(debut)}" data-fin="${esc(fin)}"
+                title="Voir les déplacements">
+            <i class="fas fa-eye" style="font-size:.6rem;"></i>${p.nb} dépl.
+          </span>`;
+        list.appendChild(el);
+        el.querySelector('.cnt-badge').addEventListener('click', function(){
+          openPersonnelModal(
+            this.dataset.pid,
+            this.dataset.name,
+            this.dataset.debut,
+            this.dataset.fin
+          );
+        });
+      });
+      document.getElementById('persContainer').innerHTML='';
+      document.getElementById('persContainer').appendChild(list);
+      animateBars();
+    })
+    .catch(()=>setError('persContainer'));
+}
+
+function openPersonnelModal(pid, name, debut, fin){
+  document.getElementById('modalPersName').textContent = name;
+  document.getElementById('modalPersPeriode').textContent = labelFor(debut, fin);
+  document.getElementById('modalPersBody').innerHTML =
+    `<div class="chart-loading" style="min-height:160px;">
+       <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#4f8ef7;"></div> Chargement…
+     </div>`;
+  const btn = document.getElementById('btnExportPersDeps');
+  btn.disabled = true;
+  _persDepsData = [];
+
+  new bootstrap.Modal(document.getElementById('modalPersonnelDeps')).show();
+
+  fetch(buildUrl(`/api/dashboard/personnel/${pid}/deplacements`, debut, fin))
+    .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+    .then(deps=>{
+      if(!deps.length){
+        document.getElementById('modalPersBody').innerHTML =
+          `<div class="modal-empty"><i class="fas fa-route"></i>Aucun déplacement trouvé sur cette période.</div>`;
+        return;
+      }
+      _persDepsData = deps;
+      btn.disabled = false;
+
+      const rows = deps.map(d=>`
+        <tr>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:.3rem;
+              background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+              color:#38bdf8;border-radius:20px;padding:.2em .65em;font-size:.75rem;font-weight:700;">
+              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>${esc(d.projet)}
+            </span>
+            <div style="font-size:.68rem;color:var(--text-muted);margin-top:.2rem;">
+              <i class="fas fa-location-dot" style="font-size:.6rem;margin-right:.2rem;"></i>
+              ${esc(d.gouvernorat)} · ${esc(d.ville)} · ${esc(d.region)}
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_debut)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_debut)}</div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_fin)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_fin)}</div>
+          </td>
+          <td><span class="dur-badge"><i class="fas fa-clock"></i>${d.jours}j</span></td>
+        </tr>`).join('');
+
+      document.getElementById('modalPersBody').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="table modal-table" style="margin:0;">
+            <thead><tr>
+              <th>Projet / Emplacement</th><th>Date début</th><th>Date fin</th><th>Durée</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      /* Wire export button */
+      btn.onclick = ()=>{
+        exportXlsx(_persDepsData, [
+          {header:'Projet',      key:'projet'},
+          {header:'Gouvernorat', key:'gouvernorat'},
+          {header:'Ville',       key:'ville'},
+          {header:'Région',      key:'region'},
+          {header:'Date Début',  key:'date_debut'},
+          {header:'Heure Début', key:'heure_debut'},
+          {header:'Date Fin',    key:'date_fin'},
+          {header:'Heure Fin',   key:'heure_fin'},
+          {header:'Durée (j)',   key:'jours'},
+        ], `deplacements_${name.replace(/\s+/g,'_')}`);
+      };
+    })
+    .catch(()=>{
+      document.getElementById('modalPersBody').innerHTML =
+        `<div class="modal-empty"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>`;
+    });
+}
+
+
+/* ─────────────────────────────────────────
+   CHART C — Projets avec nb personnels (+ Modal C)
+   ───────────────────────────────────────── */
+let _projetPersonnelsData = [];   // stockage pour export
+
+function loadChantiersChart(){
+  const debut=getVal('chantDebut'), fin=getVal('chantFin');
+  document.getElementById('chantLabel').textContent=labelFor(debut,fin);
+  setLoading('chantContainer','#9b5cf6');
+
+  fetch(buildUrl('/api/dashboard/projets-intervalle',debut,fin))
+    .then(r=>{if(!r.ok) throw new Error(); return r.json();})
+    .then(data=>{
+      if(!data.length){ setEmpty('chantContainer','hard-hat','Aucun projet sur cette période'); return; }
+      const max=data[0].nb_personnels;
+      const list=document.createElement('div');
+      list.className='dyn-row';
+      data.forEach((p,i)=>{
+        const pct=max>0?Math.round((p.nb_personnels/max)*100):0;
+        const el=document.createElement('div');
+        el.className='dyn-item';
+        el.innerHTML=`
+          <div class="dyn-rank ${rankCls(i)}">${i+1}</div>
+          <div class="dyn-info">
+            <div class="dyn-name">${esc(p.nom)}</div>
+            <div class="dyn-sub">
+              <i class="fas fa-map-marker-alt" style="font-size:.58rem;margin-right:.2rem;"></i>
+              ${esc(p.gouvernorat)} · ${esc(p.ville)} · ${esc(p.region)}
+            </div>
+            <div class="dyn-bar-wrap"><div class="dyn-bar-track">
+              <div class="dyn-bar-fill" data-target="${pct}"
+                   style="background:linear-gradient(90deg,#9b5cf6,#38bdf8);"></div>
+            </div></div>
+          </div>
+          <span class="cnt-badge purple clickable"
+                data-pid="${p.id}" data-name="${esc(p.nom)}"
+                data-debut="${esc(debut)}" data-fin="${esc(fin)}"
+                title="Voir les personnels affectés">
+            <i class="fas fa-users" style="font-size:.6rem;"></i>${p.nb_personnels} pers.
+          </span>`;
+        list.appendChild(el);
+        el.querySelector('.cnt-badge').addEventListener('click', function(){
+          openProjetModal(
+            this.dataset.pid,
+            this.dataset.name,
+            this.dataset.debut,
+            this.dataset.fin
+          );
+        });
+      });
+      document.getElementById('chantContainer').innerHTML='';
+      document.getElementById('chantContainer').appendChild(list);
+      animateBars();
+    })
+    .catch(()=>setError('chantContainer'));
+}
+
+function openProjetModal(pid, name, debut, fin){
+  document.getElementById('modalProjetName').textContent = name;
+  document.getElementById('modalProjetPeriode').textContent = labelFor(debut, fin);
+  document.getElementById('modalProjetBody').innerHTML =
+    `<div class="chart-loading" style="min-height:160px;">
+       <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#9b5cf6;"></div> Chargement…
+     </div>`;
+  const btn = document.getElementById('btnExportProjetPersonnels');
+  btn.disabled = true;
+  _projetPersonnelsData = [];
+
+  new bootstrap.Modal(document.getElementById('modalProjetPersonnels')).show();
+
+  fetch(buildUrl(`/api/dashboard/projet/${pid}/personnels`, debut, fin))
+    .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+    .then(deps=>{
+      if(!deps.length){
+        document.getElementById('modalProjetBody').innerHTML =
+          `<div class="modal-empty"><i class="fas fa-users"></i>Aucun personnel trouvé sur cette période.</div>`;
+        return;
+      }
+      _projetPersonnelsData = deps;
+      btn.disabled = false;
+
+      const rows = deps.map(d=>`
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <div style="width:30px;height:30px;border-radius:9px;
+                background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
+                display:flex;align-items:center;justify-content:center;
+                font-size:.68rem;font-weight:800;color:#4f8ef7;flex-shrink:0;">
+                ${esc((d.nom[0]||'')+(d.prenom[0]||''))}</div>
+              <div>
+                <div style="font-weight:700;font-size:.85rem;">${esc(d.nom)} ${esc(d.prenom)}</div>
+                <div style="font-size:.68rem;color:var(--text-muted);">${esc(d.matricule)} · ${esc(d.societe)}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_debut)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_debut)}</div>
+          </td>
+          <td style="font-family:var(--font-mono,monospace);font-size:.79rem;white-space:nowrap;">
+            <div>${esc(d.date_fin)}</div>
+            <div style="color:rgba(240,244,255,.35);font-size:.72rem;">${esc(d.heure_fin)}</div>
+          </td>
+          <td><span class="dur-badge"><i class="fas fa-clock"></i>${d.jours}j</span></td>
+        </tr>`).join('');
+
+      document.getElementById('modalProjetBody').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="table modal-table" style="margin:0;">
+            <thead><tr>
+              <th>Personnel</th><th>Date début</th><th>Date fin</th><th>Durée</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      /* Wire export button */
+      btn.onclick = ()=>{
+        exportXlsx(_projetPersonnelsData, [
+          {header:'Nom',         key:'nom'},
+          {header:'Prénom',      key:'prenom'},
+          {header:'Matricule',   key:'matricule'},
+          {header:'Société',     key:'societe'},
+          {header:'Date Début',  key:'date_debut'},
+          {header:'Heure Début', key:'heure_debut'},
+          {header:'Date Fin',    key:'date_fin'},
+          {header:'Heure Fin',   key:'heure_fin'},
+          {header:'Durée (j)',   key:'jours'},
+        ], `personnels_${name.replace(/\s+/g,'_')}`);
+      };
+    })
+    .catch(()=>{
+      document.getElementById('modalProjetBody').innerHTML =
+        `<div class="modal-empty"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>`;
+    });
+}
+
+
+/* ── Boot ── */
+document.addEventListener('DOMContentLoaded',function(){
+  loadProjetsChart();
+  loadPersonnelsChart();
+  loadChantiersChart();
+});
 </script>
 {% endblock %}
