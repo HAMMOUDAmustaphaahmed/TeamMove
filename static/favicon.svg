@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B00"/>
+      <stop offset="100%" style="stop-color:#FF8C00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- Team: 3 small circles (people) -->
+  <!-- Left person -->
+  <circle cx="8" cy="13" r="2.5" fill="#1a1a1a" opacity="0.85"/>
+  <path d="M4.5 20 Q8 17.5 11.5 20" stroke="#1a1a1a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Center person (slightly larger = leader) -->
+  <circle cx="16" cy="12" r="3" fill="#1a1a1a"/>
+  <path d="M11.5 20 Q16 17 20.5 20" stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Right person -->
+  <circle cx="24" cy="13" r="2.5" fill="#1a1a1a" opacity="0.85"/>
+  <path d="M20.5 20 Q24 17.5 27.5 20" stroke="#1a1a1a" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Arrow pointing right-forward (movement) -->
+  <path d="M11 26 L19 26 L19 24 L23 27.5 L19 31 L19 29 L11 29 Z" fill="white" opacity="0.95"/>
+</svg>

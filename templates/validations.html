@@ -1,0 +1,713 @@
+{% extends "base.html" %}
+
+{% block title %}Validations — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Page header ── */
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  /* ── Filter card ── */
+  .filter-card {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); padding:1rem 1.5rem; margin-bottom:1.5rem;
+  }
+  .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
+  .form-control, .form-select {
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.84rem; padding:.5rem .85rem; transition:var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); color:var(--text-primary); outline:none;
+  }
+  .form-control[type="date"] { color-scheme: dark; }
+  .form-select option { background:#1a1d2e; }
+
+  /* ── Section tabs ── */
+  .section-tabs { display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .section-tab {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.4rem 1rem; border-radius:var(--r-full);
+    font-size:.78rem; font-weight:700; cursor:pointer;
+    border:1px solid var(--border-md); background:var(--bg-overlay);
+    color:var(--text-muted); transition:var(--t-fast);
+    text-decoration:none;
+  }
+  .section-tab:hover { color:var(--text-primary); background:rgba(255,255,255,.07); }
+  .section-tab.active-tab-amber {
+    background:rgba(247,201,72,.1); border-color:rgba(247,201,72,.35); color:#f7c948;
+  }
+  .section-tab.active-tab-green {
+    background:rgba(6,214,160,.1); border-color:rgba(6,214,160,.35); color:#06d6a0;
+  }
+  .section-tab.active-tab-red {
+    background:rgba(255,107,107,.1); border-color:rgba(255,107,107,.35); color:#ff6b6b;
+  }
+
+  /* ── Table section card ── */
+  .val-section {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); overflow:hidden; margin-bottom:1.75rem;
+  }
+  .val-section-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1rem 1.5rem;
+    border-bottom:1px solid var(--border);
+    flex-wrap:wrap; gap:.5rem;
+  }
+  .val-section-title {
+    font-size:.8rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.1em; display:flex; align-items:center; gap:.5rem;
+  }
+  .cnt-pill {
+    font-family:var(--font-mono,monospace); font-size:.7rem; font-weight:800;
+    border-radius:20px; padding:.2em .7em; border:1px solid;
+  }
+  .cnt-amber { background:rgba(247,201,72,.12); color:#f7c948; border-color:rgba(247,201,72,.3); }
+  .cnt-green { background:rgba(6,214,160,.12);  color:#06d6a0; border-color:rgba(6,214,160,.3); }
+  .cnt-red   { background:rgba(255,107,107,.12);color:#ff6b6b; border-color:rgba(255,107,107,.3); }
+
+  /* ── Table styles ── */
+  .val-table th {
+    font-size:.66rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--text-muted);
+    padding:.75rem 1rem; border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,.02); white-space:nowrap;
+  }
+  .val-table td {
+    padding:.8rem 1rem; font-size:.83rem; color:var(--text-secondary);
+    border-bottom:1px solid var(--border); vertical-align:middle;
+  }
+  .val-table tr:last-child td { border-bottom:none; }
+  .val-table tr:hover td { background:rgba(255,255,255,.02); }
+
+  /* ── Status badges ── */
+  .status-badge {
+    display:inline-flex; align-items:center; gap:.3rem;
+    font-size:.68rem; font-weight:700; border-radius:20px;
+    padding:.22em .7em; border:1px solid;
+  }
+  .s-pending { background:rgba(247,201,72,.1); color:#f7c948; border-color:rgba(247,201,72,.3); }
+  .s-ok      { background:rgba(6,214,160,.1);  color:#06d6a0; border-color:rgba(6,214,160,.3); }
+  .s-ko      { background:rgba(255,107,107,.1);color:#ff6b6b; border-color:rgba(255,107,107,.3); }
+
+  /* ── Action buttons ── */
+  .btn-approve {
+    display:inline-flex; align-items:center; gap:.3rem;
+    background:linear-gradient(135deg,#06d6a0,#0ea5e9);
+    color:#fff; border:none; border-radius:var(--r-md);
+    padding:.35rem .8rem; font-size:.74rem; font-weight:700;
+    cursor:pointer; transition:var(--t-base); font-family:var(--font-body);
+  }
+  .btn-approve:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(6,214,160,.3); }
+
+  .btn-reject {
+    display:inline-flex; align-items:center; gap:.3rem;
+    background:rgba(255,107,107,.12); color:#ff6b6b;
+    border:1px solid rgba(255,107,107,.3); border-radius:var(--r-md);
+    padding:.35rem .8rem; font-size:.74rem; font-weight:700;
+    cursor:pointer; transition:var(--t-fast); font-family:var(--font-body);
+  }
+  .btn-reject:hover { background:rgba(255,107,107,.2); transform:translateY(-1px); }
+
+  /* ── Bulk action bar ── */
+  .bulk-bar {
+    display:none; align-items:center; gap:.6rem;
+    padding:.6rem 1rem; margin-bottom:.5rem;
+    background:rgba(79,142,247,.06); border:1px solid rgba(79,142,247,.2);
+    border-radius:var(--r-lg); flex-wrap:wrap;
+  }
+  .bulk-bar.visible { display:flex; }
+  .bulk-label { font-size:.75rem; font-weight:700; color:#4f8ef7; }
+
+  /* ── Export button ── */
+  .btn-export-xlsx {
+    display:inline-flex; align-items:center; gap:.4rem;
+    background:linear-gradient(135deg,#16a34a,#15803d);
+    color:#fff; border:none; border-radius:var(--r-md);
+    padding:.38rem .9rem; font-size:.75rem; font-weight:700;
+    cursor:pointer; transition:var(--t-base); font-family:var(--font-body);
+    box-shadow:0 3px 12px rgba(22,163,74,.2); white-space:nowrap;
+  }
+  .btn-export-xlsx:hover { transform:translateY(-1px); box-shadow:0 5px 18px rgba(22,163,74,.35); }
+  .btn-export-xlsx:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+
+  /* ── Date+info cell ── */
+  .date-mono {
+    font-family:var(--font-mono,monospace); font-size:.78rem; white-space:nowrap;
+  }
+  .date-mono .dim { color:rgba(240,244,255,.3); font-size:.7rem; }
+
+  /* ── Empty row ── */
+  .empty-row td { text-align:center; padding:2.5rem; color:var(--text-muted); font-size:.85rem; }
+  .empty-row i  { display:block; font-size:1.8rem; opacity:.1; margin-bottom:.5rem; }
+
+  /* ── KPI row ── */
+  .kpi-row {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.5rem;
+  }
+  @media(max-width:768px){ .kpi-row { grid-template-columns:1fr; } }
+  .kpi-mini {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:1.1rem 1.4rem;
+    position:relative; overflow:hidden; transition:var(--t-base);
+  }
+  .kpi-mini::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:2px;
+  }
+  .kpi-mini.amber::before { background:linear-gradient(90deg,#f7c948,#fb923c); }
+  .kpi-mini.green::before { background:linear-gradient(90deg,#06d6a0,#0ea5e9); }
+  .kpi-mini.red::before   { background:linear-gradient(90deg,#ff6b6b,#dc2626); }
+  .kpi-mini .num { font-size:2rem; font-weight:800; letter-spacing:-.04em; line-height:1; }
+  .kpi-mini .lbl { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); margin-top:.2rem; }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-clipboard-check" style="background:linear-gradient(135deg,#f7c948,#06d6a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
+      Gestion des Validations
+    </h2>
+    <p class="page-sub">Approuvez ou rejetez les déplacements soumis par les responsables de projet</p>
+  </div>
+</div>
+
+
+<!-- ── KPI ROW ── -->
+<div class="kpi-row">
+  <div class="kpi-mini amber">
+    <div class="num" style="color:#f7c948;">{{ deps_en_attente|length }}</div>
+    <div class="lbl"><i class="fas fa-hourglass-half me-1"></i>En attente</div>
+  </div>
+  <div class="kpi-mini green">
+    <div class="num" style="color:#06d6a0;">{{ deps_approuves|length }}</div>
+    <div class="lbl"><i class="fas fa-check-circle me-1"></i>Approuvés</div>
+  </div>
+  <div class="kpi-mini red">
+    <div class="num" style="color:#ff6b6b;">{{ deps_rejetes|length }}</div>
+    <div class="lbl"><i class="fas fa-times-circle me-1"></i>Rejetés</div>
+  </div>
+</div>
+
+
+<!-- ── FILTERS ── -->
+<div class="filter-card">
+  <form method="GET" action="{{ url_for('main.validations') }}" class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label"><i class="fas fa-calendar-day me-1"></i>Date début</label>
+      <input type="date" class="form-control" name="date_debut" value="{{ date_debut_f }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label"><i class="fas fa-calendar-day me-1"></i>Date fin</label>
+      <input type="date" class="form-control" name="date_fin" value="{{ date_fin_f }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label"><i class="fas fa-building me-1"></i>Projet</label>
+      <select class="form-select" name="projet_id">
+        <option value="">Tous les projets</option>
+        {% for p in projets %}
+        <option value="{{ p.id }}" {{ 'selected' if projet_id_f == p.id|string else '' }}>
+          {{ p.nom }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label"><i class="fas fa-user me-1"></i>Personnel</label>
+      <input type="text" class="form-control" name="personnel"
+             placeholder="Nom / matricule…" value="{{ personnel_f }}">
+    </div>
+    <div class="col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary flex-fill">
+        <i class="fas fa-filter me-1"></i>Filtrer
+      </button>
+      <a href="{{ url_for('main.validations') }}" class="btn btn-secondary">
+        <i class="fas fa-undo"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     TABLE 1 — EN ATTENTE
+     ════════════════════════════════════════ -->
+<div class="val-section">
+  <div class="val-section-header">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="val-section-title" style="color:#f7c948;">
+        <i class="fas fa-hourglass-half"></i>Déplacements en Attente
+      </span>
+      <span class="cnt-pill cnt-amber">{{ deps_en_attente|length }}</span>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <!-- Bulk approve / reject -->
+      {% if deps_en_attente %}
+      <form id="bulkForm" method="POST" action="{{ url_for('main.validation_bulk') }}" style="display:contents;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" id="bulkAction" value="">
+        <div id="bulkBar" class="bulk-bar">
+          <span class="bulk-label"><span id="bulkCount">0</span> sélectionné(s)</span>
+          <button type="button" class="btn-approve"
+                  onclick="submitBulk('approuve')">
+            <i class="fas fa-check-double"></i>Approuver la sélection
+          </button>
+          <button type="button" class="btn-reject"
+                  onclick="submitBulk('rejete')">
+            <i class="fas fa-times"></i>Rejeter la sélection
+          </button>
+        </div>
+      </form>
+      {% endif %}
+      <button class="btn-export-xlsx" onclick="exportTable('tblAttente','deplacements_en_attente')">
+        <i class="fas fa-file-excel"></i>Exporter XLSX
+      </button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table val-table" id="tblAttente">
+      <thead>
+        <tr>
+          {% if deps_en_attente %}
+          <th style="width:36px;">
+            <input type="checkbox" id="checkAllAttente" title="Tout sélectionner"
+                   style="accent-color:#f7c948;width:15px;height:15px;cursor:pointer;">
+          </th>
+          {% endif %}
+          <th>Personnel</th>
+          <th>Projet</th>
+          <th>Date début</th>
+          <th>Date fin</th>
+          <th>Durée</th>
+          <th>Soumis par</th>
+          <th>Soumis le</th>
+          <th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dep in deps_en_attente %}
+        <tr>
+          <td>
+            <input type="checkbox" class="dep-check" data-id="{{ dep.id }}"
+                   style="accent-color:#f7c948;width:15px;height:15px;cursor:pointer;"
+                   form="bulkForm">
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <div style="width:30px;height:30px;border-radius:9px;
+                background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));
+                display:flex;align-items:center;justify-content:center;
+                font-size:.65rem;font-weight:800;color:#4f8ef7;flex-shrink:0;">
+                {{ dep.personnel.nom[0] }}{{ dep.personnel.prenom[0] }}</div>
+              <div>
+                <div style="font-weight:700;font-size:.85rem;">{{ dep.personnel.nom }} {{ dep.personnel.prenom }}</div>
+                <div style="font-size:.68rem;color:var(--text-muted);">{{ dep.personnel.matricule }} · {{ dep.personnel.societe }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:.3rem;
+              background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+              color:#38bdf8;border-radius:20px;padding:.2em .65em;font-size:.74rem;font-weight:700;">
+              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>{{ dep.projet.nom }}
+            </span>
+            <div style="font-size:.67rem;color:var(--text-muted);margin-top:.2rem;">
+              {{ dep.projet.gouvernorat }} · {{ dep.projet.ville }}
+            </div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_debut.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_debut.strftime('%H:%M') }}</div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_fin.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_fin.strftime('%H:%M') }}</div>
+          </td>
+          <td>
+            {% set diff = (dep.date_fin - dep.date_debut).days + 1 %}
+            <span style="font-family:var(--font-mono,monospace);font-size:.78rem;font-weight:700;
+              background:rgba(247,201,72,.1);color:#f7c948;border:1px solid rgba(247,201,72,.25);
+              border-radius:20px;padding:.18em .65em;">{{ diff }}j</span>
+          </td>
+          <td style="font-size:.8rem;">
+            {% if dep.creator %}
+              <div style="font-weight:600;">{{ dep.creator.username }}</div>
+              <div style="font-size:.67rem;color:var(--text-muted);">
+                {{ {'responsable_projet':'Resp. Projet','lecteur':'Lecteur','admin':'Admin'}.get(dep.creator.role,'—') }}
+              </div>
+            {% else %}—{% endif %}
+          </td>
+          <td class="date-mono" style="font-size:.75rem;">
+            {{ dep.created_at.strftime('%d/%m/%Y') if dep.created_at else '—' }}
+            <div class="dim">{{ dep.created_at.strftime('%H:%M') if dep.created_at else '' }}</div>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              <!-- Approuver -->
+              <form method="POST" action="{{ url_for('main.validation_action', id=dep.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="approuve">
+                <button type="submit" class="btn-approve" title="Approuver">
+                  <i class="fas fa-check"></i>
+                </button>
+              </form>
+              <!-- Rejeter -->
+              <button type="button" class="btn-reject"
+                      onclick="openRejectModal({{ dep.id }})"
+                      title="Rejeter">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+          <td colspan="9">
+            <i class="fas fa-check-double"></i>
+            Aucun déplacement en attente — tout est à jour !
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     TABLE 2 — APPROUVÉS
+     ════════════════════════════════════════ -->
+<div class="val-section">
+  <div class="val-section-header">
+    <div class="d-flex align-items-center gap-3">
+      <span class="val-section-title" style="color:#06d6a0;">
+        <i class="fas fa-check-circle"></i>Déplacements Approuvés
+      </span>
+      <span class="cnt-pill cnt-green">{{ deps_approuves|length }}</span>
+    </div>
+    <button class="btn-export-xlsx" onclick="exportTable('tblApprouves','deplacements_approuves')">
+      <i class="fas fa-file-excel"></i>Exporter XLSX
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table val-table" id="tblApprouves">
+      <thead>
+        <tr>
+          <th>Personnel</th>
+          <th>Projet</th>
+          <th>Date début</th>
+          <th>Date fin</th>
+          <th>Durée</th>
+          <th>Soumis par</th>
+          <th>Validé par</th>
+          <th>Validé le</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dep in deps_approuves %}
+        {% set last_val = dep.validations|sort(attribute='created_at')|last if dep.validations else none %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <div style="width:30px;height:30px;border-radius:9px;
+                background:linear-gradient(135deg,rgba(6,214,160,.15),rgba(14,165,233,.15));
+                display:flex;align-items:center;justify-content:center;
+                font-size:.65rem;font-weight:800;color:#06d6a0;flex-shrink:0;">
+                {{ dep.personnel.nom[0] }}{{ dep.personnel.prenom[0] }}</div>
+              <div>
+                <div style="font-weight:700;font-size:.85rem;">{{ dep.personnel.nom }} {{ dep.personnel.prenom }}</div>
+                <div style="font-size:.68rem;color:var(--text-muted);">{{ dep.personnel.matricule }} · {{ dep.personnel.societe }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:.3rem;
+              background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+              color:#38bdf8;border-radius:20px;padding:.2em .65em;font-size:.74rem;font-weight:700;">
+              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>{{ dep.projet.nom }}
+            </span>
+            <div style="font-size:.67rem;color:var(--text-muted);margin-top:.2rem;">
+              {{ dep.projet.gouvernorat }} · {{ dep.projet.ville }}
+            </div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_debut.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_debut.strftime('%H:%M') }}</div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_fin.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_fin.strftime('%H:%M') }}</div>
+          </td>
+          <td>
+            {% set diff = (dep.date_fin - dep.date_debut).days + 1 %}
+            <span style="font-family:var(--font-mono,monospace);font-size:.78rem;font-weight:700;
+              background:rgba(6,214,160,.1);color:#06d6a0;border:1px solid rgba(6,214,160,.25);
+              border-radius:20px;padding:.18em .65em;">{{ diff }}j</span>
+          </td>
+          <td style="font-size:.8rem;">
+            {% if dep.creator %}<div style="font-weight:600;">{{ dep.creator.username }}</div>{% else %}—{% endif %}
+          </td>
+          <td style="font-size:.8rem;">
+            {% if last_val %}
+              <div style="font-weight:600;color:#06d6a0;">{{ last_val.validator.username }}</div>
+            {% else %}—{% endif %}
+          </td>
+          <td class="date-mono" style="font-size:.75rem;">
+            {% if last_val %}
+              {{ last_val.created_at.strftime('%d/%m/%Y') }}
+              <div class="dim">{{ last_val.created_at.strftime('%H:%M') }}</div>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+          <td colspan="8">
+            <i class="fas fa-check-circle"></i>Aucun déplacement approuvé
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     TABLE 3 — REJETÉS
+     ════════════════════════════════════════ -->
+<div class="val-section">
+  <div class="val-section-header">
+    <div class="d-flex align-items-center gap-3">
+      <span class="val-section-title" style="color:#ff6b6b;">
+        <i class="fas fa-times-circle"></i>Déplacements Rejetés
+      </span>
+      <span class="cnt-pill cnt-red">{{ deps_rejetes|length }}</span>
+    </div>
+    <button class="btn-export-xlsx" onclick="exportTable('tblRejetes','deplacements_rejetes')">
+      <i class="fas fa-file-excel"></i>Exporter XLSX
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table val-table" id="tblRejetes">
+      <thead>
+        <tr>
+          <th>Personnel</th>
+          <th>Projet</th>
+          <th>Date début</th>
+          <th>Date fin</th>
+          <th>Durée</th>
+          <th>Soumis par</th>
+          <th>Rejeté par</th>
+          <th>Rejeté le</th>
+          <th>Commentaire</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dep in deps_rejetes %}
+        {% set last_val = dep.validations|sort(attribute='created_at')|last if dep.validations else none %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <div style="width:30px;height:30px;border-radius:9px;
+                background:linear-gradient(135deg,rgba(255,107,107,.15),rgba(220,38,38,.15));
+                display:flex;align-items:center;justify-content:center;
+                font-size:.65rem;font-weight:800;color:#ff6b6b;flex-shrink:0;">
+                {{ dep.personnel.nom[0] }}{{ dep.personnel.prenom[0] }}</div>
+              <div>
+                <div style="font-weight:700;font-size:.85rem;">{{ dep.personnel.nom }} {{ dep.personnel.prenom }}</div>
+                <div style="font-size:.68rem;color:var(--text-muted);">{{ dep.personnel.matricule }} · {{ dep.personnel.societe }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:.3rem;
+              background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+              color:#38bdf8;border-radius:20px;padding:.2em .65em;font-size:.74rem;font-weight:700;">
+              <i class="fas fa-map-pin" style="font-size:.6rem;"></i>{{ dep.projet.nom }}
+            </span>
+            <div style="font-size:.67rem;color:var(--text-muted);margin-top:.2rem;">
+              {{ dep.projet.gouvernorat }} · {{ dep.projet.ville }}
+            </div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_debut.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_debut.strftime('%H:%M') }}</div>
+          </td>
+          <td class="date-mono">
+            {{ dep.date_fin.strftime('%d/%m/%Y') }}
+            <div class="dim">{{ dep.heure_fin.strftime('%H:%M') }}</div>
+          </td>
+          <td>
+            {% set diff = (dep.date_fin - dep.date_debut).days + 1 %}
+            <span style="font-family:var(--font-mono,monospace);font-size:.78rem;font-weight:700;
+              background:rgba(255,107,107,.1);color:#ff6b6b;border:1px solid rgba(255,107,107,.25);
+              border-radius:20px;padding:.18em .65em;">{{ diff }}j</span>
+          </td>
+          <td style="font-size:.8rem;">
+            {% if dep.creator %}<div style="font-weight:600;">{{ dep.creator.username }}</div>{% else %}—{% endif %}
+          </td>
+          <td style="font-size:.8rem;">
+            {% if last_val %}
+              <div style="font-weight:600;color:#ff6b6b;">{{ last_val.validator.username }}</div>
+            {% else %}—{% endif %}
+          </td>
+          <td class="date-mono" style="font-size:.75rem;">
+            {% if last_val %}
+              {{ last_val.created_at.strftime('%d/%m/%Y') }}
+              <div class="dim">{{ last_val.created_at.strftime('%H:%M') }}</div>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);max-width:180px;">
+            {% if last_val and last_val.commentaire %}
+              <span title="{{ last_val.commentaire }}"
+                    style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ last_val.commentaire }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+          <td colspan="9">
+            <i class="fas fa-times-circle"></i>Aucun déplacement rejeté
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MODAL — REJETER AVEC COMMENTAIRE
+     ════════════════════════════════════════ -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title"><i class="fas fa-times-circle me-2"></i>Rejeter le Déplacement</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="rejectForm" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="rejete">
+        <div class="modal-body">
+          <div class="mb-3" style="
+            background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.2);
+            border-radius:var(--r-lg);padding:.85rem 1rem;font-size:.83rem;color:#fca5a5;
+            display:flex;align-items:center;gap:.5rem;">
+            <i class="fas fa-exclamation-triangle"></i>
+            Cette action est irréversible. Le déplacement sera marqué comme rejeté.
+          </div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.4rem;">
+            Commentaire (optionnel)
+          </label>
+          <textarea class="form-control" name="commentaire" rows="3"
+                    placeholder="Raison du rejet…"
+                    style="resize:vertical;"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-times me-1"></i>Confirmer le rejet
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+/* ══ Open reject modal ══ */
+function openRejectModal(id) {
+  document.getElementById('rejectForm').action = `/validations/action/${id}`;
+  new bootstrap.Modal(document.getElementById('rejectModal')).show();
+}
+
+/* ══ Checkbox "select all" for pending table ══ */
+const checkAll = document.getElementById('checkAllAttente');
+if (checkAll) {
+  checkAll.addEventListener('change', function () {
+    document.querySelectorAll('.dep-check').forEach(c => { c.checked = this.checked; });
+    updateBulkBar();
+  });
+}
+
+document.querySelectorAll('.dep-check').forEach(c => {
+  c.addEventListener('change', updateBulkBar);
+});
+
+function updateBulkBar() {
+  const checked = [...document.querySelectorAll('.dep-check:checked')];
+  const bar     = document.getElementById('bulkBar');
+  const cnt     = document.getElementById('bulkCount');
+  if (!bar) return;
+  if (checked.length > 0) {
+    bar.classList.add('visible');
+    cnt.textContent = checked.length;
+  } else {
+    bar.classList.remove('visible');
+    cnt.textContent = '0';
+  }
+}
+
+function submitBulk(action) {
+  const checked = [...document.querySelectorAll('.dep-check:checked')];
+  if (!checked.length) return;
+
+  // Build hidden inputs for selected IDs
+  const form = document.getElementById('bulkForm');
+  // Remove old dep_ids inputs
+  form.querySelectorAll('input[name="dep_ids[]"]').forEach(el => el.remove());
+  checked.forEach(c => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'dep_ids[]'; inp.value = c.dataset.id;
+    form.appendChild(inp);
+  });
+
+  document.getElementById('bulkAction').value = action;
+  const label = action === 'approuve' ? 'approuver' : 'rejeter';
+  if (confirm(`Voulez-vous ${label} ${checked.length} déplacement(s) ?`)) {
+    form.submit();
+  }
+}
+
+/* ══ XLSX export ══ */
+function exportTable(tableId, filename) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  // Cloner la table pour supprimer la colonne checkbox (première colonne si elle contient un input)
+  const clone = table.cloneNode(true);
+  clone.querySelectorAll('th, td').forEach(cell => {
+    if (cell.querySelector('input[type="checkbox"]')) {
+      cell.parentElement.removeChild(cell);
+    }
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.table_to_sheet(clone);
+  XLSX.utils.book_append_sheet(wb, ws, 'Export');
+  XLSX.writeFile(wb, filename + '.xlsx');
+}
+</script>
+{% endblock %}

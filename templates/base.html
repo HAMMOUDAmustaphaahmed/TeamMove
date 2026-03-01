@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>{% block title %}Gestion Personnels{% endblock %}</title>
-
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +23,34 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Main CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        /* ── Validation badge in navbar ── */
+        .nav-validation-wrap { position: relative; display: inline-flex; align-items: center; }
+        .nav-pending-badge {
+            position: absolute;
+            top: -5px; right: -10px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.58rem;
+            font-weight: 800;
+            border-radius: 999px;
+            min-width: 17px;
+            height: 17px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            line-height: 1;
+            border: 1.5px solid var(--bg-card, #0f1117);
+            animation: badge-pulse 2s infinite;
+            pointer-events: none;
+        }
+        @keyframes badge-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+            50%      { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+        }
+    </style>
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -44,11 +74,13 @@
                             <i class="fas fa-chart-line me-1"></i>Dashboard
                         </a>
                     </li>
+                    {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.personnels') }}">
                             <i class="fas fa-users me-1"></i>Personnels
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.projets') }}">
                             <i class="fas fa-building me-1"></i>Projets
@@ -60,6 +92,18 @@
                         </a>
                     </li>
                     {% if current_user.is_admin %}
+                    <!-- ── Validations (admin uniquement) ── -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.validations') }}">
+                            <span class="nav-validation-wrap">
+                                <i class="fas fa-clipboard-check me-1"></i>Validations
+                                {% if pending_validations_count > 0 %}
+                                <span class="nav-pending-badge">{{ pending_validations_count }}</span>
+                                {% endif %}
+                            </span>
+                        </a>
+                    </li>
+                    <!-- ── Utilisateurs ── -->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.users') }}">
                             <i class="fas fa-user-shield me-1"></i>Utilisateurs
@@ -67,11 +111,22 @@
                     </li>
                     {% endif %}
                 </ul>
+
+                <!-- Role badge + user menu -->
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
                             <span class="user-avatar">{{ current_user.username[0]|upper }}</span>
-                            {{ current_user.username }}
+                            <span>
+                                {{ current_user.username }}
+                                {% if current_user.is_admin %}
+                                <span style="font-size:.6rem;background:rgba(247,201,72,.15);color:#f7c948;border:1px solid rgba(247,201,72,.3);border-radius:20px;padding:.1em .5em;margin-left:.3rem;font-weight:700;vertical-align:middle;">Admin</span>
+                                {% elif current_user.is_responsable_projet %}
+                                <span style="font-size:.6rem;background:rgba(79,142,247,.15);color:#4f8ef7;border:1px solid rgba(79,142,247,.3);border-radius:20px;padding:.1em .5em;margin-left:.3rem;font-weight:700;vertical-align:middle;">Resp. Projet</span>
+                                {% else %}
+                                <span style="font-size:.6rem;background:rgba(6,214,160,.12);color:#06d6a0;border:1px solid rgba(6,214,160,.25);border-radius:20px;padding:.1em .5em;margin-left:.3rem;font-weight:700;vertical-align:middle;">Lecteur</span>
+                                {% endif %}
+                            </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item text-danger" href="{{ url_for('main.logout') }}">
@@ -109,21 +164,15 @@
         position: relative;
         overflow: hidden;
     ">
-        <!-- Accent top bar -->
         <div style="height:3px; background: linear-gradient(90deg, #2563eb, #7c3aed, #0284c7);"></div>
-
-        <!-- Subtle background pattern -->
         <div style="
             position: absolute; inset: 0;
             background-image: radial-gradient(rgba(37,99,235,0.04) 1px, transparent 1px);
             background-size: 28px 28px;
             pointer-events: none;
         "></div>
-
         <div class="container" style="position:relative; padding-top: 2.5rem; padding-bottom: 2rem;">
             <div class="row align-items-center g-4">
-
-                <!-- Left — Branding -->
                 <div class="col-md-5">
                     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.85rem;">
                         <img src="{{ url_for('static', filename='images/logo_gbm.webp') }}"
@@ -142,8 +191,6 @@
                         Application web dédiée à la gestion et au suivi des déplacements des collaborateurs du groupe sur l'ensemble des chantiers.
                     </p>
                 </div>
-
-                <!-- Center — Divider + App name -->
                 <div class="col-md-3 text-center">
                     <div style="
                         display:inline-flex; flex-direction:column; align-items:center; gap:0.5rem;
@@ -163,22 +210,15 @@
                         <span style="font-size:0.62rem; color:rgba(15,23,42,0.4); letter-spacing:0.08em; text-transform:uppercase;">Gestion des déplacements</span>
                     </div>
                 </div>
-
-                <!-- Right — Links + designed by -->
                 <div class="col-md-4 text-md-end">
                     <div style="margin-bottom:1rem;">
                         <a href="https://www.linkedin.com/showcase/groupe-bayoudh-metal/?originalSubdomain=tn"
                            target="_blank" rel="noopener"
                            style="
                                display:inline-flex; align-items:center; gap:0.45rem;
-                               background: rgba(10,102,194,0.08);
-                               border: 1px solid rgba(10,102,194,0.20);
-                               color: #0a66c2;
-                               border-radius: 999px;
-                               padding: 0.35rem 0.9rem;
-                               font-size: 0.75rem; font-weight:700;
-                               text-decoration:none;
-                               transition: all 0.2s;
+                               background: rgba(10,102,194,0.08); border: 1px solid rgba(10,102,194,0.20);
+                               color: #0a66c2; border-radius: 999px; padding: 0.35rem 0.9rem;
+                               font-size: 0.75rem; font-weight:700; text-decoration:none; transition: all 0.2s;
                            "
                            onmouseover="this.style.background='rgba(10,102,194,0.15)'"
                            onmouseout="this.style.background='rgba(10,102,194,0.08)'"
@@ -187,35 +227,23 @@
                             Groupe Bayoudh Métal
                         </a>
                     </div>
-
                     <div style="
                         font-size:0.75rem; color:rgba(15,23,42,0.40);
-                        display:flex; align-items:center; gap:0.4rem;
-                        justify-content: flex-end;
+                        display:flex; align-items:center; gap:0.4rem; justify-content: flex-end;
                     ">
                         <i class="fas fa-code" style="font-size:0.65rem; color:rgba(37,99,235,0.5);"></i>
                         Designed &amp; built by
                         <a href="https://www.linkedin.com/in/hammouda-ahmed-mustapha-a55270195/"
                            target="_blank" rel="noopener"
-                           style="
-                               color: #2563eb; font-weight:700;
-                               text-decoration:none;
-                               border-bottom: 1px dashed rgba(37,99,235,0.35);
-                               padding-bottom:1px;
-                               transition: all 0.2s;
-                           "
+                           style="color: #2563eb; font-weight:700; text-decoration:none; border-bottom: 1px dashed rgba(37,99,235,0.35); padding-bottom:1px; transition: all 0.2s;"
                            onmouseover="this.style.borderBottomStyle='solid'"
                            onmouseout="this.style.borderBottomStyle='dashed'"
                         >AMH</a>
                     </div>
                 </div>
-
             </div>
-
-            <!-- Bottom bar -->
             <div style="
-                margin-top: 2rem;
-                padding-top: 1.25rem;
+                margin-top: 2rem; padding-top: 1.25rem;
                 border-top: 1px solid rgba(0,0,0,0.06);
                 display:flex; align-items:center; justify-content:space-between;
                 flex-wrap:wrap; gap:0.5rem;
@@ -226,20 +254,16 @@
                 <div style="display:flex; align-items:center; gap:0.4rem;">
                     <span style="
                         display:inline-flex; align-items:center; gap:0.3rem;
-                        font-size:0.68rem; font-weight:600;
-                        color: rgba(5,150,105,0.8);
-                        background: rgba(5,150,105,0.07);
-                        border: 1px solid rgba(5,150,105,0.15);
+                        font-size:0.68rem; font-weight:600; color: rgba(5,150,105,0.8);
+                        background: rgba(5,150,105,0.07); border: 1px solid rgba(5,150,105,0.15);
                         border-radius:999px; padding:0.2em 0.65em;
                     ">
-                        <span style="width:5px;height:5px;border-radius:50%;background:#059669;display:inline-block;
-                                     animation: pulse-dot 2s infinite;"></span>
+                        <span style="width:5px;height:5px;border-radius:50%;background:#059669;display:inline-block;animation: pulse-dot 2s infinite;"></span>
                         Système opérationnel
                     </span>
                 </div>
             </div>
         </div>
-
         <style>
             @keyframes pulse-dot {
                 0%,100% { opacity:1; transform:scale(1); }
