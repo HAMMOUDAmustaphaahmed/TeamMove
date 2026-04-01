@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Séances de Travail — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  .schedule-card {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); overflow: hidden; margin-bottom: 2rem;
+  }
+  .schedule-card-header {
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items:center; gap:.75rem;
+    background: rgba(255,255,255,.02);
+  }
+  .schedule-card-header h5 { font-size:.95rem; font-weight:800; margin:0; }
+  .schedule-card-body { padding: 1.5rem; }
+
+  .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
+
+  .form-control {
+    background: rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius: var(--r-md); color: var(--text-primary); font-size:.85rem;
+    padding: .55rem .85rem; transition: var(--t-fast);
+  }
+  .form-control:focus {
+    background: rgba(255,255,255,.08); border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary);
+  }
+
+  .schedule-item {
+    display: flex; align-items:center; justify-content:space-between;
+    padding: .85rem 1rem;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: .75rem;
+  }
+  .schedule-item:last-child { margin-bottom: 0; }
+
+  .duration-badge {
+    font-size:.72rem; font-weight:700;
+    background:rgba(6,214,160,.12); color:#06d6a0;
+    border:1px solid rgba(6,214,160,.25); border-radius:20px;
+    padding:.2em .65em;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-calendar-alt" style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
+      Séances de Travail
+    </h2>
+    <p class="page-sub">Définissez les séances journalières pour le calcul des heures supplémentaires</p>
+  </div>
+  <a href="{{ url_for('main.heures_supplementaires') }}" class="btn btn-sm"
+     style="background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.82rem;">
+    <i class="fas fa-arrow-left me-1"></i>Retour HS
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Ajouter une séance ── -->
+  <div class="col-lg-5">
+    <div class="schedule-card">
+      <div class="schedule-card-header">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-plus" style="color:#4f8ef7;font-size:.85rem;"></i>
+        </div>
+        <h5>Ajouter une séance</h5>
+      </div>
+      <div class="schedule-card-body">
+        <form method="POST" action="{{ url_for('main.manage_schedules') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add">
+          <div class="mb-3">
+            <label class="form-label">Nom de la séance *</label>
+            <input type="text" class="form-control" name="nom" required
+                   placeholder="ex: Séance matin" maxlength="100">
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label">Heure début *</label>
+              <input type="time" class="form-control" name="heure_debut" required value="08:00">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Heure fin *</label>
+              <input type="time" class="form-control" name="heure_fin" required value="12:00">
+            </div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary" style="font-size:.84rem;">
+              <i class="fas fa-plus me-2"></i>Ajouter
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Info box -->
+    <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:var(--r-lg);padding:1rem 1.25rem;">
+      <div style="font-size:.78rem;font-weight:800;color:#4f8ef7;margin-bottom:.5rem;">
+        <i class="fas fa-info-circle me-1"></i>Comment ça marche ?
+      </div>
+      <div style="font-size:.75rem;color:var(--text-muted);line-height:1.7;">
+        Définissez les séances journalières standard (ex: matin 08h–12h, après-midi 13h–17h).
+        Ces séances apparaissent comme référence rapide lors de l'ajout d'heures supplémentaires
+        sur chaque déplacement, permettant de pré-remplir automatiquement les durées.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Séances existantes ── -->
+  <div class="col-lg-7">
+    <div class="schedule-card">
+      <div class="schedule-card-header">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(6,214,160,.15),rgba(79,142,247,.15));display:flex;align-items:center;justify-content:center;">
+          <i class="fas fa-list-alt" style="color:#06d6a0;font-size:.85rem;"></i>
+        </div>
+        <h5>Séances configurées</h5>
+      </div>
+      <div class="schedule-card-body">
+        {% if schedules %}
+          {% for s in schedules %}
+          <div class="schedule-item">
+            <div>
+              <div style="font-weight:700;color:var(--text-primary);font-size:.88rem;">{{ s.nom }}</div>
+              <div style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem;">
+                <i class="fas fa-clock me-1" style="font-size:.68rem;"></i>
+                {{ s.heure_debut.strftime('%H:%M') }} → {{ s.heure_fin.strftime('%H:%M') }}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span class="duration-badge">{{ s.duree_heures }}h</span>
+              <form method="POST" action="{{ url_for('main.manage_schedules') }}"
+                    onsubmit="return confirm('Supprimer cette séance ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="schedule_id" value="{{ s.id }}">
+                <button type="submit" class="btn btn-sm"
+                  style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);padding:.3rem .65rem;font-size:.75rem;">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+
+          <!-- Total journée -->
+          {% set total_h = namespace(v=0) %}
+          {% for s in schedules %}{% set total_h.v = total_h.v + s.duree_heures %}{% endfor %}
+          <div style="margin-top:1rem;padding:.75rem 1rem;background:rgba(247,201,72,.06);border:1px solid rgba(247,201,72,.2);border-radius:var(--r-md);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.78rem;font-weight:700;color:#f7c948;">
+              <i class="fas fa-sigma me-1"></i>Total journée de travail
+            </span>
+            <span style="font-size:.88rem;font-weight:900;color:#f7c948;">{{ "%.2f"|format(total_h.v) }}h</span>
+          </div>
+        {% else %}
+          <div style="text-align:center;padding:3rem 2rem;color:var(--text-disabled);">
+            <i class="fas fa-calendar-times" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.3;"></i>
+            <p style="font-size:.85rem;">Aucune séance configurée.<br>Ajoutez une séance à gauche.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

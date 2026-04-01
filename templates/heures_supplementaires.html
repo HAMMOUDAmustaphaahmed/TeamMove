@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}Heures Supplémentaires — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  .filter-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
+  }
+
+  .filter-bar .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
+
+  .filter-bar .form-control, .filter-bar .form-select {
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-md);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-size: .84rem;
+    padding: .5rem .85rem;
+  }
+  .filter-bar .form-control:focus, .filter-bar .form-select:focus {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12);
+    color: var(--text-primary);
+  }
+  .filter-bar .form-control::placeholder { color: var(--text-disabled); }
+
+  /* ── Table ── */
+  .hs-table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+  }
+
+  .hs-table { width:100%; border-collapse: collapse; font-size:.82rem; }
+
+  .hs-table thead th {
+    padding: .75rem 1rem;
+    font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+    color: var(--text-muted);
+    background: rgba(255,255,255,.025);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .hs-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: background .15s;
+  }
+  .hs-table tbody tr:hover { background: rgba(255,255,255,.03); }
+  .hs-table tbody tr:last-child { border-bottom: none; }
+
+  .hs-table td { padding: .75rem 1rem; vertical-align: middle; color: var(--text-secondary); }
+
+  .badge-hs {
+    font-size:.75rem; font-weight:800;
+    background: rgba(251,146,60,.15); color:#fb923c;
+    border: 1px solid rgba(251,146,60,.3);
+    border-radius: 8px; padding: .25em .65em;
+    display: inline-flex; align-items: center; gap: .3rem;
+  }
+
+  .badge-no-hs {
+    font-size:.72rem; font-weight:600;
+    background: rgba(255,255,255,.04); color: var(--text-disabled);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: .25em .65em;
+  }
+
+  /* ── Modal ── */
+  .modal-content {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r-xl) !important;
+    color: var(--text-primary) !important;
+  }
+  .modal-header { border-bottom: 1px solid var(--border) !important; }
+  .modal-footer { border-top: 1px solid var(--border) !important; }
+  .modal-title  { font-weight:800; font-size:.95rem; }
+
+  .modal .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
+  .modal .form-control {
+    background: rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius: var(--r-md); color: var(--text-primary); font-size:.85rem;
+  }
+  .modal .form-control:focus {
+    background: rgba(255,255,255,.08); border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary);
+  }
+  .modal .form-text { color: var(--text-disabled) !important; font-size:.72rem; }
+
+  /* ── Séances info ── */
+  .schedule-pill {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .72rem; font-weight:700;
+    background: rgba(79,142,247,.1); color: #4f8ef7;
+    border: 1px solid rgba(79,142,247,.2);
+    border-radius: 999px; padding: .2em .7em;
+  }
+
+  /* ── Empty state ── */
+  .empty-state { text-align:center; padding: 4rem 2rem; color: var(--text-disabled); }
+  .empty-state i { font-size:3rem; margin-bottom:1rem; display:block; opacity:.3; }
+
+  /* ── Stats bar ── */
+  .hs-stats-bar {
+    display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+  }
+  .hs-stat-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 1rem 1.4rem;
+    flex: 1; min-width: 160px;
+  }
+  .hs-stat-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:.3rem; }
+  .hs-stat-value { font-size:1.6rem; font-weight:900; color:var(--text-primary); }
+  .hs-stat-unit  { font-size:.72rem; color:var(--text-muted); margin-left:.2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-clock" style="background:linear-gradient(135deg,#fb923c,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
+      Heures Supplémentaires
+    </h2>
+    <p class="page-sub">Gestion et suivi des heures supplémentaires par déplacement</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('main.manage_schedules') }}" class="btn btn-sm"
+       style="background:rgba(79,142,247,.15);color:#4f8ef7;border:1px solid rgba(79,142,247,.25);font-size:.82rem;">
+      <i class="fas fa-calendar-alt me-1"></i>Configurer séances
+    </a>
+    {% endif %}
+    <a href="{{ url_for('main.export_heures_supplementaires',
+                        date_debut=request.args.get('date_debut',''),
+                        date_fin=request.args.get('date_fin',''),
+                        search=request.args.get('search','')) }}"
+       class="btn btn-sm"
+       style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.25);font-size:.82rem;">
+      <i class="fas fa-file-excel me-1"></i>Export XLSX
+    </a>
+  </div>
+</div>
+
+<!-- ── STATS BAR ── -->
+<div class="hs-stats-bar" id="hsStatsBar">
+  <div class="hs-stat-card">
+    <div class="hs-stat-label"><i class="fas fa-calendar-week me-1"></i>Cette semaine</div>
+    <div><span class="hs-stat-value" id="statSemaine">—</span><span class="hs-stat-unit">h</span></div>
+  </div>
+  <div class="hs-stat-card">
+    <div class="hs-stat-label"><i class="fas fa-calendar me-1"></i>Ce mois</div>
+    <div><span class="hs-stat-value" id="statMois">—</span><span class="hs-stat-unit">h</span></div>
+  </div>
+  <div class="hs-stat-card" style="flex:2;">
+    <div class="hs-stat-label"><i class="fas fa-trophy me-1"></i>Top personnel (tous temps)</div>
+    <div id="statTop5" style="font-size:.8rem;color:var(--text-secondary);margin-top:.3rem;">Chargement…</div>
+  </div>
+</div>
+
+<!-- ── SÉANCES CONFIGURÉES ── -->
+{% if schedules %}
+<div style="margin-bottom:1.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;">
+  <span style="font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-right:.5rem;">Séances journalières :</span>
+  {% for s in schedules %}
+  <span class="schedule-pill">
+    <i class="fas fa-clock" style="font-size:.65rem;"></i>
+    {{ s.nom }} · {{ s.heure_debut.strftime('%H:%M') }}–{{ s.heure_fin.strftime('%H:%M') }}
+    <span style="background:rgba(79,142,247,.2);border-radius:4px;padding:.1em .35em;font-size:.68rem;">{{ s.duree_heures }}h</span>
+  </span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── FILTER BAR ── -->
+<form method="GET" action="{{ url_for('main.heures_supplementaires') }}">
+  <div class="filter-bar">
+    <div style="flex:1;min-width:160px;">
+      <label class="form-label">Date début</label>
+      <input type="date" class="form-control" name="date_debut"
+             value="{{ date_debut.strftime('%Y-%m-%d') if date_debut else '' }}">
+    </div>
+    <div style="flex:1;min-width:160px;">
+      <label class="form-label">Date fin</label>
+      <input type="date" class="form-control" name="date_fin"
+             value="{{ date_fin.strftime('%Y-%m-%d') if date_fin else '' }}">
+    </div>
+    <div style="flex:2;min-width:200px;">
+      <label class="form-label">Recherche personnel</label>
+      <div class="input-group">
+        <span class="input-group-text" style="background:rgba(255,255,255,.04);border-color:var(--border-md);color:var(--text-muted);">
+          <i class="fas fa-search" style="font-size:.8rem;"></i>
+        </span>
+        <input type="text" class="form-control" name="search" placeholder="Nom, prénom ou matricule…"
+               value="{{ search }}">
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary" style="font-size:.84rem;padding:.5rem 1.1rem;">
+        <i class="fas fa-filter me-1"></i>Filtrer
+      </button>
+      <a href="{{ url_for('main.heures_supplementaires') }}" class="btn"
+         style="font-size:.84rem;padding:.5rem 1.1rem;background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);">
+        <i class="fas fa-times me-1"></i>Reset
+      </a>
+    </div>
+  </div>
+</form>
+
+<!-- ── TABLE ── -->
+<div class="hs-table-wrap">
+  {% if rows %}
+  <div style="overflow-x:auto;">
+    <table class="hs-table">
+      <thead>
+        <tr>
+          <th>Matricule</th>
+          <th>Personnel</th>
+          <th>Projet</th>
+          <th>Début déplacement</th>
+          <th>Fin déplacement</th>
+          <th>Heures Supp.</th>
+          <th>Commentaire</th>
+          {% if current_user.is_admin %}<th style="text-align:center;">Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for dep, pers, hs in rows %}
+        <tr>
+          <td>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.78rem;background:rgba(255,255,255,.06);padding:.2em .55em;border-radius:6px;color:var(--text-primary);">
+              {{ pers.matricule }}
+            </span>
+          </td>
+          <td>
+            <div style="font-weight:700;color:var(--text-primary);">{{ pers.nom }} {{ pers.prenom }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ pers.societe }}</div>
+          </td>
+          <td>
+            <div style="font-weight:600;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ dep.projet.nom }}">
+              {{ dep.projet.nom }}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ dep.projet.gouvernorat }}, {{ dep.projet.region }}</div>
+          </td>
+          <td>
+            <div style="color:var(--text-primary);">{{ dep.date_debut.strftime('%d/%m/%Y') }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ dep.heure_debut.strftime('%H:%M') }}</div>
+          </td>
+          <td>
+            <div style="color:var(--text-primary);">{{ dep.date_fin.strftime('%d/%m/%Y') }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);">{{ dep.heure_fin.strftime('%H:%M') }}</div>
+          </td>
+          <td>
+            {% if hs %}
+              <span class="badge-hs">
+                <i class="fas fa-plus-circle" style="font-size:.65rem;"></i>
+                {{ "%.2f"|format(hs.heures|float) }} h
+              </span>
+            {% else %}
+              <span class="badge-no-hs">—</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);font-size:.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ hs.commentaire if hs else '' }}">
+            {{ hs.commentaire if hs and hs.commentaire else '—' }}
+          </td>
+          {% if current_user.is_admin %}
+          <td style="text-align:center;white-space:nowrap;">
+            <!-- Bouton Ajouter/Modifier HS -->
+            <button class="btn btn-sm btn-hs-add"
+              style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3);font-size:.75rem;padding:.3rem .7rem;"
+              data-dep-id="{{ dep.id }}"
+              data-nom="{{ pers.nom }} {{ pers.prenom }}"
+              data-heures="{{ '%.2f'|format(hs.heures|float) if hs else '' }}"
+              data-comment="{{ hs.commentaire if hs and hs.commentaire else '' }}"
+              data-hs-id="{{ hs.id if hs else '' }}">
+              <i class="fas fa-{{ 'edit' if hs else 'plus' }} me-1"></i>{{ 'Modifier' if hs else 'Ajouter' }}
+            </button>
+            {% if hs %}
+            <form method="POST" action="{{ url_for('main.delete_heure_supplementaire', id=hs.id) }}"
+                  style="display:inline-block;" onsubmit="return confirm('Supprimer ces HS ?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm"
+                style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-size:.75rem;padding:.3rem .7rem;">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Résumé -->
+  <div style="padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-size:.75rem;color:var(--text-muted);">
+      <strong style="color:var(--text-secondary);">{{ rows|length }}</strong> déplacement(s) affiché(s)
+    </span>
+    <span style="font-size:.75rem;color:var(--text-muted);">
+      Total HS affiché :
+      <strong style="color:#fb923c;">
+        {% set total = namespace(v=0) %}
+        {% for dep, pers, hs in rows %}{% if hs %}{% set total.v = total.v + hs.heures|float %}{% endif %}{% endfor %}
+        {{ "%.2f"|format(total.v) }} h
+      </strong>
+    </span>
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-clock"></i>
+    <p style="font-size:.9rem;margin-bottom:.5rem;">Aucun déplacement trouvé</p>
+    <p style="font-size:.78rem;">Modifiez les filtres ou ajoutez des déplacements.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODAL AJOUTER / MODIFIER HS                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="modalHS" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-clock me-2" style="color:#fb923c;"></i>
+          <span id="modalHSTitle">Heures Supplémentaires</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                style="filter:invert(1) opacity(.5);"></button>
+      </div>
+      <form method="POST" action="{{ url_for('main.add_heure_supplementaire') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="deplacement_id" id="modalDepId">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Personnel</label>
+            <input type="text" class="form-control" id="modalPersonnel" disabled
+                   style="opacity:.6;cursor:not-allowed;">
+          </div>
+
+          <!-- Séances (référence) -->
+          {% if schedules %}
+          <div class="mb-3">
+            <label class="form-label">Séances de référence</label>
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+              {% for s in schedules %}
+              <button type="button" class="btn btn-sm schedule-ref-btn"
+                style="background:rgba(79,142,247,.1);color:#4f8ef7;border:1px solid rgba(79,142,247,.2);font-size:.75rem;"
+                data-heures="{{ s.duree_heures }}">
+                <i class="fas fa-clock me-1"></i>{{ s.nom }} ({{ s.duree_heures }}h)
+              </button>
+              {% endfor %}
+            </div>
+            <div class="form-text mt-1">Cliquez sur une séance pour pré-remplir les heures</div>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label">Nombre d'heures supplémentaires *</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background:rgba(255,255,255,.04);border-color:var(--border-md);color:var(--text-muted);">
+                <i class="fas fa-hourglass-half" style="font-size:.8rem;"></i>
+              </span>
+              <input type="number" class="form-control" name="heures" id="modalHeures"
+                     step="0.25" min="0.25" max="24" required
+                     placeholder="ex: 1.5">
+            </div>
+            <div class="form-text">Utilisez des quarts d'heure (0.25, 0.5, 0.75, 1.0…)</div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Commentaire (optionnel)</label>
+            <textarea class="form-control" name="commentaire" id="modalComment"
+                      rows="2" maxlength="255"
+                      placeholder="Raison des heures supplémentaires…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm"
+                  style="background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.84rem;"
+                  data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-sm"
+                  style="background:linear-gradient(135deg,#fb923c,#f59e0b);color:#000;font-weight:700;font-size:.84rem;border:none;">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Charger stats KPI ──
+fetch('{{ url_for("main.api_hs_stats") }}')
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('statSemaine').textContent = d.hs_semaine.toFixed(2);
+    document.getElementById('statMois').textContent    = d.hs_mois.toFixed(2);
+
+    const top5el = document.getElementById('statTop5');
+    if (d.top5.length === 0) {
+      top5el.innerHTML = '<span style="color:var(--text-disabled);">Aucune donnée</span>';
+    } else {
+      const maxH = d.top5[0].total_hs;
+      top5el.innerHTML = d.top5.map((p, i) => {
+        const pct = maxH > 0 ? (p.total_hs / maxH * 100).toFixed(0) : 0;
+        const colors = ['#fb923c','#f59e0b','#4f8ef7','#06d6a0','#9b5cf6'];
+        return `
+          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;">
+            <span style="font-size:.68rem;font-weight:900;color:${colors[i]};min-width:16px;">#${i+1}</span>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:.2rem;">
+                <span style="font-weight:700;color:var(--text-primary);">${p.nom} ${p.prenom}</span>
+                <span style="font-weight:800;color:${colors[i]};">${p.total_hs.toFixed(2)}h</span>
+              </div>
+              <div style="height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:99px;transition:width .6s;"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }).catch(() => {});
+
+{% if current_user.is_admin %}
+// ── Ouvrir modal HS ──
+document.querySelectorAll('.btn-hs-add').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const depId   = this.dataset.depId;
+    const nom     = this.dataset.nom;
+    const heures  = this.dataset.heures;
+    const comment = this.dataset.comment;
+
+    document.getElementById('modalDepId').value      = depId;
+    document.getElementById('modalPersonnel').value  = nom;
+    document.getElementById('modalHeures').value     = heures || '';
+    document.getElementById('modalComment').value    = comment || '';
+    document.getElementById('modalHSTitle').textContent =
+      heures ? `Modifier HS — ${nom}` : `Ajouter HS — ${nom}`;
+
+    new bootstrap.Modal(document.getElementById('modalHS')).show();
+  });
+});
+
+// ── Séances de référence → pré-remplir heures ──
+document.querySelectorAll('.schedule-ref-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.getElementById('modalHeures').value = this.dataset.heures;
+  });
+});
+{% endif %}
+</script>
+{% endblock %}

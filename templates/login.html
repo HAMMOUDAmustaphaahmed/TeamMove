@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — TeamMove</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+        --ink:        #0d0d0d;
+        --ink-60:     rgba(13,13,13,.6);
+        --ink-30:     rgba(13,13,13,.28);
+        --ink-10:     rgba(13,13,13,.07);
+        --paper:      #f5f2ec;
+        --paper-alt:  #ede9e0;
+        --paper-dark: #e4dfd4;
+        --gold:       #c8a84b;
+        --gold-lt:    #e8d9a8;
+        --blue:       #1a3a6b;
+        --blue-mid:   #2a5298;
+        --blue-lt:    #e8edf5;
+        --green:      #059669;
+    }
+
+    html, body {
+        height: 100%;
+        font-family: 'DM Sans', sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        cursor: none;
+        overflow: hidden;
+    }
+
+    /* ── NOISE TEXTURE ── */
+    body::before {
+        content: '';
+        position: fixed; inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+        opacity: .025;
+        pointer-events: none;
+        z-index: 9000;
+    }
+
+    /* ── CUSTOM CURSOR ── */
+    #cur-dot {
+        position: fixed; top: 0; left: 0;
+        width: 7px; height: 7px;
+        background: var(--ink);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 9999;
+        transition: width .15s, height .15s;
+    }
+    #cur-ring {
+        position: fixed; top: 0; left: 0;
+        width: 32px; height: 32px;
+        border: 1.5px solid var(--ink);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 9998;
+        opacity: .35;
+        transition: width .25s, height .25s, opacity .25s;
+    }
+
+    /* ── LAYOUT: 50/50 split ── */
+    .page {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* ════════════════════════════════
+       LEFT PANEL
+    ════════════════════════════════ */
+    .left-panel {
+        background: var(--blue);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 2.5rem;
+    }
+
+    /* Grid pattern */
+    .left-panel::before {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+        background-size: 44px 44px;
+        pointer-events: none;
+    }
+
+    /* Gold glow top-left */
+    .left-panel::after {
+        content: '';
+        position: absolute;
+        top: -100px; left: -100px;
+        width: 480px; height: 480px;
+        background: radial-gradient(circle, rgba(200,168,75,.16) 0%, transparent 65%);
+        pointer-events: none;
+    }
+
+    /* ── Logo ── */
+    .left-logo {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        text-decoration: none;
+    }
+
+    .left-logo-mark {
+        width: 36px; height: 36px;
+        background: rgba(255,255,255,.1);
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: background .2s;
+    }
+    .left-logo-mark:hover { background: rgba(255,255,255,.16); }
+    .left-logo-mark svg { width: 17px; height: 17px; fill: rgba(245,242,236,.8); }
+
+    .left-logo-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: rgba(245,242,236,.85);
+    }
+
+    /* ── Center content ── */
+    .left-body {
+        position: relative;
+        z-index: 2;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    .left-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .62rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: rgba(245,242,236,.35);
+        margin-bottom: 1.5rem;
+    }
+
+    .left-eyebrow-line { width: 22px; height: 1px; background: var(--gold); }
+
+    .left-headline {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(2rem, 3.2vw, 3rem);
+        font-weight: 900;
+        letter-spacing: -.035em;
+        line-height: .95;
+        color: #fff;
+        margin-bottom: 1.25rem;
+    }
+
+    .left-headline em { font-style: italic; color: var(--gold); }
+
+    .left-desc {
+        font-size: .85rem;
+        color: rgba(245,242,236,.45);
+        line-height: 1.75;
+        font-weight: 300;
+        max-width: 300px;
+        margin-bottom: 2.5rem;
+    }
+
+    /* Mini stats row */
+    .left-stats {
+        display: flex;
+        gap: 1.75rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .left-stat-val {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -.03em;
+        line-height: 1;
+    }
+
+    .left-stat-label {
+        font-family: 'DM Mono', monospace;
+        font-size: .58rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: rgba(245,242,236,.35);
+        margin-top: .25rem;
+    }
+
+    /* Mini Kanban board */
+    .mini-board {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .45rem;
+    }
+
+    .mini-col-title {
+        font-family: 'DM Mono', monospace;
+        font-size: .53rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.3);
+        margin-bottom: .45rem;
+        padding-bottom: .3rem;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .mini-task {
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.07);
+        border-radius: 7px;
+        padding: .45rem .55rem;
+        margin-bottom: .3rem;
+        font-size: .62rem;
+        color: rgba(255,255,255,.65);
+        position: relative;
+        overflow: hidden;
+        transition: background .2s;
+    }
+
+    .mini-task:hover { background: rgba(255,255,255,.09); }
+
+    .mini-task::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 2.5px;
+        border-radius: 0 2px 2px 0;
+    }
+
+    .t-gold::before  { background: var(--gold); }
+    .t-blue::before  { background: #6aabff; }
+    .t-green::before { background: #6ee7b7; }
+
+    .mini-task-sub {
+        font-size: .54rem;
+        color: rgba(255,255,255,.3);
+        margin-top: .18rem;
+    }
+
+    /* ── Bottom status ── */
+    .left-footer {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .6rem;
+        letter-spacing: .08em;
+        color: rgba(245,242,236,.22);
+    }
+
+    .status-dot {
+        width: 5px; height: 5px;
+        background: #6ee7b7;
+        border-radius: 50%;
+        animation: blink-dot 2.2s infinite;
+    }
+
+    @keyframes blink-dot {
+        0%,100% { opacity: 1; } 50% { opacity: .2; }
+    }
+
+    /* ════════════════════════════════
+       RIGHT PANEL
+    ════════════════════════════════ */
+    .right-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 3rem 3.5rem;
+        position: relative;
+        overflow-y: auto;
+    }
+
+    /* Back link */
+    .back-link {
+        position: absolute;
+        top: 2rem; left: 2rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .62rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-30);
+        text-decoration: none;
+        transition: color .2s, transform .2s;
+        z-index: 5;
+    }
+
+    .back-link:hover { color: var(--ink-60); transform: translateX(-4px); }
+    .back-link svg { width: 11px; height: 11px; fill: currentColor; }
+
+    /* Form header */
+    .form-header {
+        margin-bottom: 2.5rem;
+        animation: slideUp .7s ease both;
+    }
+
+    .form-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .6rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--ink-30);
+        margin-bottom: 1rem;
+    }
+
+    .form-eyebrow-line { width: 18px; height: 1px; background: var(--gold); flex-shrink: 0; }
+
+    .form-title {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(2rem, 3vw, 2.75rem);
+        font-weight: 900;
+        letter-spacing: -.03em;
+        line-height: .95;
+        color: var(--ink);
+        margin-bottom: .7rem;
+    }
+
+    .form-title em { font-style: italic; color: var(--blue); }
+
+    .form-subtitle {
+        font-size: .88rem;
+        color: var(--ink-60);
+        font-weight: 300;
+        line-height: 1.6;
+    }
+
+    /* Flash messages */
+    .flash-list { margin-bottom: 1.5rem; animation: slideUp .5s ease both; }
+
+    .flash-msg {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        padding: .7rem .95rem;
+        border-radius: 10px;
+        font-size: .82rem;
+        margin-bottom: .45rem;
+        font-weight: 400;
+    }
+
+    .flash-msg svg { width: 15px; height: 15px; fill: currentColor; flex-shrink: 0; }
+    .flash-danger  { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+    .flash-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .flash-info    { background: var(--blue-lt); border: 1px solid #bfdbfe; color: var(--blue); }
+
+    /* Form fields */
+    .field-group {
+        margin-bottom: 1.2rem;
+        animation: slideUp .7s ease both;
+    }
+
+    .field-group:nth-of-type(1) { animation-delay: .05s; }
+    .field-group:nth-of-type(2) { animation-delay: .1s;  }
+
+    .field-label {
+        display: block;
+        font-family: 'DM Mono', monospace;
+        font-size: .6rem;
+        font-weight: 500;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-30);
+        margin-bottom: .5rem;
+    }
+
+    .field-wrap { position: relative; }
+
+    .field-icon {
+        position: absolute;
+        left: 1rem; top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: var(--ink-30);
+        transition: color .2s;
+        display: flex; align-items: center;
+    }
+
+    .field-icon svg { width: 15px; height: 15px; fill: currentColor; }
+
+    .field-wrap:focus-within .field-icon { color: var(--blue); }
+
+    input.field-input {
+        width: 100%;
+        background: #fff;
+        border: 1.5px solid var(--paper-dark);
+        border-radius: 12px;
+        padding: .85rem 1rem .85rem 2.75rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .9rem;
+        color: var(--ink);
+        transition: border-color .2s, box-shadow .2s;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    input.field-input::placeholder { color: var(--ink-30); font-weight: 300; }
+
+    input.field-input:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(26,58,107,.08);
+    }
+
+    /* Password toggle */
+    .pwd-toggle {
+        position: absolute;
+        right: .85rem; top: 50%;
+        transform: translateY(-50%);
+        background: none; border: none; padding: .3rem;
+        color: var(--ink-30);
+        cursor: pointer;
+        display: flex; align-items: center;
+        transition: color .2s;
+    }
+
+    .pwd-toggle:hover { color: var(--ink-60); }
+    .pwd-toggle svg { width: 15px; height: 15px; fill: currentColor; }
+
+    /* Submit button */
+    .btn-submit {
+        width: 100%;
+        padding: .95rem 1.5rem;
+        background: var(--blue);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .95rem;
+        font-weight: 600;
+        letter-spacing: .01em;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        gap: .55rem;
+        margin-top: .5rem;
+        position: relative;
+        overflow: hidden;
+        transition: all .25s cubic-bezier(.34,1.56,.64,1);
+        animation: slideUp .7s ease .18s both;
+    }
+
+    .btn-submit::before {
+        content: '';
+        position: absolute; inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,.08), transparent);
+        opacity: 0;
+        transition: opacity .2s;
+    }
+
+    .btn-submit:hover {
+        background: var(--blue-mid);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(26,58,107,.26);
+    }
+
+    .btn-submit:hover::before { opacity: 1; }
+    .btn-submit:active { transform: scale(.98); }
+
+    .btn-submit svg { width: 15px; height: 15px; fill: currentColor; transition: transform .2s; }
+    .btn-submit:hover svg { transform: translateX(3px); }
+
+    /* Divider / security footer */
+    .security-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        margin-top: 1.75rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--ink-10);
+        animation: slideUp .7s ease .28s both;
+    }
+
+    .security-row svg { width: 12px; height: 12px; fill: var(--green); flex-shrink: 0; }
+
+    .security-row span {
+        font-family: 'DM Mono', monospace;
+        font-size: .6rem;
+        letter-spacing: .06em;
+        color: var(--ink-30);
+    }
+
+    /* ── Animation ── */
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+        html, body { overflow: auto; cursor: auto; }
+        .page { grid-template-columns: 1fr; height: auto; overflow: visible; }
+        .left-panel { display: none; }
+        .right-panel { padding: 2rem 1.5rem; padding-top: 4.5rem; min-height: 100vh; justify-content: flex-start; }
+        #cur-dot, #cur-ring { display: none; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ── Cursor ── -->
+<div id="cur-dot"></div>
+<div id="cur-ring"></div>
+
+<div class="page">
+
+    <!-- ══════════════════════════════════
+         LEFT — Brand Panel
+    ══════════════════════════════════ -->
+    <div class="left-panel">
+
+        <!-- Logo -->
+        <a href="{{ url_for('main.landing') }}" class="left-logo">
+            <div class="left-logo-mark">
+                <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </div>
+            <span class="left-logo-name">TeamMove</span>
+        </a>
+
+        <!-- Center body -->
+        <div class="left-body">
+
+            <div class="left-eyebrow">
+                <div class="left-eyebrow-line"></div>
+                Groupe Bayoudh Métal
+            </div>
+
+            <h2 class="left-headline">
+                Votre espace<br>de <em>gestion</em><br>terrain
+            </h2>
+
+            <p class="left-desc">
+                Suivez vos équipes, validez les déplacements et pilotez vos chantiers en temps réel.
+            </p>
+
+            <!-- Stats -->
+            <div class="left-stats">
+                <div>
+                    <div class="left-stat-val">48+</div>
+                    <div class="left-stat-label">Personnels</div>
+                </div>
+                <div>
+                    <div class="left-stat-val">12</div>
+                    <div class="left-stat-label">Chantiers</div>
+                </div>
+                <div>
+                    <div class="left-stat-val">100%</div>
+                    <div class="left-stat-label">Sécurisé</div>
+                </div>
+            </div>
+
+            <!-- Mini Kanban -->
+            <div class="mini-board">
+                <div>
+                    <div class="mini-col-title">En attente</div>
+                    <div class="mini-task t-gold">Hamdi K.<div class="mini-task-sub">Sfax B2 · 3j</div></div>
+                    <div class="mini-task t-gold">Trabelsi N.<div class="mini-task-sub">Sud · 5j</div></div>
+                </div>
+                <div>
+                    <div class="mini-col-title">En cours</div>
+                    <div class="mini-task t-blue">Ben Ali M.<div class="mini-task-sub">Tunis · 7j</div></div>
+                    <div class="mini-task t-blue">Gharbi S.<div class="mini-task-sub">Bizerte · 2j</div></div>
+                </div>
+                <div>
+                    <div class="mini-col-title">Validé</div>
+                    <div class="mini-task t-green">Mellouli R.<div class="mini-task-sub">Monastir · 6j</div></div>
+                    <div class="mini-task t-green">Jebali F.<div class="mini-task-sub">Nabeul · 3j</div></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer status -->
+        <div class="left-footer">
+            <div class="status-dot"></div>
+            Système opérationnel · GBM v2.0
+        </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════
+         RIGHT — Login Form
+    ══════════════════════════════════ -->
+    <div class="right-panel">
+
+        <!-- Back link -->
+        <a href="{{ url_for('main.landing') }}" class="back-link">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            Retour
+        </a>
+
+        <!-- Header -->
+        <div class="form-header">
+            <div class="form-eyebrow">
+                <div class="form-eyebrow-line"></div>
+                Espace sécurisé
+            </div>
+            <h1 class="form-title">
+                Bon<br>retour <em>parmi<br>nous</em>
+            </h1>
+            <p class="form-subtitle">Connectez-vous pour accéder à votre tableau de bord.</p>
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-list">
+                {% for category, message in messages %}
+                <div class="flash-msg flash-{{ 'danger' if category == 'error' else category }}">
+                    {% if category in ('error','danger') %}
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    {% elif category == 'success' %}
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z"/></svg>
+                    {% else %}
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('main.login') }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="field-group">
+                <label class="field-label" for="username">Nom d'utilisateur</label>
+                <div class="field-wrap">
+                    <input type="text" class="field-input" id="username" name="username"
+                           placeholder="Votre identifiant" required autofocus
+                           pattern="[a-zA-Z0-9_]{3,20}" title="3-20 caractères alphanumériques">
+                    <span class="field-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    </span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="password">Mot de passe</label>
+                <div class="field-wrap">
+                    <input type="password" class="field-input" id="password" name="password"
+                           placeholder="••••••••" required minlength="8">
+                    <span class="field-icon">
+                        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    </span>
+                    <button type="button" class="pwd-toggle" id="pwdToggle" tabindex="-1">
+                        <svg id="eyeShow" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                        <svg id="eyeHide" viewBox="0 0 24 24" style="display:none"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                Se connecter
+                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </button>
+        </form>
+
+        <!-- Security badge -->
+        <div class="security-row">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 8l-8 8z"/></svg>
+            <span>Connexion chiffrée SSL · Protection CSRF activée</span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* ── Custom cursor ── */
+const dot  = document.getElementById('cur-dot');
+const ring = document.getElementById('cur-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.transform = `translate(${mx}px,${my}px)`;
+});
+
+(function animRing() {
+    rx += (mx - rx) * .12;
+    ry += (my - ry) * .12;
+    ring.style.transform = `translate(${rx}px,${ry}px)`;
+    requestAnimationFrame(animRing);
+})();
+
+document.querySelectorAll('a,button,input').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width = '46px'; ring.style.height = '46px'; ring.style.opacity = '.18'; });
+    el.addEventListener('mouseleave', () => { ring.style.width = '32px'; ring.style.height = '32px'; ring.style.opacity = '.35'; });
+});
+
+/* ── Password toggle ── */
+document.getElementById('pwdToggle').addEventListener('click', function() {
+    const inp = document.getElementById('password');
+    const isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    document.getElementById('eyeShow').style.display = isHidden ? 'none' : 'block';
+    document.getElementById('eyeHide').style.display = isHidden ? 'block' : 'none';
+});
+
+/* ── Anti-clickjacking ── */
+if (window.top !== window.self) window.top.location = window.self.location;
+</script>
+</body>
+</html>

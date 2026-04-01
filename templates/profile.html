@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Mon Profil — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  .profile-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+  }
+
+  .profile-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: rgba(255,255,255,.02);
+  }
+
+  .profile-card-header .card-icon {
+    width: 38px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .95rem;
+  }
+
+  .profile-card-header h5 {
+    font-size: .95rem; font-weight: 700; margin: 0;
+    color: var(--text-primary);
+  }
+
+  .profile-card-header p {
+    font-size: .74rem; color: var(--text-muted); margin: 0;
+  }
+
+  .profile-card-body { padding: 1.5rem; }
+
+  .form-label { font-size:.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+
+  .form-control {
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-md);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-size: .85rem;
+    padding: .55rem .85rem;
+    transition: var(--t-fast);
+  }
+
+  .form-control:focus {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12);
+    color: var(--text-primary);
+    outline: none;
+  }
+
+  .form-control::placeholder { color: var(--text-disabled); }
+
+  .input-group-text {
+    background: rgba(255,255,255,.05);
+    border-color: var(--border-md);
+    color: var(--text-muted);
+  }
+
+  .avatar-circle {
+    width: 80px; height: 80px; border-radius: 24px;
+    background: linear-gradient(135deg, rgba(79,142,247,.25), rgba(155,92,246,.25));
+    border: 2px solid rgba(79,142,247,.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 800; color: #4f8ef7;
+    flex-shrink: 0;
+  }
+
+  .info-row {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .82rem; color: var(--text-muted);
+    padding: .4rem 0;
+  }
+
+  .info-row i { width: 16px; color: var(--text-disabled); font-size: .8rem; }
+  .info-row strong { color: var(--text-secondary); }
+
+  .password-strength-bar {
+    height: 4px; border-radius: 99px;
+    background: rgba(255,255,255,.06);
+    margin-top: .5rem; overflow: hidden;
+  }
+
+  .password-strength-bar-inner {
+    height: 100%; border-radius: 99px;
+    transition: width .3s, background .3s;
+    width: 0%;
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.25rem 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-user-circle" style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
+      Mon Profil
+    </h2>
+    <p class="page-sub">Gérez votre nom d'utilisateur et votre mot de passe</p>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── LEFT: User info card ── -->
+  <div class="col-lg-4">
+    <div class="profile-card h-100">
+      <div class="profile-card-header">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));">
+          <i class="fas fa-id-card" style="color:#4f8ef7;"></i>
+        </div>
+        <div>
+          <h5>Informations du compte</h5>
+          <p>Aperçu de votre profil</p>
+        </div>
+      </div>
+      <div class="profile-card-body">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+          <div class="avatar-circle">{{ current_user.username[0]|upper }}</div>
+          <div>
+            <div style="font-weight:800;font-size:1.05rem;color:var(--text-primary);">{{ current_user.username }}</div>
+            <div style="font-size:.78rem;color:var(--text-muted);margin-top:.15rem;">{{ current_user.email }}</div>
+            <div style="margin-top:.4rem;">
+              {% if current_user.is_admin %}
+                <span style="font-size:.62rem;background:rgba(247,201,72,.15);color:#f7c948;border:1px solid rgba(247,201,72,.3);border-radius:20px;padding:.15em .55em;font-weight:700;"><i class="fas fa-crown me-1"></i>Administrateur</span>
+              {% elif current_user.is_responsable_projet %}
+                <span style="font-size:.62rem;background:rgba(79,142,247,.15);color:#4f8ef7;border:1px solid rgba(79,142,247,.3);border-radius:20px;padding:.15em .55em;font-weight:700;"><i class="fas fa-briefcase me-1"></i>Resp. Projet</span>
+              {% else %}
+                <span style="font-size:.62rem;background:rgba(6,214,160,.12);color:#06d6a0;border:1px solid rgba(6,214,160,.25);border-radius:20px;padding:.15em .55em;font-weight:700;"><i class="fas fa-eye me-1"></i>Lecteur</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="info-row">
+          <i class="fas fa-user"></i>
+          <span>Username : <strong>{{ current_user.username }}</strong></span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-envelope"></i>
+          <span>Email : <strong>{{ current_user.email }}</strong></span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-calendar-plus"></i>
+          <span>Inscrit le : <strong>{{ current_user.created_at.strftime('%d/%m/%Y') if current_user.created_at else '—' }}</strong></span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-clock"></i>
+          <span>Dernière connexion : <strong>{{ current_user.last_login.strftime('%d/%m/%Y %H:%M') if current_user.last_login else 'Jamais' }}</strong></span>
+        </div>
+        <div class="info-row">
+          <i class="fas fa-circle" style="font-size:.45rem;color:#06d6a0;"></i>
+          <span>Statut : <strong style="color:#06d6a0;">Actif</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Forms ── -->
+  <div class="col-lg-8">
+    <div class="d-flex flex-column gap-4">
+
+      <!-- ── Changer le nom d'utilisateur ── -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="card-icon" style="background:linear-gradient(135deg,rgba(6,214,160,.15),rgba(79,142,247,.15));">
+            <i class="fas fa-user-pen" style="color:#06d6a0;"></i>
+          </div>
+          <div>
+            <h5>Changer le nom d'utilisateur</h5>
+            <p>Modifiez votre identifiant de connexion</p>
+          </div>
+        </div>
+        <div class="profile-card-body">
+          <form method="POST" action="{{ url_for('main.update_username') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+              <label class="form-label">Nom d'utilisateur actuel</label>
+              <input type="text" class="form-control" value="{{ current_user.username }}" disabled
+                     style="opacity:.5;cursor:not-allowed;">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nouveau nom d'utilisateur *</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-user" style="font-size:.8rem;"></i></span>
+                <input type="text" class="form-control" name="username"
+                       required minlength="3" maxlength="20"
+                       pattern="[a-zA-Z0-9_]{3,20}"
+                       title="3 à 20 caractères, alphanumériques et underscore uniquement"
+                       placeholder="Nouveau nom d'utilisateur">
+              </div>
+              <div style="font-size:.72rem;color:var(--text-disabled);margin-top:.3rem;">3 à 20 caractères, sans espaces</div>
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary" style="font-size:.84rem;padding:.5rem 1.2rem;">
+                <i class="fas fa-save me-2"></i>Enregistrer
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── Changer le mot de passe ── -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="card-icon" style="background:linear-gradient(135deg,rgba(247,201,72,.15),rgba(251,146,60,.15));">
+            <i class="fas fa-lock" style="color:#f7c948;"></i>
+          </div>
+          <div>
+            <h5>Changer le mot de passe</h5>
+            <p>Sécurisez votre compte avec un nouveau mot de passe</p>
+          </div>
+        </div>
+        <div class="profile-card-body">
+          <form method="POST" action="{{ url_for('main.update_password') }}" id="pwdForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Ancien mot de passe -->
+            <div class="mb-3">
+              <label class="form-label">Ancien mot de passe *</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock" style="font-size:.8rem;"></i></span>
+                <input type="password" class="form-control" name="old_password" id="oldPassword"
+                       required placeholder="••••••••">
+                <button class="btn" type="button"
+                        style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);"
+                        onclick="toggleVis('oldPassword','eyeOld')">
+                  <i class="fas fa-eye" id="eyeOld" style="font-size:.8rem;"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Nouveau mot de passe -->
+            <div class="mb-3">
+              <label class="form-label">Nouveau mot de passe *</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock-open" style="font-size:.8rem;"></i></span>
+                <input type="password" class="form-control" name="new_password" id="newPassword"
+                       required minlength="8"
+                       placeholder="••••••••" oninput="updateStrength(this.value)">
+                <button class="btn" type="button"
+                        style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);"
+                        onclick="toggleVis('newPassword','eyeNew')">
+                  <i class="fas fa-eye" id="eyeNew" style="font-size:.8rem;"></i>
+                </button>
+              </div>
+              <div class="password-strength-bar">
+                <div class="password-strength-bar-inner" id="strengthBar"></div>
+              </div>
+              <div style="font-size:.72rem;color:var(--text-disabled);margin-top:.3rem;">8 min · 1 majuscule · 1 minuscule · 1 chiffre</div>
+            </div>
+
+            <!-- Confirmer mot de passe -->
+            <div class="mb-4">
+              <label class="form-label">Confirmer le nouveau mot de passe *</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-check-double" style="font-size:.8rem;"></i></span>
+                <input type="password" class="form-control" name="confirm_password" id="confirmPassword"
+                       required placeholder="••••••••">
+              </div>
+              <div id="matchError" style="font-size:.75rem;color:#ff6b6b;margin-top:.3rem;display:none;">
+                <i class="fas fa-exclamation-circle me-1"></i>Les mots de passe ne correspondent pas
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-warning" style="font-size:.84rem;padding:.5rem 1.2rem;color:#000;font-weight:700;">
+                <i class="fas fa-key me-2"></i>Mettre à jour le mot de passe
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div><!-- /d-flex -->
+  </div><!-- /col-lg-8 -->
+
+</div><!-- /row -->
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+function toggleVis(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon  = document.getElementById(iconId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.replace('fa-eye', 'fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.replace('fa-eye-slash', 'fa-eye');
+  }
+}
+
+function updateStrength(pw) {
+  const bar = document.getElementById('strengthBar');
+  let s = 0;
+  if (pw.length >= 8)      s += 25;
+  if (pw.match(/[a-z]+/))  s += 25;
+  if (pw.match(/[A-Z]+/))  s += 25;
+  if (pw.match(/[0-9]+/))  s += 25;
+  bar.style.width = s + '%';
+  bar.style.background = s < 50 ? '#ef4444' : s < 75 ? '#f59e0b' : '#10b981';
+}
+
+document.getElementById('pwdForm').addEventListener('submit', function(e) {
+  const nw  = document.getElementById('newPassword').value;
+  const cf  = document.getElementById('confirmPassword').value;
+  const err = document.getElementById('matchError');
+  if (nw !== cf) {
+    e.preventDefault();
+    err.style.display = 'block';
+    document.getElementById('confirmPassword').style.borderColor = 'rgba(239,68,68,.6)';
+  } else {
+    err.style.display = 'none';
+  }
+});
+
+document.getElementById('confirmPassword').addEventListener('input', function() {
+  const nw = document.getElementById('newPassword').value;
+  const err = document.getElementById('matchError');
+  if (this.value && this.value !== nw) {
+    err.style.display = 'block';
+    this.style.borderColor = 'rgba(239,68,68,.6)';
+  } else {
+    err.style.display = 'none';
+    this.style.borderColor = '';
+  }
+});
+</script>
+{% endblock %}

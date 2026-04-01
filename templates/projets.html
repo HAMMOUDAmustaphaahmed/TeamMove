@@ -1,0 +1,1352 @@
+{% extends "base.html" %}
+
+{% block title %}Projets — TeamMove{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  .project-card {
+    transition: var(--t-base);
+    border-left: 3px solid transparent;
+    cursor: default;
+  }
+  .project-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    border-left-color: var(--accent-purple);
+  }
+
+  .location-badge {
+    display: inline-flex; align-items:center; gap:.3rem;
+    padding: .3rem .75rem;
+    background: rgba(79,142,247,.08);
+    color: var(--accent-blue);
+    border-radius: var(--r-full);
+    font-size: .75rem; font-weight:600;
+    border: 1px solid rgba(79,142,247,.18);
+    margin-right: .3rem; margin-bottom:.3rem;
+  }
+  .location-badge i { font-size:.68rem; }
+
+  .stats-mini {
+    display: flex; gap:.5rem; margin-top:1rem;
+    padding-top:1rem;
+    border-top: 1px solid var(--border);
+  }
+  .stat-item {
+    text-align:center; flex:1;
+    padding: .5rem;
+    background: var(--bg-overlay);
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+  }
+  .stat-value {
+    font-size:1.35rem; font-weight:800;
+    letter-spacing:-.03em;
+    font-family: var(--font-mono);
+  }
+  .stat-label {
+    font-size:.62rem; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:.06em; margin-top:.1rem;
+  }
+
+  .map-preview {
+    height:85px;
+    background: rgba(79,142,247,.05);
+    border: 1px dashed rgba(79,142,247,.15);
+    border-radius: var(--r-lg);
+    display:flex; align-items:center; justify-content:center;
+    color: rgba(79,142,247,.3);
+    font-size:2.2rem; margin-bottom:1rem;
+    transition: var(--t-base);
+  }
+  .project-card:hover .map-preview {
+    background: rgba(79,142,247,.1);
+    border-color: rgba(79,142,247,.3);
+    color: var(--accent-blue);
+  }
+
+  /* Date estimée badge on card */
+  .date-range-badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: rgba(155,92,246,.09);
+    border: 1px solid rgba(155,92,246,.22);
+    border-radius: var(--r-full);
+    padding: .28rem .75rem;
+    font-size: .72rem; font-weight: 600;
+    color: #c084fc;
+    margin-top: .6rem;
+  }
+  .date-range-badge i { font-size:.62rem; }
+
+  /* Progress bar for project timeline */
+  .timeline-bar {
+    margin-top:.5rem;
+    height:4px; border-radius:99px;
+    background: rgba(255,255,255,.06); overflow:hidden;
+  }
+  .timeline-bar-fill {
+    height:100%; border-radius:99px;
+    background: linear-gradient(90deg,#9b5cf6,#38bdf8);
+    transition: width .9s cubic-bezier(.16,1,.3,1);
+  }
+  .timeline-label {
+    display:flex; justify-content:space-between;
+    font-size:.62rem; color:var(--text-disabled);
+    margin-top:.25rem;
+  }
+
+  .filter-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--r-xl);
+    margin-bottom: 1.5rem;
+  }
+
+  .region-filter { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .region-btn {
+    padding: .35rem .9rem;
+    border: 1px solid var(--border-md);
+    background: var(--bg-overlay);
+    color: var(--text-muted);
+    border-radius: var(--r-full);
+    cursor:pointer; transition: var(--t-fast);
+    font-size:.78rem; font-weight:600;
+    font-family: var(--font-body);
+  }
+  .region-btn:hover {
+    background: rgba(79,142,247,.1);
+    border-color: rgba(79,142,247,.3);
+    color: var(--accent-blue);
+  }
+  .region-btn.active {
+    background: linear-gradient(135deg,rgba(79,142,247,.25),rgba(155,92,246,.25));
+    border-color: rgba(79,142,247,.45);
+    color: var(--accent-blue);
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 1.25rem;
+  }
+  @media(max-width:768px){ .project-grid { grid-template-columns:1fr; } }
+
+  .project-menu-btn {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-md);
+    color: var(--text-muted);
+    border-radius: 9px;
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    transition: var(--t-fast);
+    padding:0; cursor:pointer;
+    flex-shrink:0;
+  }
+  .project-menu-btn:hover {
+    background: var(--bg-overlay-md);
+    color: var(--text-primary);
+  }
+
+  .stats-row {
+    display:grid;
+    grid-template-columns: repeat(4,1fr);
+    gap:.75rem; margin-bottom:1.25rem;
+  }
+  @media(max-width:768px){ .stats-row { grid-template-columns:repeat(2,1fr); } }
+  .stat-mini {
+    background: var(--bg-card); border:1px solid var(--border);
+    border-radius: var(--r-xl); padding:1rem 1.25rem;
+    position:relative; overflow:hidden; transition: var(--t-base);
+  }
+  .stat-mini:hover { border-color:var(--border-md); transform:translateY(-2px); }
+  .stat-mini::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:2px;
+    background: var(--grad-primary);
+  }
+  .stat-mini.s2::before { background: var(--grad-success); }
+  .stat-mini.s3::before { background: var(--grad-warning); }
+  .stat-mini.s4::before { background: var(--grad-info); }
+  .stat-mini .num {
+    font-size:2rem; font-weight:800; letter-spacing:-.04em;
+    color: var(--text-primary); line-height:1;
+  }
+  .stat-mini .lbl {
+    font-size:.65rem; font-weight:700; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-muted); margin-top:.25rem;
+  }
+  .stat-mini .ico {
+    position:absolute; right:1rem; top:50%; transform:translateY(-50%);
+    font-size:1.5rem; opacity:.07;
+  }
+
+  /* Form styles */
+  .form-label { font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+  .form-control, .form-select {
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.85rem; padding:.55rem .85rem;
+    transition:var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); color:var(--text-primary);
+    outline:none;
+  }
+  .form-control[type="date"] { color-scheme: dark; }
+
+  /* Date section divider in modals */
+  .date-section-title {
+    font-size:.7rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--text-muted);
+    display:flex; align-items:center; gap:.5rem;
+    padding:.65rem 0 .5rem;
+    border-top: 1px solid var(--border);
+    margin-top:.75rem;
+  }
+  .date-section-title i { color:#9b5cf6; }
+
+  /* ── MAP CARD ── */
+  .leaflet-map-card {
+    height: 140px;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
+    position: relative;
+  }
+  .leaflet-map-card .leaflet-container { background: #2a3a2a; }
+
+  .map-placeholder {
+    height: 140px;
+    background: rgba(79,142,247,.05);
+    border: 1px dashed rgba(79,142,247,.18);
+    border-radius: var(--r-lg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: .4rem;
+    color: rgba(79,142,247,.35);
+    font-size: .72rem; margin-bottom: 1rem;
+    transition: var(--t-base);
+  }
+  .map-placeholder i { font-size: 1.8rem; }
+  .project-card:hover .map-placeholder {
+    background: rgba(79,142,247,.1);
+    border-color: rgba(79,142,247,.3);
+    color: var(--accent-blue);
+  }
+
+  /* Coordinates input helper */
+  .coords-hint {
+    font-size: .7rem; color: var(--text-disabled);
+    margin-top: .3rem; display: flex; align-items: center; gap: .35rem;
+  }
+  .coords-hint a { color: rgba(79,142,247,.6); text-decoration: none; }
+  .coords-hint a:hover { color: #4f8ef7; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <span style="background:linear-gradient(135deg,#9b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        <i class="fas fa-building"></i>
+      </span>
+      Gestion des Projets
+    </h2>
+    <p class="page-sub">Gérez vos chantiers et suivez leur occupation</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjetModal">
+    <i class="fas fa-plus"></i>Nouveau Projet
+  </button>
+</div>
+
+<!-- ── STATS ── -->
+<div class="stats-row">
+  <div class="stat-mini">
+    <div class="num">{{ projets|length }}</div>
+    <div class="lbl">Total projets</div>
+    <i class="fas fa-building ico"></i>
+  </div>
+  <div class="stat-mini s2">
+    <div class="num" id="activeCount">{{ projets|length }}</div>
+    <div class="lbl">Affichés</div>
+    <i class="fas fa-eye ico"></i>
+  </div>
+  <div class="stat-mini s3">
+    <div class="num" id="regionCount">0</div>
+    <div class="lbl">Régions</div>
+    <i class="fas fa-map ico"></i>
+  </div>
+  <div class="stat-mini s4">
+    <div class="num">{{ total_deplacements }}</div>
+    <div class="lbl">Déplacements</div>
+    <i class="fas fa-route ico"></i>
+  </div>
+</div>
+
+<!-- ── FILTRES ── -->
+<div class="filter-section">
+  <div class="row align-items-center g-3">
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">
+          <i class="fas fa-search" style="font-size:.8rem;"></i>
+        </span>
+        <input type="text" class="form-control" id="searchProjet" placeholder="Rechercher un projet…">
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="region-filter">
+        <button class="region-btn active" data-filter="all">Tous</button>
+        <button class="region-btn" data-filter="Tunis">Tunis</button>
+        <button class="region-btn" data-filter="Sfax">Sfax</button>
+        <button class="region-btn" data-filter="Sousse">Sousse</button>
+        <button class="region-btn" data-filter="Nabeul">Nabeul</button>
+        <button class="region-btn" data-filter="Monastir">Monastir</button>
+        <button class="region-btn" data-filter="Bizerte">Bizerte</button>
+        <button class="region-btn" data-filter="Gabès">Gabès</button>
+        <button class="region-btn" data-filter="Kairouan">Kairouan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROJECT GRID ── -->
+<div class="project-grid" id="projetsGrid">
+  {% for projet in projets %}
+  <div class="card project-card p-0"
+       data-region="{{ projet.region }}"
+       data-name="{{ projet.nom.lower() }}"
+       data-coords="{{ projet._coordinates }}"
+       data-id="{{ projet.id }}"
+       style="overflow:hidden;">
+
+    <!-- Accent top bar -->
+    <div style="height:3px; background:linear-gradient(90deg,#9b5cf6,#4f8ef7);"></div>
+
+    <div class="card-body p-4">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <h5 class="mb-0 text-truncate"
+            style="max-width:75%;font-weight:700;color:var(--text-primary);"
+            title="{{ projet.nom }}">
+          {{ projet.nom }}
+        </h5>
+        <div class="dropdown">
+          <button class="project-menu-btn"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  aria-label="Options du projet">
+            <i class="fas fa-ellipsis-v" style="font-size:.8rem;"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="editProjet({{ projet.id }}); return false;">
+                <i class="fas fa-edit me-2" style="color:#f7c948;"></i>Modifier
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="viewStats({{ projet.id }}); return false;">
+                <i class="fas fa-chart-bar me-2" style="color:#38bdf8;"></i>Statistiques
+              </a>
+            </li>
+            {% if projet._coordinates %}
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="openMapModal({{ projet.id }},'{{ projet.nom|e }}','{{ projet._coordinates }}'); return false;">
+                <i class="fas fa-map-marked-alt me-2" style="color:#06d6a0;"></i>Voir sur la carte
+              </a>
+            </li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item" href="javascript:void(0)"
+                 onclick="deleteProjet({{ projet.id }}); return false;"
+                 style="color:var(--accent-red);">
+                <i class="fas fa-trash me-2"></i>Supprimer
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Map preview — Leaflet mini-map if coords exist, placeholder otherwise -->
+      {% if projet._coordinates %}
+        <div class="leaflet-map-card" id="minimap-{{ projet.id }}"></div>
+      {% else %}
+        <div class="map-placeholder">
+          <i class="fas fa-map-marked-alt"></i>
+          <span>Aucune coordonnée définie</span>
+        </div>
+      {% endif %}
+
+      <!-- Location badges -->
+      <div class="mb-2">
+        <span class="location-badge"><i class="fas fa-map"></i>{{ projet.region }}</span>
+        <span class="location-badge"><i class="fas fa-city"></i>{{ projet.gouvernorat }}</span>
+        <span class="location-badge"><i class="fas fa-home"></i>{{ projet.ville }}</span>
+      </div>
+
+      <!-- Address -->
+      <p style="font-size:.76rem; color:var(--text-muted); margin-bottom:.5rem;">
+        <i class="fas fa-map-pin me-2" style="color:rgba(240,244,255,.15);"></i>
+        {{ projet.adresse[:65] }}{% if projet.adresse|length > 65 %}…{% endif %}
+      </p>
+
+      <!-- Dates estimées -->
+      {% if projet.date_debut_estimee or projet.date_fin_estimee %}
+      <div>
+        <span class="date-range-badge">
+          <i class="fas fa-calendar-alt"></i>
+          {% if projet.date_debut_estimee %}{{ projet.date_debut_estimee.strftime('%d/%m/%Y') }}{% else %}?{% endif %}
+          <span style="opacity:.5;">→</span>
+          {% if projet.date_fin_estimee %}{{ projet.date_fin_estimee.strftime('%d/%m/%Y') }}{% else %}?{% endif %}
+        </span>
+        {% if projet.date_debut_estimee and projet.date_fin_estimee %}
+          {# Calcul du pourcentage d'avancement #}
+          {% set today_date = namespace(val=now().date() if now is defined else none) %}
+          {% set total_days = (projet.date_fin_estimee - projet.date_debut_estimee).days %}
+          {% if total_days > 0 %}
+            {% set import_date = namespace() %}
+            {% set pct = 0 %}
+            <div class="timeline-bar">
+              <div class="timeline-bar-fill"
+                   data-debut="{{ projet.date_debut_estimee.isoformat() }}"
+                   data-fin="{{ projet.date_fin_estimee.isoformat() }}"
+                   style="width:0%;"></div>
+            </div>
+            <div class="timeline-label">
+              <span>Début estimé</span>
+              <span>Fin estimée</span>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="font-size:.7rem;color:var(--text-disabled);display:flex;align-items:center;gap:.35rem;margin-top:.25rem;">
+        <i class="fas fa-calendar-times" style="font-size:.65rem;"></i>
+        Dates estimées non définies
+      </div>
+      {% endif %}
+
+      <!-- Mini stats -->
+      <div class="stats-mini">
+        <div class="stat-item">
+          <div class="stat-value" style="color:var(--accent-blue);">{{ projet.nb_deplacements }}</div>
+          <div class="stat-label">Déplacements</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-success dep-personnel" data-id="{{ projet.id }}">—</div>
+          <div class="stat-label">Personnels</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-info dep-jours" data-id="{{ projet.id }}">—</div>
+          <div class="stat-label">Jours</div>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-2" style="border-top:1px solid var(--border);">
+        <small style="font-size:.7rem; color:var(--text-disabled);">
+          <i class="fas fa-calendar-alt me-1"></i>
+          Créé le {{ projet.created_at.strftime('%d/%m/%Y') }}
+        </small>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column:1/-1;">
+    <div class="table-container" style="text-align:center; padding:4rem 2rem;">
+      <i class="fas fa-building fa-3x d-block mb-3" style="color:rgba(240,244,255,.07);"></i>
+      <h5 style="color:var(--text-muted); margin-bottom:.5rem;">Aucun projet trouvé</h5>
+      <p style="font-size:.85rem; color:var(--text-disabled);">Commencez par créer votre premier chantier</p>
+      <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addProjetModal">
+        <i class="fas fa-plus"></i>Créer un projet
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — AJOUTER PROJET
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="addProjetModal" tabindex="-1" aria-labelledby="addProjetLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProjetLabel">
+          <i class="fas fa-plus-circle"></i>Nouveau Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('main.add_projet') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">Nom du Projet *</label>
+            <input type="text" class="form-control" name="nom" required
+                   placeholder="Ex : Chantier Lac Nord">
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Région *</label>
+              <input type="text" class="form-control" name="region" id="regionSelect"
+                     required list="regionsList" placeholder="Ex : Tunis" autocomplete="off">
+              <datalist id="regionsList">
+                <option value="Tunis"><option value="Sfax"><option value="Sousse">
+                <option value="Nabeul"><option value="Bizerte"><option value="Monastir">
+                <option value="Gabès"><option value="Kairouan"><option value="Gafsa">
+                <option value="Tozeur"><option value="Kébili"><option value="Tataouine">
+                <option value="Médenine"><option value="Mahdia"><option value="Sidi Bouzid">
+                <option value="Zaghouan"><option value="Jendouba"><option value="Le Kef">
+                <option value="Siliana"><option value="Kasserine"><option value="Béja">
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Gouvernorat *</label>
+              <input type="text" class="form-control" name="gouvernorat" id="gouvernoratInput"
+                     required placeholder="Ex : Tunis" autocomplete="off">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ville *</label>
+              <input type="text" class="form-control" name="ville" required
+                     placeholder="Ex : La Marsa">
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Adresse complète *</label>
+            <textarea class="form-control" name="adresse" rows="2" required
+                      placeholder="Rue, numéro, code postal…"></textarea>
+          </div>
+
+          <!-- ── Coordonnées GPS ── -->
+          <div class="mt-3">
+            <label class="form-label"><i class="fas fa-map-pin me-1" style="color:#06d6a0;"></i>Coordonnées GPS
+              <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+            </label>
+            <input type="text" class="form-control" name="coordinates"
+                   placeholder="Ex : 35.76963302501553, 10.81975838821918"
+                   pattern="^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$"
+                   title="Format : latitude, longitude (ex: 35.769, 10.819)">
+            <div class="coords-hint">
+              <i class="fas fa-info-circle"></i>
+              Format : latitude, longitude — Copiez depuis
+              <a href="https://www.google.com/maps" target="_blank">Google Maps</a>
+              (clic droit → "Plus d'infos sur cet endroit")
+            </div>
+          </div>
+
+          <!-- ── Dates estimées ── -->
+          <div class="date-section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Dates estimées du projet
+            <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Date de début estimée</label>
+              <input type="date" class="form-control" name="date_debut_estimee">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date de fin estimée</label>
+              <input type="date" class="form-control" name="date_fin_estimee">
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — ÉDITER PROJET
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="editProjetModal" tabindex="-1" aria-labelledby="editProjetLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#f7c948,#fb923c);">
+        <h5 class="modal-title" id="editProjetLabel">
+          <i class="fas fa-edit"></i>Modifier le Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form id="editProjetForm" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">Nom du Projet *</label>
+            <input type="text" class="form-control" name="nom" id="editNom" required>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Région *</label>
+              <input type="text" class="form-control" name="region" id="editRegion"
+                     required list="regionsList2" autocomplete="off">
+              <datalist id="regionsList2">
+                <option value="Tunis"><option value="Sfax"><option value="Sousse">
+                <option value="Nabeul"><option value="Bizerte"><option value="Monastir">
+                <option value="Gabès"><option value="Kairouan"><option value="Gafsa">
+                <option value="Tozeur"><option value="Kébili"><option value="Tataouine">
+                <option value="Médenine"><option value="Mahdia"><option value="Sidi Bouzid">
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Gouvernorat *</label>
+              <input type="text" class="form-control" name="gouvernorat" id="editGouvernorat" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ville *</label>
+              <input type="text" class="form-control" name="ville" id="editVille" required>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Adresse complète *</label>
+            <textarea class="form-control" name="adresse" id="editAdresse" rows="2" required></textarea>
+          </div>
+
+          <!-- ── Coordonnées GPS ── -->
+          <div class="mt-3">
+            <label class="form-label"><i class="fas fa-map-pin me-1" style="color:#06d6a0;"></i>Coordonnées GPS
+              <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+            </label>
+            <input type="text" class="form-control" name="coordinates" id="editCoordinates"
+                   placeholder="Ex : 35.76963302501553, 10.81975838821918"
+                   pattern="^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$"
+                   title="Format : latitude, longitude">
+            <div class="coords-hint">
+              <i class="fas fa-info-circle"></i>
+              Format : latitude, longitude — Copiez depuis
+              <a href="https://www.google.com/maps" target="_blank">Google Maps</a>
+            </div>
+          </div>
+
+          <!-- ── Dates estimées ── -->
+          <div class="date-section-title">
+            <i class="fas fa-calendar-alt"></i>
+            Dates estimées du projet
+            <span style="font-size:.65rem;color:var(--text-disabled);font-weight:500;font-style:italic;">(optionnel)</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Date de début estimée</label>
+              <input type="date" class="form-control" name="date_debut_estimee" id="editDateDebut">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date de fin estimée</label>
+              <input type="date" class="form-control" name="date_fin_estimee" id="editDateFin">
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-save"></i>Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — CONFIRMATION SUPPRESSION
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteProjetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title">
+          <i class="fas fa-trash-alt"></i>Confirmer la suppression
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" style="text-align:center; padding:2rem;">
+        <div style="
+          width:60px;height:60px;border-radius:18px;
+          background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);
+          display:flex;align-items:center;justify-content:center;
+          font-size:1.5rem;color:#ff6b6b;margin:0 auto 1.25rem;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p style="font-size:.9rem;color:var(--text-secondary);margin:0;">
+          Êtes-vous sûr de vouloir supprimer ce projet ?<br>
+          <small style="color:var(--text-muted);">Tous les déplacements associés seront supprimés.</small>
+        </p>
+      </div>
+
+      <div class="modal-footer" style="justify-content:center;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form id="deleteProjetForm" method="POST" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — STATISTIQUES
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="statsProjetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header" style="background:linear-gradient(135deg,#38bdf8,#4f8ef7);">
+        <h5 class="modal-title">
+          <i class="fas fa-chart-pie"></i>Statistiques du Projet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- ── Filtres date dans le modal ── -->
+      <div style="padding:.9rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg-overlay);">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-4">
+            <label class="form-label" style="font-size:.68rem;margin-bottom:.3rem;">Date début</label>
+            <input type="date" class="form-control form-control-sm" id="statsDateDebut" style="color-scheme:dark;">
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label" style="font-size:.68rem;margin-bottom:.3rem;">Date fin</label>
+            <input type="date" class="form-control form-control-sm" id="statsDateFin" style="color-scheme:dark;">
+          </div>
+          <div class="col-sm-4 d-flex gap-2">
+            <button class="btn btn-primary btn-sm flex-grow-1" id="statsFilterBtn" onclick="applyStatsFilter()">
+              <i class="fas fa-filter me-1"></i>Filtrer
+            </button>
+            <button class="btn btn-secondary btn-sm" id="statsResetBtn" onclick="resetStatsFilter()" title="Réinitialiser">
+              <i class="fas fa-undo"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body" id="statsContent">
+        <div style="text-align:center;padding:3rem;">
+          <div class="spinner-border"></div>
+          <p style="color:var(--text-muted);margin-top:1rem;font-size:.85rem;">Chargement…</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success btn-sm" id="exportStatsBtn" style="display:none;" onclick="exportStatsXlsx()">
+          <i class="fas fa-file-excel me-1"></i>Exporter XLSX
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — CARTE INTERACTIVE
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="mapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#06d6a0,#0ea5e9);">
+        <h5 class="modal-title">
+          <i class="fas fa-map-marked-alt me-2"></i><span id="mapModalProjectName"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="fullMap" style="height:520px;"></div>
+      </div>
+      <div class="modal-footer">
+        <span id="mapModalCoords" style="font-size:.8rem;color:var(--text-muted);font-family:var(--font-mono,monospace);flex:1;"></span>
+        <a id="mapModalExtLink" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-external-link-alt me-1"></i>Ouvrir dans Google Maps
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ──────────────────────────────────────────
+   Données gouvernorats par région (Tunisie)
+   ────────────────────────────────────────── */
+const regionsData = {
+  'Tunis':    ['Tunis','Ariana','Manouba','Ben Arous'],
+  'Sfax':     ['Sfax Ville','Sfax Est','Sfax Sud','Sfax Ouest'],
+  'Sousse':   ['Sousse','Monastir','Mahdia'],
+  'Nabeul':   ['Nabeul','Zaghouan'],
+  'Bizerte':  ['Bizerte','Jendouba','Le Kef'],
+  'Gabès':    ['Gabès','Médenine','Tataouine'],
+  'Kairouan': ['Kairouan','Sidi Bouzid','Gafsa'],
+  'Gafsa':    ['Gafsa','Tozeur','Kébili']
+};
+
+/* ── Auto-complétion gouvernorat (modal add) ── */
+document.getElementById('regionSelect')?.addEventListener('input', function () {
+  const region = this.value;
+  const gov    = document.getElementById('gouvernoratInput');
+  document.getElementById('gouvernoratList')?.remove();
+
+  if (regionsData[region]) {
+    const dl = document.createElement('datalist');
+    dl.id = 'gouvernoratList';
+    regionsData[region].forEach(g => {
+      const o = document.createElement('option'); o.value = g; dl.appendChild(o);
+    });
+    document.body.appendChild(dl);
+    gov.setAttribute('list', 'gouvernoratList');
+    if (regionsData[region].length === 1) gov.value = regionsData[region][0];
+  }
+});
+
+/* ──────────────────────────────────────────
+   Filtrage par région (boutons)
+   ────────────────────────────────────────── */
+document.querySelectorAll('.region-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const filter = this.dataset.filter;
+    document.querySelectorAll('.project-card').forEach(card => {
+      card.style.display = (filter === 'all' || card.dataset.region === filter) ? '' : 'none';
+    });
+    updateStats();
+  });
+});
+
+/* ── Recherche en temps réel ── */
+document.getElementById('searchProjet')?.addEventListener('input', function () {
+  const term = this.value.toLowerCase();
+  document.querySelectorAll('.project-card').forEach(card => {
+    const match = (card.dataset.name || '').includes(term) ||
+                  (card.dataset.region || '').toLowerCase().includes(term);
+    card.style.display = match ? '' : 'none';
+  });
+  updateStats();
+});
+
+/* ── Mise à jour compteurs ── */
+function updateStats() {
+  const visible = [...document.querySelectorAll('.project-card')].filter(c => c.style.display !== 'none');
+  document.getElementById('activeCount').textContent = visible.length;
+  const regions = new Set(visible.map(c => c.dataset.region));
+  document.getElementById('regionCount').textContent = regions.size;
+}
+
+/* ── Timeline progress bars ── */
+function animateTimelines() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.querySelectorAll('.timeline-bar-fill[data-debut][data-fin]').forEach(el => {
+    const debut = new Date(el.dataset.debut);
+    const fin   = new Date(el.dataset.fin);
+    const total = fin - debut;
+    if (total <= 0) { el.style.width = '0%'; return; }
+    const elapsed = Math.min(Math.max(today - debut, 0), total);
+    const pct = Math.round((elapsed / total) * 100);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.width = pct + '%';
+      // change color if overdue
+      if (today > fin) el.style.background = 'linear-gradient(90deg,#ff6b6b,#dc2626)';
+    }));
+  });
+}
+
+/* ──────────────────────────────────────────
+   Stats dynamiques (personnels, jours)
+   ────────────────────────────────────────── */
+function loadProjectStats() {
+  document.querySelectorAll('.dep-personnel[data-id]').forEach(el => {
+    const id = el.dataset.id;
+    fetch(`/api/projet/${id}/stats`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        el.textContent = data.nb_personnels ?? '—';
+        const j = document.querySelector(`.dep-jours[data-id="${id}"]`);
+        if (j) j.textContent = data.nb_jours ?? '—';
+      })
+      .catch(() => { el.textContent = '—'; });
+  });
+}
+
+/* ──────────────────────────────────────────
+   ÉDITION — ouvre le modal pré-rempli
+   ────────────────────────────────────────── */
+function editProjet(id) {
+  fetch(`/api/projet/${id}`)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur réseau');
+      return r.json();
+    })
+    .then(data => {
+      document.getElementById('editNom').value          = data.nom          || '';
+      document.getElementById('editRegion').value       = data.region       || '';
+      document.getElementById('editGouvernorat').value  = data.gouvernorat  || '';
+      document.getElementById('editVille').value        = data.ville        || '';
+      document.getElementById('editAdresse').value      = data.adresse      || '';
+      document.getElementById('editCoordinates').value  = data.coordinates  || '';
+      document.getElementById('editDateDebut').value    = data.date_debut_estimee || '';
+      document.getElementById('editDateFin').value      = data.date_fin_estimee   || '';
+      document.getElementById('editProjetForm').action  = `/projets/edit/${id}`;
+      new bootstrap.Modal(document.getElementById('editProjetModal')).show();
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Impossible de charger les données du projet. Vérifiez votre connexion.');
+    });
+}
+
+/* ──────────────────────────────────────────
+   SUPPRESSION — ouvre le modal de confirmation
+   ────────────────────────────────────────── */
+function deleteProjet(id) {
+  document.getElementById('deleteProjetForm').action = `/projets/delete/${id}`;
+  new bootstrap.Modal(document.getElementById('deleteProjetModal')).show();
+}
+
+/* ──────────────────────────────────────────
+   STATISTIQUES — état global
+   ────────────────────────────────────────── */
+let _currentStatsId = null;
+let _lastStatsPersonnels = [];
+let _currentProjetNom = '';
+
+function viewStats(id) {
+  _currentStatsId = id;
+  document.getElementById('statsDateDebut').value = '';
+  document.getElementById('statsDateFin').value = '';
+  document.getElementById('exportStatsBtn').style.display = 'none';
+  document.getElementById('statsContent').innerHTML = `
+    <div style="text-align:center;padding:3rem;">
+      <div class="spinner-border"></div>
+      <p style="color:var(--text-muted);margin-top:1rem;font-size:.85rem;">Chargement…</p>
+    </div>`;
+  new bootstrap.Modal(document.getElementById('statsProjetModal')).show();
+  _loadStats(id, '', '');
+}
+
+function applyStatsFilter() {
+  if (!_currentStatsId) return;
+  const d1 = document.getElementById('statsDateDebut').value;
+  const d2 = document.getElementById('statsDateFin').value;
+  document.getElementById('statsContent').innerHTML = `
+    <div style="text-align:center;padding:3rem;">
+      <div class="spinner-border"></div>
+      <p style="color:var(--text-muted);margin-top:1rem;font-size:.85rem;">Filtrage…</p>
+    </div>`;
+  document.getElementById('exportStatsBtn').style.display = 'none';
+  _loadStats(_currentStatsId, d1, d2);
+}
+
+function resetStatsFilter() {
+  document.getElementById('statsDateDebut').value = '';
+  document.getElementById('statsDateFin').value = '';
+  applyStatsFilter();
+}
+
+function _loadStats(id, dateDebut, dateFin) {
+  let url = `/api/projet/${id}/stats`;
+  const params = [];
+  if (dateDebut) params.push('date_debut=' + dateDebut);
+  if (dateFin)   params.push('date_fin='   + dateFin);
+  if (params.length) url += '?' + params.join('&');
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error('Erreur réseau');
+      return r.json();
+    })
+    .then(data => {
+      // Cache pour export
+      _lastStatsPersonnels = data.personnels || [];
+      _currentProjetNom    = data.nom || 'Projet';
+
+      const rows = _lastStatsPersonnels.map(p => `
+        <tr>
+          <td><span class="badge bg-secondary" style="font-family:var(--font-mono);">${p.matricule}</span></td>
+          <td style="font-weight:600;">${p.nom} ${p.prenom}</td>
+          <td style="font-size:.72rem;color:var(--text-muted);">${p.fonction || '—'}</td>
+          <td style="font-family:var(--font-mono);font-size:.78rem;">${p.date_debut} → ${p.date_fin}</td>
+          <td><span class="badge bg-primary">${p.jours}j</span></td>
+        </tr>`).join('');
+
+      /* ── Durée réelle du projet ── */
+      const hasDuree = data.duree_projet_jours != null && data.duree_projet_jours > 0;
+      const dureeHtml = hasDuree ? (() => {
+        const j   = data.duree_projet_jours;
+        const mois = Math.floor(j / 30);
+        const rest = j % 30;
+        const dureeLabel = mois > 0
+          ? `${mois} mois${rest > 0 ? ' ' + rest + ' j' : ''}`
+          : `${j} jours`;
+        return `
+          <div style="
+            background: linear-gradient(135deg,rgba(247,201,72,.1),rgba(251,146,60,.08));
+            border: 1px solid rgba(247,201,72,.28);
+            border-radius: var(--r-xl);
+            padding: 1.1rem 1.4rem;
+            margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 1.1rem;
+            flex-wrap: wrap;">
+            <div style="width:48px;height:48px;border-radius:14px;
+              background:rgba(247,201,72,.15);border:1px solid rgba(247,201,72,.3);
+              display:flex;align-items:center;justify-content:center;
+              font-size:1.3rem;color:#f7c948;flex-shrink:0;">
+              <i class="fas fa-stopwatch"></i>
+            </div>
+            <div style="flex:1;min-width:180px;">
+              <div style="font-size:.66rem;font-weight:700;text-transform:uppercase;
+                letter-spacing:.1em;color:rgba(247,201,72,.65);margin-bottom:.2rem;">
+                Durée du projet (déplacements réels)
+              </div>
+              <div style="font-size:1.65rem;font-weight:800;letter-spacing:-.04em;
+                color:#f7c948;line-height:1.1;">
+                ${dureeLabel}
+                <span style="font-size:.75rem;font-weight:600;color:rgba(247,201,72,.6);margin-left:.35rem;">
+                  (${j} j)
+                </span>
+              </div>
+            </div>
+            <div style="
+              background:rgba(247,201,72,.08);border:1px solid rgba(247,201,72,.18);
+              border-radius:var(--r-lg);padding:.55rem 1rem;font-size:.76rem;
+              font-family:var(--font-mono,monospace);color:#fcd34d;
+              display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+              <i class="fas fa-calendar-day" style="font-size:.65rem;opacity:.7;"></i>
+              ${data.date_premiere_activite}
+              <span style="opacity:.45;margin:0 .1rem;">→</span>
+              ${data.date_derniere_activite}
+            </div>
+          </div>`;
+      })() : '';
+
+      /* ── Dates estimées (si définies) ── */
+      const datesEstHtml = (data.date_debut_estimee || data.date_fin_estimee) ? `
+        <div style="display:inline-flex;align-items:center;gap:.5rem;
+          background:rgba(155,92,246,.1);border:1px solid rgba(155,92,246,.2);
+          border-radius:20px;padding:.3rem .9rem;font-size:.78rem;color:#c084fc;
+          margin-bottom:1.25rem;">
+          <i class="fas fa-calendar-alt"></i>
+          ${data.date_debut_estimee || '?'} → ${data.date_fin_estimee || '?'}
+          <span style="font-size:.65rem;opacity:.6;">(estimées)</span>
+        </div>` : '';
+
+      /* ── Bandeau filtre actif ── */
+      const d1 = document.getElementById('statsDateDebut').value;
+      const d2 = document.getElementById('statsDateFin').value;
+      const filterBadge = (d1 || d2) ? `
+        <div style="display:inline-flex;align-items:center;gap:.5rem;
+          background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.25);
+          border-radius:20px;padding:.3rem .9rem;font-size:.75rem;color:#4f8ef7;
+          margin-bottom:1rem;">
+          <i class="fas fa-filter"></i>
+          Filtre actif : ${d1 || '…'} → ${d2 || '…'}
+        </div>` : '';
+
+      document.getElementById('statsContent').innerHTML = `
+        <div class="p-4">
+          <h6 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;
+            color:var(--text-muted);margin-bottom:1rem;">
+            <i class="fas fa-chart-bar me-2" style="color:var(--accent-cyan);"></i>
+            ${data.nom || 'Projet'}
+          </h6>
+
+          ${filterBadge}
+          ${datesEstHtml}
+          ${dureeHtml}
+
+          <!-- KPI cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-blue);">
+                  ${data.nb_deplacements ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Déplacements</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.2);
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-green);">
+                  ${data.nb_personnels ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Personnels distincts</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+                border-radius:var(--r-xl);padding:1.25rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:800;color:var(--accent-cyan);">
+                  ${data.nb_jours ?? 0}
+                </div>
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+                  color:var(--text-muted);">Jours-homme cumulés</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tableau personnels -->
+          <h6 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;
+            color:var(--text-muted);margin-bottom:.75rem;">
+            <i class="fas fa-users me-2" style="color:var(--accent-blue);"></i>Personnels affectés
+          </h6>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Matricule</th><th>Nom</th><th>Fonction</th>
+                  <th>Période</th><th>Jours</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">Aucun déplacement pour cette période</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+
+      // Afficher bouton export si données
+      document.getElementById('exportStatsBtn').style.display =
+        _lastStatsPersonnels.length ? '' : 'none';
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('statsContent').innerHTML = `
+        <div style="text-align:center;padding:3rem;color:var(--accent-red);">
+          <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>
+          <p style="font-size:.9rem;">Erreur lors du chargement des statistiques.</p>
+          <small style="color:var(--text-muted);">Vérifiez que le serveur est en cours d'exécution.</small>
+        </div>`;
+    });
+}
+
+/* ──────────────────────────────────────────
+   EXPORT XLSX — statistiques projet
+   ────────────────────────────────────────── */
+function exportStatsXlsx() {
+  if (!_lastStatsPersonnels.length) return;
+
+  const d1 = document.getElementById('statsDateDebut').value;
+  const d2 = document.getElementById('statsDateFin').value;
+  const periode = (d1 || d2) ? `${d1 || '...'}_${d2 || '...'}` : 'tous';
+
+  const wsData = [
+    ['Projet', _currentProjetNom],
+    ['Période', periode],
+    ['Exporté le', new Date().toLocaleDateString('fr-FR')],
+    [],
+    ['Matricule', 'Nom', 'Prénom', 'Fonction', 'Date Début', 'Date Fin', 'Jours'],
+    ..._lastStatsPersonnels.map(p => [
+      p.matricule, p.nom, p.prenom, p.fonction || '',
+      p.date_debut, p.date_fin, p.jours
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Largeurs colonnes
+  ws['!cols'] = [
+    {wch:14},{wch:18},{wch:18},{wch:22},{wch:14},{wch:14},{wch:8}
+  ];
+
+  // Style header ligne 5 (index 4)
+  const headerRow = 5;
+  ['A','B','C','D','E','F','G'].forEach(col => {
+    const cell = ws[col + headerRow];
+    if (cell) {
+      cell.s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1A3A6B' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Déplacements');
+
+  const fname = `${_currentProjetNom.replace(/[^a-zA-Z0-9]/g,'_')}_${periode}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateStats();
+  loadProjectStats();
+  animateTimelines();
+  initMiniMaps();
+});
+
+
+/* ──────────────────────────────────────────
+   LEAFLET — Mini-maps dans les cartes projet
+   ────────────────────────────────────────── */
+const _miniMaps = {};
+
+function initMiniMaps() {
+  document.querySelectorAll('.leaflet-map-card[id^="minimap-"]').forEach(el => {
+    const id     = el.id.replace('minimap-', '');
+    const card   = el.closest('.project-card');
+    const coords = card ? card.dataset.coords : '';
+    if (!coords) return;
+
+    const parts = coords.split(',').map(s => parseFloat(s.trim()));
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+
+    const [lat, lng] = parts;
+    const map = L.map(el.id, {
+      center:          [lat, lng],
+      zoom:            14,
+      zoomControl:     false,
+      dragging:        false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom:         false,
+      keyboard:        false,
+      tap:             false,
+      attributionControl: false,
+    });
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: '© Esri © OpenStreetMap'
+    }).addTo(map);
+    // Overlay routes + labels (Reference) par-dessus le satellite
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 1
+    }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 0.8
+    }).addTo(map);
+
+    const icon = L.divIcon({
+      html: `<div style="
+        width:24px;height:24px;border-radius:50% 50% 50% 0;
+        background:linear-gradient(135deg,#9b5cf6,#4f8ef7);
+        border:2px solid rgba(255,255,255,.8);
+        transform:rotate(-45deg);
+        box-shadow:0 2px 8px rgba(155,92,246,.6);
+      "></div>`,
+      iconSize:   [24, 24],
+      iconAnchor: [12, 24],
+      className:  ''
+    });
+
+    L.marker([lat, lng], {icon}).addTo(map);
+
+    // Click opens full-screen modal
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nom = card ? (card.querySelector('h5')?.textContent?.trim() || '') : '';
+      openMapModal(id, nom, coords);
+    });
+    el.style.cursor = 'pointer';
+    el.title = 'Cliquer pour agrandir la carte';
+
+    _miniMaps[id] = map;
+  });
+}
+
+
+/* ──────────────────────────────────────────
+   LEAFLET — Modal carte plein écran
+   ────────────────────────────────────────── */
+let _fullMap = null;
+
+function openMapModal(id, nom, coords) {
+  const parts = coords.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+  const [lat, lng] = parts;
+
+  document.getElementById('mapModalProjectName').textContent = nom;
+  document.getElementById('mapModalCoords').textContent      = `📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  document.getElementById('mapModalExtLink').href =
+    `https://www.google.com/maps?q=${lat},${lng}`;
+
+  const modal = new bootstrap.Modal(document.getElementById('mapModal'));
+  modal.show();
+
+  document.getElementById('mapModal').addEventListener('shown.bs.modal', function handler() {
+    document.getElementById('mapModal').removeEventListener('shown.bs.modal', handler);
+
+    if (_fullMap) { _fullMap.remove(); _fullMap = null; }
+
+    _fullMap = L.map('fullMap', { center: [lat, lng], zoom: 15 });
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom:     19,
+      attribution: '© <a href="https://www.esri.com/">Esri</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>'
+    }).addTo(_fullMap);
+    // Overlay routes + labels (Reference) par-dessus le satellite
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 1
+    }).addTo(_fullMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 0.8
+    }).addTo(_fullMap);
+
+    const icon = L.divIcon({
+      html: `<div style="
+        width:32px;height:32px;border-radius:50% 50% 50% 0;
+        background:linear-gradient(135deg,#9b5cf6,#4f8ef7);
+        border:3px solid rgba(255,255,255,.9);
+        transform:rotate(-45deg);
+        box-shadow:0 4px 16px rgba(155,92,246,.7);
+        display:flex;align-items:center;justify-content:center;
+      "></div>`,
+      iconSize:   [32, 32],
+      iconAnchor: [16, 32],
+      className:  ''
+    });
+
+    L.marker([lat, lng], {icon})
+      .addTo(_fullMap)
+      .bindPopup(`<strong>${nom}</strong><br><small>${lat.toFixed(6)}, ${lng.toFixed(6)}</small>`)
+      .openPopup();
+  }, {once: true});
+}
+
+</script>
+{% endblock %}

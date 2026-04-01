@@ -1,0 +1,966 @@
+{% extends "base.html" %}
+
+{% block title %}Personnels — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── PAGE HEADER ── */
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+  }
+  @media(max-width:768px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+  .stat-mini {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: .85rem 1.1rem;
+    position:relative; overflow:hidden; transition: var(--t-base);
+  }
+  .stat-mini:hover { border-color: var(--border-md); transform:translateY(-2px); }
+  .stat-mini::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:2px;
+    background: var(--grad-primary);
+  }
+  .stat-mini.s2::before { background: var(--grad-success); }
+  .stat-mini.s3::before { background: var(--grad-warning); }
+  .stat-mini.s4::before { background: var(--grad-info); }
+  .stat-mini .num { font-size:1.7rem; font-weight:800; letter-spacing:-.04em; color:var(--text-primary); line-height:1; }
+  .stat-mini .lbl { font-size:.62rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); margin-top:.2rem; }
+  .stat-mini .ico { position:absolute; right:.85rem; top:50%; transform:translateY(-50%); font-size:1.4rem; opacity:.07; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  }
+  .toolbar-search {
+    flex: 1; min-width: 200px; max-width: 360px;
+    position: relative;
+  }
+  .toolbar-search .search-icon {
+    position:absolute; left:.85rem; top:50%; transform:translateY(-50%);
+    color:var(--text-muted); font-size:.82rem; pointer-events:none;
+  }
+  .toolbar-search input {
+    padding-left: 2.4rem;
+    width: 100%;
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.85rem; padding-top:.52rem; padding-bottom:.52rem;
+    transition:var(--t-fast);
+  }
+  .toolbar-search input:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); outline:none;
+  }
+
+  .results-badge {
+    font-size:.75rem; font-weight:700;
+    color:var(--text-muted);
+    background:rgba(79,142,247,.1);
+    border:1px solid rgba(79,142,247,.2);
+    border-radius:var(--r-full);
+    padding:.25em .8em;
+    font-family:var(--font-mono);
+    white-space:nowrap;
+  }
+
+  /* ── TABLE WRAPPER ── */
+  .table-wrap {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); overflow:hidden;
+  }
+
+  /* ── TABLE ── */
+  .table { margin:0; }
+  .table thead th {
+    background: rgba(255,255,255,.03);
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+
+  .th-label {
+    display: flex; align-items: center; gap: .4rem;
+    font-size:.67rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--text-muted);
+    padding: .75rem 1rem .4rem;
+    cursor: pointer; user-select: none;
+    transition: color .15s;
+  }
+  .th-label:hover { color: var(--text-secondary); }
+  .th-label .sort-icon { font-size:.6rem; opacity:.4; transition: opacity .15s; }
+  .th-label:hover .sort-icon { opacity:.8; }
+  .th-label.asc  .sort-icon, .th-label.desc .sort-icon { opacity:1; color:#4f8ef7; }
+
+  .col-filter { padding: .3rem .7rem .65rem; }
+  .col-filter input, .col-filter select {
+    width: 100%;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font-size: .75rem;
+    padding: .3rem .55rem;
+    transition: var(--t-fast);
+  }
+  .col-filter input:focus, .col-filter select:focus {
+    background: rgba(255,255,255,.07);
+    border-color: rgba(79,142,247,.45);
+    box-shadow: 0 0 0 2px rgba(79,142,247,.1);
+    outline: none;
+    color: var(--text-primary);
+  }
+  .col-filter input::placeholder { color: var(--text-disabled); font-style: italic; }
+  .col-filter select option { background: #1a1d2e; }
+  .col-filter input.active-filter, .col-filter select.active-filter {
+    border-color: rgba(79,142,247,.55);
+    background: rgba(79,142,247,.07);
+  }
+  .col-filter-empty { padding: .3rem .7rem .65rem; }
+
+  .table tbody td {
+    padding: .8rem 1rem; font-size:.84rem;
+    color: var(--text-secondary); border-color: var(--border);
+    vertical-align: middle;
+  }
+  .table tbody tr { transition: background .12s; }
+  .table tbody tr:hover td { background: rgba(255,255,255,.025); }
+  .table tbody tr:last-child td { border-bottom: none; }
+
+  /* ── BADGES ── */
+  .badge-matricule {
+    font-family:var(--font-mono,monospace); font-size:.72rem; font-weight:700;
+    background:rgba(79,142,247,.12); color:#4f8ef7;
+    border:1px solid rgba(79,142,247,.25); border-radius:8px;
+    padding:.2em .65em;
+  }
+  .badge-fonction {
+    font-size:.7rem; font-weight:600;
+    background:rgba(56,189,248,.1); color:#38bdf8;
+    border:1px solid rgba(56,189,248,.2); border-radius:20px;
+    padding:.15em .6em; white-space:nowrap;
+  }
+  .badge-mensuel { background:rgba(6,214,160,.12);  color:#06d6a0; border:1px solid rgba(6,214,160,.25);  border-radius:20px; padding:.15em .6em; font-size:.7rem; font-weight:700; }
+  .badge-horaire  { background:rgba(56,189,248,.12); color:#38bdf8; border:1px solid rgba(56,189,248,.25); border-radius:20px; padding:.15em .6em; font-size:.7rem; font-weight:700; }
+
+  /* ── ACTION BUTTONS ── */
+  .btn-action {
+    width:32px; height:32px; border-radius:9px; border:1px solid var(--border-md);
+    background:var(--bg-overlay); color:var(--text-muted);
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:.75rem; cursor:pointer; transition:var(--t-fast);
+  }
+  .btn-action:hover { background:var(--bg-overlay-md); color:var(--text-primary); }
+  .btn-action.edit:hover  { border-color:rgba(247,201,72,.4); color:#f7c948; background:rgba(247,201,72,.1); }
+  .btn-action.del:hover   { border-color:rgba(255,107,107,.4); color:#ff6b6b; background:rgba(255,107,107,.1); }
+
+  /* ── PAGINATION ── */
+  .pagination .page-link {
+    background:var(--bg-overlay); border-color:var(--border-md);
+    color:var(--text-muted); font-size:.8rem;
+  }
+  .pagination .page-item.active .page-link {
+    background:linear-gradient(135deg,#4f8ef7,#9b5cf6);
+    border-color:transparent; color:#fff;
+  }
+  .pagination .page-link:hover { background:var(--bg-overlay-md); color:var(--text-primary); }
+
+  /* ── FORM LABELS ── */
+  .form-label { font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+  .form-control, .form-select {
+    background:rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius:var(--r-md); color:var(--text-primary);
+    font-size:.85rem; padding:.55rem .85rem;
+    transition:var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background:rgba(255,255,255,.08); border-color:rgba(79,142,247,.55);
+    box-shadow:0 0 0 3px rgba(79,142,247,.12); color:var(--text-primary);
+    outline:none;
+  }
+  .form-select option { background:#1a1d2e; color:var(--text-primary); }
+
+  #deletePersonnelName { font-weight:800; color:#ff6b6b; }
+
+  /* ── Active filters strip ── */
+  .active-filters-strip {
+    display: flex; flex-wrap: wrap; gap: .4rem;
+    padding: .5rem 1.25rem;
+    border-top: 1px solid var(--border);
+    background: rgba(79,142,247,.03);
+  }
+  .filter-tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: rgba(79,142,247,.12); border: 1px solid rgba(79,142,247,.25);
+    border-radius: var(--r-full); padding: .2em .65em;
+    font-size: .72rem; font-weight: 700; color: #4f8ef7;
+  }
+  .filter-tag button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: rgba(79,142,247,.6); font-size: .7rem; line-height: 1;
+    transition: color .15s;
+  }
+  .filter-tag button:hover { color: #ff6b6b; }
+
+  .salary-range { display: flex; gap: .3rem; align-items: center; }
+  .salary-range input { width: 80px !important; }
+  .salary-range span { font-size:.65rem; color:var(--text-disabled); flex-shrink:0; }
+
+  /* Loading state */
+  .table-loading {
+    text-align: center; padding: 2.5rem 1rem;
+    color: var(--text-muted); font-size: .84rem;
+  }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ── PAGE HEADER ── -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <span style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        <i class="fas fa-users"></i>
+      </span>
+      Gestion des Personnels
+    </h2>
+    <p class="page-sub" id="pageSubCount">Chargement…</p>
+  </div>
+  {% if current_user.is_admin %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="fas fa-user-plus me-2"></i>Ajouter Personnel
+  </button>
+  {% endif %}
+</div>
+
+<!-- ── STATS ROW ── -->
+<div class="stats-row">
+  <div class="stat-mini">
+    <div class="num" id="statTotal">—</div>
+    <div class="lbl">Total actifs</div>
+    <i class="fas fa-users ico"></i>
+  </div>
+  <div class="stat-mini s2">
+    <div class="num" id="statVisible">—</div>
+    <div class="lbl">Affichés</div>
+    <i class="fas fa-filter ico"></i>
+  </div>
+  <div class="stat-mini s3">
+    <div class="num" id="statMensuel">—</div>
+    <div class="lbl">Mensuel</div>
+    <i class="fas fa-calendar-alt ico"></i>
+  </div>
+  <div class="stat-mini s4">
+    <div class="num" id="statHoraire">—</div>
+    <div class="lbl">Horaire</div>
+    <i class="fas fa-clock ico"></i>
+  </div>
+</div>
+
+<!-- ── TOOLBAR ── -->
+<div class="toolbar">
+  <div class="toolbar-search">
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" id="globalSearch" placeholder="Recherche rapide…" autocomplete="off">
+  </div>
+
+  <span class="results-badge" id="resultsBadge">
+    <i class="fas fa-table me-1"></i><span id="visibleCount">—</span> résultat(s)
+  </span>
+
+  <div style="flex:1;"></div>
+
+  <button class="btn btn-secondary btn-sm" id="clearFiltersBtn" style="display:none;" onclick="clearAllFilters()">
+    <i class="fas fa-times me-1"></i>Effacer filtres
+  </button>
+
+  <button class="btn btn-success btn-sm" onclick="exportXlsx()">
+    <i class="fas fa-file-excel me-1"></i>Export XLSX
+  </button>
+</div>
+
+<!-- ── ACTIVE FILTERS STRIP ── -->
+<div class="active-filters-strip" id="activeFiltersStrip" style="display:none; border-radius:var(--r-xl) var(--r-xl) 0 0; border:1px solid var(--border); border-bottom:none; margin-bottom:-1px;"></div>
+
+<!-- ── TABLE ── -->
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-hover" id="personnelsTable">
+      <thead>
+        <tr>
+          <th>
+            <div class="th-label" data-col="0" onclick="sortTable(0)">Matricule <span class="sort-icon fas"></span></div>
+            <div class="col-filter"><input type="text" id="f-matricule" placeholder="Filtrer…" oninput="applyFilters()"></div>
+          </th>
+          <th>
+            <div class="th-label" data-col="1" onclick="sortTable(1)">Nom &amp; Prénom <span class="sort-icon fas"></span></div>
+            <div class="col-filter"><input type="text" id="f-nom" placeholder="Filtrer…" oninput="applyFilters()"></div>
+          </th>
+          <th>
+            <div class="th-label" data-col="2" onclick="sortTable(2)">Fonction <span class="sort-icon fas"></span></div>
+            <div class="col-filter"><input type="text" id="f-fonction" placeholder="Filtrer…" oninput="applyFilters()"></div>
+          </th>
+          <th>
+            <div class="th-label" data-col="3" onclick="sortTable(3)">Société <span class="sort-icon fas"></span></div>
+            <div class="col-filter"><input type="text" id="f-societe" placeholder="Filtrer…" oninput="applyFilters()"></div>
+          </th>
+          <th>
+            <div class="th-label" data-col="4" onclick="sortTable(4)">Salaire <span class="sort-icon fas"></span></div>
+            <div class="col-filter">
+              <div class="salary-range">
+                <input type="number" id="f-salaire-min" placeholder="Min" min="0" step="100" oninput="applyFilters()">
+                <span>–</span>
+                <input type="number" id="f-salaire-max" placeholder="Max" min="0" step="100" oninput="applyFilters()">
+              </div>
+            </div>
+          </th>
+          <th>
+            <div class="th-label" data-col="5" onclick="sortTable(5)">Type <span class="sort-icon fas"></span></div>
+            <div class="col-filter">
+              <select id="f-type" onchange="applyFilters()">
+                <option value="">Tous</option>
+                <option value="mensuel">Mensuel</option>
+                <option value="horaire">Horaire</option>
+              </select>
+            </div>
+          </th>
+          <th style="text-align:right;">
+            <div class="th-label" style="justify-content:flex-end; cursor:default;">Actions</div>
+            <div class="col-filter-empty"></div>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="personnelsBody">
+        <tr>
+          <td colspan="7" class="table-loading">
+            <div class="spinner-border" style="width:1.4rem;height:1.4rem;border-width:2px;color:#4f8ef7;" role="status"></div>
+            <span style="margin-left:.75rem;">Chargement des données…</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination (gérée entièrement par JS) -->
+  <div id="paginationWrap" style="padding:1rem;border-top:1px solid var(--border);display:none;"></div>
+</div>
+
+
+<!-- ════════════════════════════════
+     MODAL — AJOUTER PERSONNEL
+════════════════════════════════ -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Ajouter un Personnel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('main.add_personnel') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Matricule *</label>
+            <input type="text" class="form-control" name="matricule" required
+                   placeholder="Ex : EMP001" pattern="[A-Za-z0-9]+" title="Lettres et chiffres uniquement">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Nom *</label>
+              <input type="text" class="form-control" name="nom" required placeholder="Ex : BEN ALI">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Prénom *</label>
+              <input type="text" class="form-control" name="prenom" required placeholder="Ex : Mohamed">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Fonction</label>
+            <input type="text" class="form-control" name="fonction" placeholder="Ex : Technicien, Ingénieur…">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Société *</label>
+            <input type="text" class="form-control" name="societe" required placeholder="Nom de la société">
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Salaire *</label>
+              <div class="input-group">
+                <input type="number" step="0.01" class="form-control" name="salaire" required min="0" placeholder="0.00">
+                <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">DT</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Type de Salaire *</label>
+              <select class="form-select" name="type_salaire" required>
+                <option value="mensuel">Mensuel</option>
+                <option value="horaire">Horaire</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     MODAL — MODIFIER PERSONNEL
+════════════════════════════════ -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#f7c948,#fb923c);">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifier le Personnel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editForm" method="POST" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body" id="editModalBody">
+          <div id="editSkeleton" style="display:flex;align-items:center;justify-content:center;min-height:200px;gap:.6rem;color:var(--text-muted);font-size:.84rem;">
+            <div class="spinner-border" style="width:1.3rem;height:1.3rem;border-width:2px;color:#f7c948;"></div>
+            Chargement des données…
+          </div>
+          <div id="editFields" style="display:none;">
+            <div class="mb-3">
+              <label class="form-label">Matricule *</label>
+              <input type="text" class="form-control" name="matricule" id="editMatricule" required>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Nom *</label>
+                <input type="text" class="form-control" name="nom" id="editNom" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prénom *</label>
+                <input type="text" class="form-control" name="prenom" id="editPrenom" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Fonction</label>
+              <input type="text" class="form-control" name="fonction" id="editFonction">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Société *</label>
+              <input type="text" class="form-control" name="societe" id="editSociete" required>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Salaire *</label>
+                <div class="input-group">
+                  <input type="number" step="0.01" class="form-control" name="salaire" id="editSalaire" required min="0">
+                  <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">DT</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Type de Salaire *</label>
+                <select class="form-select" name="type_salaire" id="editTypeSalaire" required>
+                  <option value="mensuel">Mensuel</option>
+                  <option value="horaire">Horaire</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning" id="editSubmitBtn" disabled>
+            <i class="fas fa-save me-1"></i>Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════
+     MODAL — CONFIRMATION SUPPRESSION
+════════════════════════════════ -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#ff6b6b,#dc2626);">
+        <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Confirmer la suppression</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="text-align:center;padding:2rem;">
+        <div style="width:60px;height:60px;border-radius:18px;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);
+          display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#ff6b6b;margin:0 auto 1.25rem;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <p style="font-size:.88rem;color:var(--text-secondary);margin:0;">
+          Supprimer <span id="deletePersonnelName"></span> ?<br>
+          <small style="color:var(--text-muted);">Tous ses déplacements seront supprimés.</small>
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content:center;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form id="deletePersonnelForm" method="POST" action="" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger"><i class="fas fa-trash-alt me-1"></i>Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────
+// Passe le flag admin du serveur Jinja vers le JS client
+// ─────────────────────────────────────────────────────────
+const IS_ADMIN = {{ current_user.is_admin | tojson }};
+
+// ─────────────────────────────────────────────────────────
+// État global
+// ─────────────────────────────────────────────────────────
+let ALL_DATA    = [];   // tous les personnels (API)
+let FILTERED    = [];   // résultat après filtres
+let sortCol     = -1;
+let sortAsc     = true;
+let currentPage = 1;
+const PER_PAGE  = 10;
+
+// ─────────────────────────────────────────────────────────
+// Chargement initial
+// ─────────────────────────────────────────────────────────
+fetch('/api/personnels/all')
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(data => {
+    ALL_DATA = data;
+    FILTERED = [...data];
+    updateStats(ALL_DATA);
+    document.getElementById('pageSubCount').textContent =
+      `${data.length} personnel${data.length > 1 ? 's' : ''} actif${data.length > 1 ? 's' : ''}`;
+    applyFilters();          // premier rendu
+  })
+  .catch(err => {
+    console.error('Erreur chargement personnels :', err);
+    document.getElementById('personnelsBody').innerHTML =
+      `<tr><td colspan="7" class="table-loading" style="color:#ff6b6b;">
+        <i class="fas fa-exclamation-circle me-2"></i>Impossible de charger les données. Rechargez la page.
+      </td></tr>`;
+  });
+
+// ─────────────────────────────────────────────────────────
+// Filtres — portent sur ALL_DATA (toutes les pages)
+// ─────────────────────────────────────────────────────────
+function applyFilters() {
+  const fMat    = val('f-matricule');
+  const fNom    = val('f-nom');
+  const fFonc   = val('f-fonction');
+  const fSoc    = val('f-societe');
+  const fSalMin = parseFloat(document.getElementById('f-salaire-min').value) || 0;
+  const fSalMax = parseFloat(document.getElementById('f-salaire-max').value) || Infinity;
+  const fType   = document.getElementById('f-type').value;
+  const fGlobal = val('globalSearch');
+
+  FILTERED = ALL_DATA.filter(p => {
+    const mat  = (p.matricule || '').toLowerCase();
+    const nom  = (p.nom + ' ' + p.prenom).toLowerCase();
+    const fonc = (p.fonction  || '').toLowerCase();
+    const soc  = (p.societe   || '').toLowerCase();
+    const sal  = parseFloat(p.salaire) || 0;
+    const type = p.type_salaire || '';
+
+    const passG = !fGlobal ||
+      mat.includes(fGlobal)  || nom.includes(fGlobal) ||
+      fonc.includes(fGlobal) || soc.includes(fGlobal) || type.includes(fGlobal);
+
+    return passG
+      && (!fMat  || mat.includes(fMat))
+      && (!fNom  || nom.includes(fNom))
+      && (!fFonc || fonc.includes(fFonc))
+      && (!fSoc  || soc.includes(fSoc))
+      && sal >= fSalMin && sal <= fSalMax
+      && (!fType || type === fType);
+  });
+
+  // Réappliquer le tri courant
+  if (sortCol >= 0) doSort();
+
+  // Retour à la page 1 à chaque changement de filtre
+  currentPage = 1;
+
+  updateStats(FILTERED);
+  document.getElementById('visibleCount').textContent = FILTERED.length;
+  document.getElementById('statVisible').textContent  = FILTERED.length;
+
+  // Mise en évidence des inputs actifs
+  ['f-matricule','f-nom','f-fonction','f-societe','f-salaire-min','f-salaire-max','f-type']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active-filter', !!el.value);
+    });
+
+  updateFiltersStrip();
+  updateClearBtn();
+  renderTable();
+}
+
+function val(id) {
+  return (document.getElementById(id)?.value || '').trim().toLowerCase();
+}
+
+document.getElementById('globalSearch').addEventListener('input', applyFilters);
+
+// ─────────────────────────────────────────────────────────
+// Rendu du tableau (page courante de FILTERED)
+// ─────────────────────────────────────────────────────────
+function renderTable() {
+  const tbody  = document.getElementById('personnelsBody');
+  const start  = (currentPage - 1) * PER_PAGE;
+  const slice  = FILTERED.slice(start, start + PER_PAGE);
+
+  if (FILTERED.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="7" style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);">
+        <i class="fas fa-search" style="font-size:1.8rem;opacity:.1;display:block;margin-bottom:.6rem;"></i>
+        <div style="font-weight:700;color:var(--text-secondary);margin-bottom:.3rem;">Aucun résultat</div>
+        <div style="font-size:.8rem;">Modifiez vos critères de filtre</div>
+      </td></tr>`;
+    renderPagination();
+    return;
+  }
+
+  tbody.innerHTML = slice.map(p => {
+    const sal = parseFloat(p.salaire).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+    const fonctionCell = p.fonction
+      ? `<span class="badge-fonction"><i class="fas fa-briefcase me-1" style="font-size:.6rem;"></i>${esc(p.fonction)}</span>`
+      : `<span style="color:var(--text-disabled);font-size:.75rem;">—</span>`;
+
+    const actions = IS_ADMIN
+      ? `<button class="btn-action edit" title="Modifier" onclick="editPersonnel(${p.id})">
+           <i class="fas fa-edit"></i>
+         </button>
+         <button class="btn-action del" title="Supprimer"
+                 onclick="confirmDeletePersonnel(${p.id}, '${escQ(p.nom)} ${escQ(p.prenom)}')">
+           <i class="fas fa-trash"></i>
+         </button>`
+      : `<span style="font-size:.72rem;color:var(--text-disabled);">—</span>`;
+
+    return `
+      <tr data-id="${p.id}">
+        <td><span class="badge-matricule">${esc(p.matricule)}</span></td>
+        <td><div style="font-weight:700;color:var(--text-primary);">${esc(p.nom)} ${esc(p.prenom)}</div></td>
+        <td>${fonctionCell}</td>
+        <td>${esc(p.societe)}</td>
+        <td style="font-family:var(--font-mono,monospace);font-size:.82rem;">
+          ${sal} <span style="font-size:.7rem;color:var(--text-muted);">DT</span>
+        </td>
+        <td><span class="badge-${p.type_salaire}">${cap(p.type_salaire)}</span></td>
+        <td style="text-align:right;">
+          <div class="d-flex gap-1 justify-content-end">${actions}</div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  renderPagination();
+}
+
+// ─────────────────────────────────────────────────────────
+// Pagination côté client
+// ─────────────────────────────────────────────────────────
+function renderPagination() {
+  const wrap       = document.getElementById('paginationWrap');
+  const totalPages = Math.ceil(FILTERED.length / PER_PAGE);
+
+  if (totalPages <= 1) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = '';
+
+  // Calcul des numéros de page à afficher (fenêtre glissante)
+  const visible = new Set([1, totalPages]);
+  for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+    visible.add(i);
+  }
+  const sorted = [...visible].sort((a,b) => a - b);
+
+  let pageItems = '';
+  let prev = 0;
+  sorted.forEach(n => {
+    if (n - prev > 1) {
+      pageItems += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+    }
+    pageItems += `
+      <li class="page-item ${n === currentPage ? 'active' : ''}">
+        <a class="page-link" href="#" onclick="goToPage(${n});return false;">${n}</a>
+      </li>`;
+    prev = n;
+  });
+
+  wrap.innerHTML = `
+    <nav>
+      <ul class="pagination justify-content-center mb-0">
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="goToPage(${currentPage - 1});return false;">
+            <i class="fas fa-chevron-left" style="font-size:.7rem;"></i>
+          </a>
+        </li>
+        ${pageItems}
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="goToPage(${currentPage + 1});return false;">
+            <i class="fas fa-chevron-right" style="font-size:.7rem;"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    <p style="text-align:center;font-size:.72rem;color:var(--text-muted);margin-top:.5rem;margin-bottom:0;">
+      <i class="fas fa-info-circle me-1"></i>
+      Page <strong>${currentPage}</strong> sur ${totalPages}
+      &nbsp;·&nbsp;
+      <strong style="color:#4f8ef7;">${FILTERED.length}</strong> résultat(s) sur ${ALL_DATA.length} au total
+    </p>`;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(FILTERED.length / PER_PAGE);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderTable();
+  // Scroll doux vers le tableau
+  document.getElementById('personnelsTable').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// ─────────────────────────────────────────────────────────
+// Statistiques
+// ─────────────────────────────────────────────────────────
+function updateStats(data) {
+  let men = 0, hor = 0;
+  data.forEach(p => { p.type_salaire === 'mensuel' ? men++ : hor++; });
+  document.getElementById('statTotal').textContent   = ALL_DATA.length;
+  document.getElementById('statMensuel').textContent = men;
+  document.getElementById('statHoraire').textContent = hor;
+}
+
+// ─────────────────────────────────────────────────────────
+// Tri — opère sur FILTERED puis re-rend
+// ─────────────────────────────────────────────────────────
+const SORT_KEYS = ['matricule', 'nom', 'fonction', 'societe', 'salaire', 'type_salaire'];
+
+function doSort() {
+  FILTERED.sort((a, b) => {
+    if (sortCol === 4) {  // salaire → numérique
+      const d = (parseFloat(a.salaire) || 0) - (parseFloat(b.salaire) || 0);
+      return sortAsc ? d : -d;
+    }
+    // Cas particulier : tri sur "nom" → concaténer nom + prénom
+    const getVal = p => sortCol === 1
+      ? (p.nom + ' ' + p.prenom)
+      : String(p[SORT_KEYS[sortCol]] || '');
+    const va = getVal(a);
+    const vb = getVal(b);
+    return sortAsc
+      ? va.localeCompare(vb, 'fr', {sensitivity: 'base'})
+      : vb.localeCompare(va, 'fr', {sensitivity: 'base'});
+  });
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+
+  doSort();
+  currentPage = 1;
+  renderTable();
+
+  document.querySelectorAll('.th-label').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (parseInt(th.dataset.col) === col) th.classList.add(sortAsc ? 'asc' : 'desc');
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// Bandeau filtres actifs
+// ─────────────────────────────────────────────────────────
+const LABELS = {
+  'globalSearch' : 'Recherche',
+  'f-matricule'  : 'Matricule',
+  'f-nom'        : 'Nom',
+  'f-fonction'   : 'Fonction',
+  'f-societe'    : 'Société',
+  'f-salaire-min': 'Sal. min',
+  'f-salaire-max': 'Sal. max',
+  'f-type'       : 'Type',
+};
+
+function updateFiltersStrip() {
+  const strip = document.getElementById('activeFiltersStrip');
+  const tags  = Object.keys(LABELS)
+    .filter(id => document.getElementById(id)?.value)
+    .map(id => `
+      <span class="filter-tag">
+        <i class="fas fa-tag" style="font-size:.6rem;"></i>
+        ${LABELS[id]}: <strong>${esc(document.getElementById(id).value)}</strong>
+        <button onclick="clearFilter('${id}')" title="Retirer"><i class="fas fa-times"></i></button>
+      </span>`);
+  strip.innerHTML      = tags.join('');
+  strip.style.display  = tags.length ? 'flex' : 'none';
+}
+
+function clearFilter(id) {
+  const el = document.getElementById(id);
+  if (el) el.value = '';
+  applyFilters();
+}
+
+function clearAllFilters() {
+  Object.keys(LABELS).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  applyFilters();
+}
+
+function updateClearBtn() {
+  const active = Object.keys(LABELS).some(id => document.getElementById(id)?.value);
+  document.getElementById('clearFiltersBtn').style.display = active ? '' : 'none';
+}
+
+// ─────────────────────────────────────────────────────────
+// Export XLSX — sur FILTERED complet (toutes pages)
+// ─────────────────────────────────────────────────────────
+function exportXlsx() {
+  // Trier une copie dans le même ordre que l'affichage
+  let rows = [...FILTERED];
+  if (sortCol >= 0) {
+    rows.sort((a, b) => {
+      if (sortCol === 4) {
+        const d = (parseFloat(a.salaire)||0) - (parseFloat(b.salaire)||0);
+        return sortAsc ? d : -d;
+      }
+      const getVal = p => sortCol === 1
+        ? (p.nom + ' ' + p.prenom)
+        : String(p[SORT_KEYS[sortCol]] || '');
+      const va = getVal(a), vb = getVal(b);
+      return sortAsc
+        ? va.localeCompare(vb, 'fr', {sensitivity:'base'})
+        : vb.localeCompare(va, 'fr', {sensitivity:'base'});
+    });
+  }
+
+  const now    = new Date();
+  const nowStr = now.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'})
+               + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+  const data = [
+    ['TeamMove — Export Personnels'],
+    ['Exporté le', nowStr],
+    [`${rows.length} résultat(s) sur ${ALL_DATA.length} total`],
+    [],
+    ['Matricule','Nom','Prénom','Fonction','Société','Salaire (DT)','Type Salaire'],
+    ...rows.map(p => [
+      (p.matricule || '').toUpperCase(),
+      (p.nom       || '').toUpperCase(),
+       p.prenom    || '',
+       p.fonction  || '',
+       p.societe   || '',
+      parseFloat(p.salaire) || 0,
+      p.type_salaire || '',
+    ]),
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:14},{wch:20},{wch:18},{wch:22},{wch:22},{wch:14},{wch:10}];
+  ['A','B','C','D','E','F','G'].forEach(col => {
+    const cell = ws[col + '5'];
+    if (cell) cell.s = {
+      font:      {bold:true, color:{rgb:'FFFFFF'}},
+      fill:      {fgColor:{rgb:'1A3A6B'}},
+      alignment: {horizontal:'center'},
+    };
+  });
+  for (let i = 6; i <= 5 + rows.length; i++) {
+    const c = ws['F' + i];
+    if (c) c.z = '#,##0.00';
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Personnels');
+  const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `personnels_${d}.xlsx`);
+}
+
+// ─────────────────────────────────────────────────────────
+// Edition — inchangée (chargement AJAX)
+// ─────────────────────────────────────────────────────────
+function editPersonnel(id) {
+  document.getElementById('editSkeleton').style.display = 'flex';
+  document.getElementById('editFields').style.display   = 'none';
+  document.getElementById('editSubmitBtn').disabled     = true;
+  document.getElementById('editForm').action = `/personnels/edit/${id}`;
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+
+  fetch(`/api/personnel/${id}`)
+    .then(r => { if (!r.ok) throw 0; return r.json(); })
+    .then(d => {
+      document.getElementById('editMatricule').value   = d.matricule    || '';
+      document.getElementById('editNom').value         = d.nom          || '';
+      document.getElementById('editPrenom').value      = d.prenom       || '';
+      document.getElementById('editFonction').value    = d.fonction     || '';
+      document.getElementById('editSociete').value     = d.societe      || '';
+      document.getElementById('editSalaire').value     = d.salaire      ?? '';
+      document.getElementById('editTypeSalaire').value = d.type_salaire || 'mensuel';
+      document.getElementById('editSkeleton').style.display = 'none';
+      document.getElementById('editFields').style.display   = '';
+      document.getElementById('editSubmitBtn').disabled     = false;
+    })
+    .catch(() => {
+      document.getElementById('editSkeleton').innerHTML =
+        `<div style="text-align:center;color:#ff6b6b;">
+           <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>
+           Impossible de charger les données. Réessayez.
+         </div>`;
+    });
+}
+
+// ─────────────────────────────────────────────────────────
+// Suppression
+// ─────────────────────────────────────────────────────────
+function confirmDeletePersonnel(id, name) {
+  document.getElementById('deletePersonnelName').textContent = name;
+  document.getElementById('deletePersonnelForm').action = `/personnels/delete/${id}`;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// ─────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escQ(str) {   // pour les attributs onclick='…'
+  return String(str || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+function cap(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+</script>
+{% endblock %}

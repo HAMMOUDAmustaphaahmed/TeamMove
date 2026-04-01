@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeamMove — Gestion des Déplacements</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+        --ink:       #0d0d0d;
+        --ink-60:    rgba(13,13,13,.6);
+        --ink-30:    rgba(13,13,13,.3);
+        --ink-10:    rgba(13,13,13,.07);
+        --paper:     #f5f2ec;
+        --paper-alt: #ede9e0;
+        --gold:      #c8a84b;
+        --gold-lt:   #e8d9a8;
+        --blue:      #1a3a6b;
+        --blue-lt:   #e8edf5;
+        --red:       #c0392b;
+        --r-lg:      16px;
+        --r-pill:    999px;
+    }
+
+    body {
+        font-family: 'DM Sans', sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+        overflow-x: hidden;
+        cursor: none;
+    }
+
+    /* ─── CUSTOM CURSOR ─── */
+    .cursor {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        mix-blend-mode: multiply;
+    }
+    .cursor-dot {
+        width: 8px; height: 8px;
+        background: var(--ink);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: transform .1s, width .2s, height .2s, background .2s;
+    }
+    .cursor-ring {
+        width: 36px; height: 36px;
+        border: 1.5px solid var(--ink);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: transform .35s cubic-bezier(.25,.46,.45,.94), width .3s, height .3s, opacity .3s;
+        opacity: .45;
+    }
+    body:has(a:hover) .cursor-ring,
+    body:has(button:hover) .cursor-ring {
+        width: 56px; height: 56px; opacity: .25;
+    }
+
+    /* ─── NOISE TEXTURE OVERLAY ─── */
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+        opacity: .025;
+        pointer-events: none;
+        z-index: 9998;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 100;
+        padding: 1.4rem 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        mix-blend-mode: multiply;
+    }
+
+    .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        text-decoration: none;
+    }
+
+    .nav-logo-mark {
+        width: 34px; height: 34px;
+        background: var(--ink);
+        border-radius: 9px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo-mark svg { width: 18px; height: 18px; fill: var(--paper); }
+
+    .nav-logo-text {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -.01em;
+    }
+
+    .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .55rem 1.3rem;
+        background: var(--ink);
+        color: var(--paper);
+        border-radius: var(--r-pill);
+        font-size: .82rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: transform .2s, box-shadow .2s, background .2s;
+        letter-spacing: .01em;
+    }
+    .nav-cta:hover {
+        background: var(--blue);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(13,13,13,.18);
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+        min-height: 100vh;
+        padding: 7rem 2.5rem 4rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 0;
+        max-width: 1400px;
+        margin: 0 auto;
+        position: relative;
+        align-items: center;
+    }
+
+    .hero-left {
+        grid-column: 1;
+        grid-row: 1;
+        padding-right: 3rem;
+        z-index: 2;
+    }
+
+    .hero-right {
+        grid-column: 2;
+        grid-row: 1 / 3;
+        position: relative;
+    }
+
+    .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .7rem;
+        font-weight: 500;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--ink-60);
+        margin-bottom: 2rem;
+        animation: slideUp .8s ease both;
+    }
+
+    .hero-eyebrow-line {
+        width: 32px; height: 1px;
+        background: var(--gold);
+    }
+
+    .hero-eyebrow-dot {
+        width: 6px; height: 6px;
+        background: var(--red);
+        border-radius: 50%;
+        animation: pulse-dot 1.8s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%,100% { transform: scale(1); opacity: 1; }
+        50%      { transform: scale(1.5); opacity: .5; }
+    }
+
+    h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(3.2rem, 6vw, 6rem);
+        font-weight: 900;
+        line-height: .95;
+        letter-spacing: -.03em;
+        color: var(--ink);
+        margin-bottom: 1.75rem;
+        animation: slideUp .8s ease .1s both;
+    }
+
+    h1 em {
+        font-style: italic;
+        color: var(--gold);
+        position: relative;
+        display: inline-block;
+    }
+
+    h1 em::after {
+        content: '';
+        position: absolute;
+        bottom: .08em; left: 0; right: 0;
+        height: .06em;
+        background: var(--gold-lt);
+        z-index: -1;
+    }
+
+    .hero-desc {
+        font-size: 1.05rem;
+        color: var(--ink-60);
+        line-height: 1.75;
+        max-width: 440px;
+        margin-bottom: 2.5rem;
+        font-weight: 300;
+        animation: slideUp .8s ease .2s both;
+    }
+
+    .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        animation: slideUp .8s ease .3s both;
+    }
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .85rem 2rem;
+        background: var(--ink);
+        color: var(--paper);
+        border-radius: var(--r-pill);
+        font-size: .92rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all .25s cubic-bezier(.34,1.56,.64,1);
+        letter-spacing: .01em;
+        border: 2px solid var(--ink);
+    }
+
+    .btn-primary:hover {
+        background: var(--blue);
+        border-color: var(--blue);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(26,58,107,.25);
+    }
+
+    .btn-primary svg { width: 16px; height: 16px; fill: currentColor; transition: transform .2s; }
+    .btn-primary:hover svg { transform: translateX(3px); }
+
+    .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        font-size: .88rem;
+        font-weight: 500;
+        color: var(--ink-60);
+        text-decoration: none;
+        padding: .85rem 1.2rem;
+        border-radius: var(--r-pill);
+        border: 1.5px solid var(--ink-30);
+        transition: all .2s;
+        letter-spacing: .01em;
+    }
+
+    .btn-ghost:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+        background: var(--ink-10);
+    }
+
+    /* ─── HERO VISUAL ─── */
+    .hero-visual {
+        position: relative;
+        height: 560px;
+        animation: slideUp .9s ease .2s both;
+    }
+
+    /* Main card */
+    .vis-card-main {
+        position: absolute;
+        top: 40px; left: 30px; right: 0;
+        background: var(--blue);
+        border-radius: 24px;
+        padding: 2rem;
+        color: #fff;
+        overflow: hidden;
+        box-shadow: 0 30px 70px rgba(26,58,107,.3);
+    }
+
+    .vis-card-main::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 200px; height: 200px;
+        background: rgba(255,255,255,.04);
+        border-radius: 50%;
+    }
+
+    .vis-card-label {
+        font-family: 'DM Mono', monospace;
+        font-size: .65rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        opacity: .55;
+        margin-bottom: 1.25rem;
+    }
+
+    .vis-big-number {
+        font-family: 'Playfair Display', serif;
+        font-size: 4.5rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -.04em;
+        margin-bottom: .25rem;
+    }
+
+    .vis-big-sub {
+        font-size: .8rem;
+        opacity: .55;
+        font-weight: 300;
+    }
+
+    .vis-bar-row {
+        margin-top: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: .55rem;
+    }
+
+    .vis-bar-item { display: flex; align-items: center; gap: .75rem; font-size: .78rem; opacity: .8; }
+    .vis-bar-track { flex: 1; height: 4px; background: rgba(255,255,255,.12); border-radius: 99px; overflow: hidden; }
+    .vis-bar-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #a8c8ff, #c8f0e8); }
+    .vis-bar-val   { font-family: 'DM Mono', monospace; font-size: .7rem; opacity: .6; min-width: 2.2rem; text-align: right; }
+
+    /* Floating cards */
+    .vis-card-float {
+        position: absolute;
+        background: #fff;
+        border-radius: 16px;
+        padding: 1rem 1.2rem;
+        box-shadow: 0 12px 40px rgba(0,0,0,.1);
+        border: 1px solid rgba(0,0,0,.06);
+    }
+
+    .vis-card-stat {
+        bottom: 80px; left: -10px;
+        animation: float-a 6s ease-in-out infinite;
+    }
+
+    @keyframes float-a {
+        0%,100% { transform: translateY(0); }
+        50%      { transform: translateY(-10px); }
+    }
+
+    .vis-card-notif {
+        top: 10px; right: 20px;
+        display: flex; align-items: center; gap: .65rem;
+        animation: float-b 7s ease-in-out infinite;
+    }
+
+    @keyframes float-b {
+        0%,100% { transform: translateY(0); }
+        50%      { transform: translateY(-8px); }
+    }
+
+    .vis-card-stat-val {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1;
+    }
+
+    .vis-card-stat-label {
+        font-size: .7rem;
+        color: var(--ink-60);
+        margin-top: .2rem;
+        font-weight: 500;
+    }
+
+    .vis-notif-dot {
+        width: 36px; height: 36px;
+        background: #ecfdf5;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .vis-notif-dot svg { width: 18px; height: 18px; fill: #059669; }
+
+    .vis-notif-text strong { font-size: .78rem; display: block; color: var(--ink); }
+    .vis-notif-text span   { font-size: .68rem; color: var(--ink-60); }
+
+    /* Tag cloud in card */
+    .vis-tags {
+        display: flex; flex-wrap: wrap; gap: .4rem;
+        margin-top: 1.5rem;
+    }
+
+    .vis-tag {
+        font-family: 'DM Mono', monospace;
+        font-size: .62rem;
+        padding: .25em .65em;
+        border-radius: 99px;
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.14);
+        letter-spacing: .05em;
+        color: rgba(255,255,255,.7);
+    }
+
+    /* Decorative number behind */
+    .hero-deco-number {
+        position: absolute;
+        top: -2rem; right: -1rem;
+        font-family: 'Playfair Display', serif;
+        font-size: 14rem;
+        font-weight: 900;
+        color: var(--paper-alt);
+        line-height: 1;
+        z-index: 0;
+        user-select: none;
+        pointer-events: none;
+        letter-spacing: -.06em;
+    }
+
+    /* ─── TICKER ─── */
+    .ticker-wrap {
+        border-top: 1px solid var(--ink-10);
+        border-bottom: 1px solid var(--ink-10);
+        overflow: hidden;
+        padding: .9rem 0;
+        background: var(--paper-alt);
+        margin: 0;
+    }
+
+    .ticker-inner {
+        display: flex;
+        gap: 0;
+        white-space: nowrap;
+        animation: ticker-scroll 28s linear infinite;
+        width: max-content;
+    }
+
+    .ticker-inner:hover { animation-play-state: paused; }
+
+    @keyframes ticker-scroll {
+        0%   { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+        display: inline-flex;
+        align-items: center;
+        gap: .75rem;
+        padding: 0 2.5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .7rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--ink-60);
+    }
+
+    .ticker-sep {
+        width: 4px; height: 4px;
+        background: var(--gold);
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    /* ─── FEATURES ─── */
+    .features-section {
+        padding: 7rem 2.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .section-header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        margin-bottom: 4rem;
+        gap: 2rem;
+    }
+
+    .section-tag {
+        font-family: 'DM Mono', monospace;
+        font-size: .68rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--ink-60);
+        margin-bottom: .75rem;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .section-tag::before {
+        content: '';
+        display: inline-block;
+        width: 20px; height: 1.5px;
+        background: var(--gold);
+    }
+
+    h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(2rem, 4vw, 3.5rem);
+        font-weight: 900;
+        letter-spacing: -.03em;
+        color: var(--ink);
+        line-height: 1;
+    }
+
+    .section-header-right {
+        font-size: .9rem;
+        color: var(--ink-60);
+        max-width: 280px;
+        line-height: 1.65;
+        font-weight: 300;
+        text-align: right;
+    }
+
+    /* Feature bento grid */
+    .bento {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        grid-template-rows: auto auto;
+        gap: 1.25rem;
+    }
+
+    .bento-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 2rem;
+        border: 1px solid var(--ink-10);
+        transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .bento-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(0,0,0,.08);
+    }
+
+    .bento-1 { grid-column: 1 / 6; }
+    .bento-2 { grid-column: 6 / 9; }
+    .bento-3 { grid-column: 9 / 13; }
+    .bento-4 { grid-column: 1 / 5; }
+    .bento-5 { grid-column: 5 / 9; }
+    .bento-6 { grid-column: 9 / 13; }
+
+    .bento-card-accent {
+        width: 48px; height: 48px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 1.25rem;
+        font-size: 1.3rem;
+    }
+
+    .accent-blue   { background: var(--blue-lt); color: var(--blue); }
+    .accent-gold   { background: #fdf8ec; color: var(--gold); }
+    .accent-green  { background: #ecfdf5; color: #059669; }
+    .accent-red    { background: #fef2f2; color: var(--red); }
+    .accent-purple { background: #f5f0ff; color: #7c3aed; }
+    .accent-slate  { background: #f1f5f9; color: #475569; }
+
+    .bento-card h3 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: .6rem;
+        letter-spacing: -.02em;
+    }
+
+    .bento-card p {
+        font-size: .85rem;
+        color: var(--ink-60);
+        line-height: 1.7;
+        font-weight: 300;
+    }
+
+    /* Highlight card */
+    .bento-1 {
+        background: var(--blue);
+        color: #fff;
+        border-color: transparent;
+    }
+    .bento-1 h3 { color: #fff; }
+    .bento-1 p  { color: rgba(255,255,255,.6); }
+    .bento-1 .bento-card-accent { background: rgba(255,255,255,.1); color: #fff; }
+
+    .bento-1-number {
+        font-family: 'Playfair Display', serif;
+        font-size: 5rem;
+        font-weight: 900;
+        letter-spacing: -.05em;
+        color: rgba(255,255,255,.12);
+        position: absolute;
+        bottom: -1rem; right: 1rem;
+        line-height: 1;
+        pointer-events: none;
+    }
+
+    /* ─── WORKFLOW ─── */
+    .workflow-section {
+        padding: 0 2.5rem 7rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .workflow-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5rem;
+        align-items: center;
+        padding-top: 4rem;
+    }
+
+    .workflow-steps { display: flex; flex-direction: column; gap: 2rem; }
+
+    .step {
+        display: flex;
+        gap: 1.25rem;
+        padding: 1.5rem;
+        border-radius: 16px;
+        transition: background .2s;
+        cursor: default;
+    }
+
+    .step:hover { background: #fff; }
+
+    .step-num {
+        font-family: 'DM Mono', monospace;
+        font-size: .68rem;
+        font-weight: 500;
+        width: 28px; height: 28px;
+        background: var(--ink-10);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--ink-60);
+        flex-shrink: 0;
+        letter-spacing: 0;
+        margin-top: .1rem;
+        transition: background .2s, color .2s;
+    }
+
+    .step:hover .step-num { background: var(--blue); color: #fff; }
+
+    .step-content h4 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: .4rem;
+        letter-spacing: -.01em;
+    }
+
+    .step-content p { font-size: .84rem; color: var(--ink-60); line-height: 1.65; font-weight: 300; }
+
+    /* Workflow visual */
+    .workflow-visual {
+        position: relative;
+        height: 440px;
+    }
+
+    .wf-board {
+        position: absolute;
+        inset: 0;
+        background: var(--paper-alt);
+        border-radius: 24px;
+        border: 1px solid var(--ink-10);
+        padding: 1.5rem;
+        overflow: hidden;
+    }
+
+    .wf-board-header {
+        display: flex; align-items: center; gap: .5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .wf-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .wf-dot:nth-child(1) { background: #ff5f57; }
+    .wf-dot:nth-child(2) { background: #febc2e; }
+    .wf-dot:nth-child(3) { background: #28c840; }
+
+    .wf-cols {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .75rem;
+        height: calc(100% - 2.5rem);
+    }
+
+    .wf-col-title {
+        font-family: 'DM Mono', monospace;
+        font-size: .62rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--ink-60);
+        margin-bottom: .75rem;
+        padding-bottom: .5rem;
+        border-bottom: 1.5px solid var(--ink-10);
+    }
+
+    .wf-task {
+        background: #fff;
+        border-radius: 10px;
+        padding: .75rem .85rem;
+        margin-bottom: .5rem;
+        border: 1px solid var(--ink-10);
+        font-size: .75rem;
+        color: var(--ink);
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+        transition: transform .2s, box-shadow .2s;
+    }
+
+    .wf-task:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+
+    .wf-task-sub { font-size: .66rem; color: var(--ink-60); font-weight: 400; margin-top: .25rem; }
+
+    .wf-task-bar {
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        border-radius: 0 2px 2px 0;
+    }
+
+    .bar-blue   { background: var(--blue); }
+    .bar-gold   { background: var(--gold); }
+    .bar-green  { background: #059669; }
+    .bar-red    { background: var(--red); }
+
+    /* ─── ROLES SECTION ─── */
+    .roles-section {
+        background: var(--paper-alt);
+        border-top: 1px solid var(--ink-10);
+        border-bottom: 1px solid var(--ink-10);
+        padding: 6rem 2.5rem;
+    }
+
+    .roles-inner {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .roles-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 3.5rem;
+    }
+
+    .role-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 2rem;
+        border: 1px solid var(--ink-10);
+        position: relative;
+        overflow: hidden;
+        transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
+    }
+
+    .role-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 24px 56px rgba(0,0,0,.09);
+    }
+
+    .role-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+    }
+
+    .role-card-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .role-card-badge {
+        font-family: 'DM Mono', monospace;
+        font-size: .6rem;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        padding: .3em .7em;
+        border-radius: var(--r-pill);
+        border: 1px solid;
+    }
+
+    .badge-admin   { background: #fdf8ec; color: var(--gold); border-color: var(--gold-lt); }
+    .badge-resp    { background: var(--blue-lt); color: var(--blue); border-color: #c5d5ee; }
+    .badge-lecteur { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
+
+    .role-card h3 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: .5rem;
+        letter-spacing: -.01em;
+    }
+
+    .role-card p { font-size: .84rem; color: var(--ink-60); line-height: 1.65; font-weight: 300; margin-bottom: 1.25rem; }
+
+    .role-perms {
+        display: flex; flex-direction: column; gap: .4rem;
+    }
+
+    .role-perm {
+        display: flex; align-items: center; gap: .5rem;
+        font-size: .78rem; color: var(--ink-60); font-weight: 400;
+    }
+
+    .perm-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .perm-yes { background: #059669; }
+    .perm-no  { background: #d1d5db; }
+
+    /* Admin card highlight */
+    .role-card-admin {
+        background: var(--blue);
+        border-color: transparent;
+    }
+    .role-card-admin h3, .role-card-admin p { color: #fff; }
+    .role-card-admin p { opacity: .65; }
+    .role-card-admin .role-perm { color: rgba(255,255,255,.65); }
+    .role-card-admin .perm-dot.perm-yes { background: #6ee7b7; }
+    .role-card-admin .perm-dot.perm-no  { background: rgba(255,255,255,.2); }
+    .role-card-admin .role-card-icon { background: rgba(255,255,255,.1); color: #fff; }
+
+    /* ─── CTA SECTION ─── */
+    .cta-section {
+        padding: 8rem 2.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .cta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        font-family: 'DM Mono', monospace;
+        font-size: .68rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--ink-60);
+        border: 1px solid var(--ink-30);
+        border-radius: var(--r-pill);
+        padding: .4em 1em;
+        margin-bottom: 2rem;
+    }
+
+    .cta-section h2 {
+        font-size: clamp(2.5rem, 5vw, 5rem);
+        margin-bottom: 1.5rem;
+    }
+
+    .cta-section p {
+        font-size: 1.05rem;
+        color: var(--ink-60);
+        max-width: 480px;
+        margin: 0 auto 3rem;
+        font-weight: 300;
+        line-height: 1.75;
+    }
+
+    .cta-section .btn-primary {
+        font-size: 1rem;
+        padding: 1rem 2.5rem;
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+        background: var(--ink);
+        color: rgba(245,242,236,.5);
+        padding: 3rem 2.5rem;
+    }
+
+    .footer-inner {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .footer-logo {
+        display: flex; align-items: center; gap: .65rem;
+    }
+
+    .footer-logo-mark {
+        width: 32px; height: 32px;
+        background: rgba(255,255,255,.08);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .footer-logo-mark svg { width: 16px; height: 16px; fill: rgba(245,242,236,.6); }
+
+    .footer-logo-name {
+        font-family: 'Playfair Display', serif;
+        font-size: .95rem;
+        color: rgba(245,242,236,.8);
+    }
+
+    .footer-copy { font-size: .75rem; }
+
+    .footer-link {
+        color: rgba(245,242,236,.55);
+        text-decoration: none;
+        font-size: .75rem;
+        transition: color .2s;
+    }
+    .footer-link:hover { color: rgba(245,242,236,.9); }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition: opacity .7s ease, transform .7s ease;
+    }
+    .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+        .hero { grid-template-columns: 1fr; padding-top: 6rem; }
+        .hero-right { display: none; }
+        .bento { grid-template-columns: 1fr 1fr; }
+        .bento-1, .bento-2, .bento-3 { grid-column: auto; }
+        .bento-4, .bento-5, .bento-6 { grid-column: auto; }
+        .workflow-grid { grid-template-columns: 1fr; }
+        .workflow-visual { display: none; }
+        .roles-grid { grid-template-columns: 1fr; }
+        .section-header { grid-template-columns: 1fr; }
+        .section-header-right { text-align: left; }
+    }
+
+    @media (max-width: 600px) {
+        .bento { grid-template-columns: 1fr; }
+        .hero { padding: 5rem 1.25rem 3rem; }
+        .features-section, .workflow-section, .cta-section { padding-left: 1.25rem; padding-right: 1.25rem; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ─── CURSORS ─── -->
+<div class="cursor" id="cursorDot" style="position:fixed;top:0;left:0;z-index:9999;pointer-events:none;">
+    <div class="cursor-dot"></div>
+</div>
+<div class="cursor" id="cursorRing" style="position:fixed;top:0;left:0;z-index:9998;pointer-events:none;">
+    <div class="cursor-ring"></div>
+</div>
+
+<!-- ─── NAV ─── -->
+<nav>
+    <a href="#" class="nav-logo">
+        <div class="nav-logo-mark">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        </div>
+        <span class="nav-logo-text">TeamMove</span>
+    </a>
+    <a href="{{ url_for('main.login') }}" class="nav-cta">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="opacity:.7;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Connexion
+    </a>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section class="hero">
+    <div class="hero-deco-number">GBM</div>
+
+    <div class="hero-left">
+        <div class="hero-eyebrow">
+            <div class="hero-eyebrow-line"></div>
+            <div class="hero-eyebrow-dot"></div>
+            Groupe Bayoudh Métal — v2.0
+        </div>
+
+        <h1>
+            Gérez<br>
+            vos équipes<br>
+            avec <em>précision</em>
+        </h1>
+
+        <p class="hero-desc">
+            Solution complète pour le suivi des déplacements, l'affectation aux chantiers et le pilotage de vos ressources humaines en temps réel.
+        </p>
+
+        <div class="hero-actions">
+            <a href="{{ url_for('main.login') }}" class="btn-primary">
+                Accéder à l'espace
+                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </a>
+            <a href="#features" class="btn-ghost">
+                Fonctionnalités
+            </a>
+        </div>
+    </div>
+
+    <div class="hero-right">
+        <div class="hero-visual">
+            <!-- Main dashboard card -->
+            <div class="vis-card-main">
+                <div class="vis-card-label">Déplacements actifs · Aujourd'hui</div>
+                <div class="vis-big-number">48</div>
+                <div class="vis-big-sub">personnels en mission</div>
+
+                <div class="vis-bar-row">
+                    <div class="vis-bar-item">
+                        <span style="min-width:4.5rem;font-size:.7rem;opacity:.7;">Tunis</span>
+                        <div class="vis-bar-track"><div class="vis-bar-fill" style="width:82%"></div></div>
+                        <span class="vis-bar-val">82%</span>
+                    </div>
+                    <div class="vis-bar-item">
+                        <span style="min-width:4.5rem;font-size:.7rem;opacity:.7;">Sfax</span>
+                        <div class="vis-bar-track"><div class="vis-bar-fill" style="width:61%"></div></div>
+                        <span class="vis-bar-val">61%</span>
+                    </div>
+                    <div class="vis-bar-item">
+                        <span style="min-width:4.5rem;font-size:.7rem;opacity:.7;">Sousse</span>
+                        <div class="vis-bar-track"><div class="vis-bar-fill" style="width:44%"></div></div>
+                        <span class="vis-bar-val">44%</span>
+                    </div>
+                    <div class="vis-bar-item">
+                        <span style="min-width:4.5rem;font-size:.7rem;opacity:.7;">Bizerte</span>
+                        <div class="vis-bar-track"><div class="vis-bar-fill" style="width:28%"></div></div>
+                        <span class="vis-bar-val">28%</span>
+                    </div>
+                </div>
+
+                <div class="vis-tags">
+                    <span class="vis-tag">GBM-ACIER</span>
+                    <span class="vis-tag">GBM-ALUM</span>
+                    <span class="vis-tag">GBM-BUILD</span>
+                    <span class="vis-tag">+3</span>
+                </div>
+            </div>
+
+            <!-- Floating stat card -->
+            <div class="vis-card-float vis-card-stat">
+                <div class="vis-card-stat-val">12</div>
+                <div class="vis-card-stat-label">Chantiers actifs</div>
+            </div>
+
+            <!-- Floating notif -->
+            <div class="vis-card-float vis-card-notif">
+                <div class="vis-notif-dot">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </div>
+                <div class="vis-notif-text">
+                    <strong>Déplacement validé</strong>
+                    <span>Ben Ali M. → Sfax · il y a 2 min</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ─── TICKER ─── -->
+<div class="ticker-wrap">
+    <div class="ticker-inner">
+        <!-- Doubled for seamless loop -->
+        <span class="ticker-item"><span class="ticker-sep"></span>Gestion des Personnels</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Suivi des Déplacements</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Projets & Chantiers</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Validation en temps réel</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Tableau de bord analytique</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Gestion des rôles</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Export & Rapports</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Gestion des Personnels</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Suivi des Déplacements</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Projets & Chantiers</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Validation en temps réel</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Tableau de bord analytique</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Gestion des rôles</span>
+        <span class="ticker-item"><span class="ticker-sep"></span>Export & Rapports</span>
+    </div>
+</div>
+
+<!-- ─── FEATURES / BENTO ─── -->
+<section class="features-section" id="features">
+    <div class="section-header reveal">
+        <div>
+            <div class="section-tag">Fonctionnalités</div>
+            <h2>Tout ce qu'il<br>vous faut</h2>
+        </div>
+        <p class="section-header-right">Une plateforme unifiée pour piloter vos équipes terrain avec clarté et efficacité.</p>
+    </div>
+
+    <div class="bento">
+        <div class="bento-card bento-1 reveal">
+            <div class="bento-card-accent accent-blue" style="background:rgba(255,255,255,.1);color:#fff;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </div>
+            <h3>Gestion des Personnels</h3>
+            <p>Centralisez tous vos collaborateurs : matricule, poste, société, salaire mensuel ou horaire, historique complet des missions.</p>
+            <div class="bento-1-number">01</div>
+        </div>
+
+        <div class="bento-card bento-2 reveal" style="transition-delay:.1s">
+            <div class="bento-card-accent accent-gold">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+            </div>
+            <h3>Projets & Chantiers</h3>
+            <p>Créez vos chantiers avec leur localisation géographique précise, dates estimées et affectations d'équipes.</p>
+        </div>
+
+        <div class="bento-card bento-3 reveal" style="transition-delay:.15s">
+            <div class="bento-card-accent accent-green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
+            </div>
+            <h3>Déplacements</h3>
+            <p>Affectez vos personnels à leurs missions avec des plages horaires précises. Vue calendrier par date.</p>
+        </div>
+
+        <div class="bento-card bento-4 reveal" style="transition-delay:.2s">
+            <div class="bento-card-accent accent-red">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            </div>
+            <h3>Validation Workflow</h3>
+            <p>Les responsables soumettent, les admins valident ou rejettent avec commentaire. Historique complet des actions.</p>
+        </div>
+
+        <div class="bento-card bento-5 reveal" style="transition-delay:.25s">
+            <div class="bento-card-accent accent-blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
+            <h3>Dashboard Analytique</h3>
+            <p>Visualisez vos statistiques en temps réel : top personnel, répartition par région, tendances mensuelles.</p>
+        </div>
+
+        <div class="bento-card bento-6 reveal" style="transition-delay:.3s">
+            <div class="bento-card-accent accent-purple">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1c-4.97 0-9 4.03-9 9 0 4.17 2.84 7.67 6.69 8.69L12 22l2.31-3.32C18.16 17.67 21 14.17 21 10c0-4.97-4.03-9-9-9zm0 2c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.14-7-7 3.14-7 7-7zm-1 3v5l4.28 2.54.72-1.21-3.5-2.08V6H11z"/></svg>
+            </div>
+            <h3>Gestion des Rôles</h3>
+            <p>Trois niveaux d'accès : Admin, Responsable Projet et Lecteur. Chaque rôle avec des permissions ajustées précisément.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ─── WORKFLOW ─── -->
+<section class="workflow-section">
+    <div class="section-header reveal">
+        <div>
+            <div class="section-tag">Comment ça marche</div>
+            <h2>Simple,<br>structuré</h2>
+        </div>
+        <p class="section-header-right">Un flux de travail clair du terrain jusqu'à la validation finale.</p>
+    </div>
+
+    <div class="workflow-grid">
+        <div class="workflow-steps">
+            <div class="step reveal">
+                <div class="step-num">01</div>
+                <div class="step-content">
+                    <h4>Créez vos chantiers</h4>
+                    <p>Enregistrez vos projets avec leur localisation : région, gouvernorat, ville et adresse précise du site.</p>
+                </div>
+            </div>
+            <div class="step reveal" style="transition-delay:.1s">
+                <div class="step-num">02</div>
+                <div class="step-content">
+                    <h4>Affectez votre équipe</h4>
+                    <p>Associez un ou plusieurs personnels à un chantier, avec dates et horaires de début et fin de mission.</p>
+                </div>
+            </div>
+            <div class="step reveal" style="transition-delay:.2s">
+                <div class="step-num">03</div>
+                <div class="step-content">
+                    <h4>Soumettez pour validation</h4>
+                    <p>Les responsables projet soumettent leurs déplacements. L'admin reçoit une notification et valide en un clic.</p>
+                </div>
+            </div>
+            <div class="step reveal" style="transition-delay:.3s">
+                <div class="step-num">04</div>
+                <div class="step-content">
+                    <h4>Suivez en temps réel</h4>
+                    <p>Le dashboard affiche immédiatement les équipes actives, les statistiques et l'historique complet par chantier.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="workflow-visual reveal" style="transition-delay:.15s">
+            <div class="wf-board">
+                <div class="wf-board-header">
+                    <div class="wf-dot"></div>
+                    <div class="wf-dot"></div>
+                    <div class="wf-dot"></div>
+                </div>
+                <div class="wf-cols">
+                    <div>
+                        <div class="wf-col-title">En attente</div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-gold"></div>
+                            Hamdi K.
+                            <div class="wf-task-sub">Projet Sfax B2 · 3j</div>
+                        </div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-gold"></div>
+                            Trabelsi N.
+                            <div class="wf-task-sub">Chantier Sud · 5j</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="wf-col-title">En cours</div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-blue"></div>
+                            Ben Ali M.
+                            <div class="wf-task-sub">Site Tunis · 7j</div>
+                        </div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-blue"></div>
+                            Gharbi S.
+                            <div class="wf-task-sub">Bizerte · 2j</div>
+                        </div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-blue"></div>
+                            Khelil A.
+                            <div class="wf-task-sub">Sousse · 4j</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="wf-col-title">Validé</div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-green"></div>
+                            Mellouli R.
+                            <div class="wf-task-sub">Monastir · 6j</div>
+                        </div>
+                        <div class="wf-task">
+                            <div class="wf-task-bar bar-green"></div>
+                            Jebali F.
+                            <div class="wf-task-sub">Nabeul · 3j</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ─── ROLES ─── -->
+<section class="roles-section">
+    <div class="roles-inner">
+        <div class="section-header reveal">
+            <div>
+                <div class="section-tag">Contrôle d'accès</div>
+                <h2>Trois rôles,<br>un système</h2>
+            </div>
+            <p class="section-header-right">Des permissions claires pour chaque acteur de votre organisation.</p>
+        </div>
+
+        <div class="roles-grid">
+            <!-- Admin -->
+            <div class="role-card role-card-admin reveal">
+                <div class="role-card-top">
+                    <div class="role-card-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                    </div>
+                    <span class="role-card-badge badge-admin">Admin</span>
+                </div>
+                <h3>Administrateur</h3>
+                <p>Accès complet à toutes les fonctionnalités de la plateforme. Valide, configure et supervise.</p>
+                <div class="role-perms">
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Gestion personnels & projets</div>
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Validation des déplacements</div>
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Gestion des utilisateurs</div>
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Accès au dashboard complet</div>
+                </div>
+            </div>
+
+            <!-- Resp Projet -->
+            <div class="role-card reveal" style="transition-delay:.1s">
+                <div class="role-card-top">
+                    <div class="role-card-icon accent-blue">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.36C18 2.06 15.73 0 13 0c-1.49 0-2.87.65-3.88 1.68l-.12.12L7.88 3H4C2.9 3 2 3.9 2 5v15c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+                    </div>
+                    <span class="role-card-badge badge-resp">Resp. Projet</span>
+                </div>
+                <h3>Responsable Projet</h3>
+                <p>Soumet des déplacements pour ses équipes. Ceux-ci restent en attente d'approbation admin.</p>
+                <div class="role-perms">
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Soumettre des déplacements</div>
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Consulter projets & chantiers</div>
+                    <div class="role-perm"><div class="perm-dot perm-no"></div>Validation impossible</div>
+                    <div class="role-perm"><div class="perm-dot perm-no"></div>Pas d'accès utilisateurs</div>
+                </div>
+            </div>
+
+            <!-- Lecteur -->
+            <div class="role-card reveal" style="transition-delay:.2s">
+                <div class="role-card-top">
+                    <div class="role-card-icon accent-green">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    </div>
+                    <span class="role-card-badge badge-lecteur">Lecteur</span>
+                </div>
+                <h3>Lecteur</h3>
+                <p>Consultation en lecture seule. Idéal pour les parties prenantes qui suivent l'avancement sans modification.</p>
+                <div class="role-perms">
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Lecture du dashboard</div>
+                    <div class="role-perm"><div class="perm-dot perm-yes"></div>Consultation des données</div>
+                    <div class="role-perm"><div class="perm-dot perm-no"></div>Aucune modification</div>
+                    <div class="role-perm"><div class="perm-dot perm-no"></div>Pas de soumission</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ─── CTA ─── -->
+<section class="cta-section">
+    <div class="cta-pill reveal">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="opacity:.5;"><circle cx="12" cy="12" r="10"/></svg>
+        Accès sécurisé SSL · CSRF protégé
+    </div>
+    <h2 class="reveal" style="transition-delay:.1s">Prêt à <em>démarrer</em> ?</h2>
+    <p class="reveal" style="transition-delay:.2s">
+        Connectez-vous à votre espace et prenez le contrôle total de vos équipes terrain.
+    </p>
+    <div class="reveal" style="transition-delay:.3s">
+        <a href="{{ url_for('main.login') }}" class="btn-primary">
+            Accéder à l'espace
+            <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </a>
+    </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-logo">
+            <div class="footer-logo-mark">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </div>
+            <span class="footer-logo-name">TeamMove</span>
+        </div>
+        <span class="footer-copy">© 2026 Groupe Bayoudh Métal — Tous droits réservés</span>
+        <a href="https://www.linkedin.com/in/hammouda-ahmed-mustapha-a55270195/"
+           target="_blank" rel="noopener" class="footer-link">
+            Designed &amp; built by AMH
+        </a>
+    </div>
+</footer>
+
+<script>
+/* ── Custom cursor ── */
+const dot  = document.getElementById('cursorDot');
+const ring = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.transform  = `translate(${mx}px, ${my}px)`;
+});
+
+function animRing() {
+    rx += (mx - rx) * .12;
+    ry += (my - ry) * .12;
+    ring.style.transform = `translate(${rx}px, ${ry}px)`;
+    requestAnimationFrame(animRing);
+}
+animRing();
+
+/* ── Scroll reveal ── */
+const revealEls = document.querySelectorAll('.reveal');
+const observer  = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            observer.unobserve(e.target);
+        }
+    });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+revealEls.forEach(el => observer.observe(el));
+
+/* ── Step hover numbers ── */
+document.querySelectorAll('.step').forEach((step, i) => {
+    step.querySelector('.step-num').textContent = String(i + 1).padStart(2, '0');
+});
+
+/* ── Smooth scroll ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+    });
+});
+</script>
+</body>
+</html>

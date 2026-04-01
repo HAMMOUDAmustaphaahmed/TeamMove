@@ -1,0 +1,27 @@
+# ==========================================
+# GESTION PERSONNELS - DEPENDANCES
+# ==========================================
+
+# Framework Web
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Base de données
+Flask-SQLAlchemy==3.0.5
+PyMySQL==1.1.0
+cryptography==41.0.4  # Pour authentification MySQL sécurisée
+
+# Authentification & Sécurité
+Flask-Login==0.6.2
+Flask-Talisman==1.0.0      # Headers de sécurité HTTPS
+Flask-Limiter==3.3.0       # Rate limiting
+Flask-WTF==1.1.1           # CSRF Protection
+email-validator==2.0.0.post2
+
+# Utilitaires
+python-dotenv==1.0.0       # Variables d'environnement
+bleach==6.0.0              # Nettoyage HTML (XSS Protection)
+MarkupSafe==2.1.3          # Échappement HTML sécurisé
+
+# Production (optionnel)
+gunicorn==21.2.0           # Serveur WSGI production
