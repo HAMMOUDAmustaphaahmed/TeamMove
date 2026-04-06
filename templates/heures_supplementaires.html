@@ -140,19 +140,16 @@
   </div>
   <div class="d-flex gap-2 flex-wrap">
     {% if current_user.is_admin %}
-    <a href="{{ url_for('main.manage_schedules') }}" class="btn btn-sm"
+    <a href="{{ url_for('main.payroll_config') }}" class="btn btn-sm"
        style="background:rgba(79,142,247,.15);color:#4f8ef7;border:1px solid rgba(79,142,247,.25);font-size:.82rem;">
-      <i class="fas fa-calendar-alt me-1"></i>Configurer séances
+      <i class="fas fa-cog me-1"></i>Configuration de mois
     </a>
     {% endif %}
-    <a href="{{ url_for('main.export_heures_supplementaires',
-                        date_debut=request.args.get('date_debut',''),
-                        date_fin=request.args.get('date_fin',''),
-                        search=request.args.get('search','')) }}"
-       class="btn btn-sm"
-       style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.25);font-size:.82rem;">
+    <button type="button" class="btn btn-sm" id="exportHsBtn"
+       style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.25);font-size:.82rem;"
+       onclick="exportHsXlsx()">
       <i class="fas fa-file-excel me-1"></i>Export XLSX
-    </a>
+    </button>
   </div>
 </div>
 
@@ -161,10 +158,12 @@
   <div class="hs-stat-card">
     <div class="hs-stat-label"><i class="fas fa-calendar-week me-1"></i>Cette semaine</div>
     <div><span class="hs-stat-value" id="statSemaine">—</span><span class="hs-stat-unit">h</span></div>
+    <div style="font-size:.68rem;color:var(--text-disabled);margin-top:.2rem;" id="semaineLabel">lun → aujourd'hui</div>
   </div>
   <div class="hs-stat-card">
-    <div class="hs-stat-label"><i class="fas fa-calendar me-1"></i>Ce mois</div>
+    <div class="hs-stat-label"><i class="fas fa-calendar me-1"></i>Ce mois salarial</div>
     <div><span class="hs-stat-value" id="statMois">—</span><span class="hs-stat-unit">h</span></div>
+    <div style="font-size:.68rem;color:var(--text-disabled);margin-top:.2rem;" id="moisLabel">calcul en cours…</div>
   </div>
   <div class="hs-stat-card" style="flex:2;">
     <div class="hs-stat-label"><i class="fas fa-trophy me-1"></i>Top personnel (tous temps)</div>
@@ -187,14 +186,16 @@
 {% endif %}
 
 <!-- ── FILTER BAR ── -->
-<form method="GET" action="{{ url_for('main.heures_supplementaires') }}">
-  <div class="filter-bar">
-    <div style="flex:1;min-width:160px;">
+<form method="GET" action="{{ url_for('main.heures_supplementaires') }}" id="hsFilterForm">
+  <div class="filter-bar" style="flex-wrap:wrap;gap:.75rem;">
+
+    <!-- Row 1 -->
+    <div style="flex:1;min-width:140px;">
       <label class="form-label">Date début</label>
       <input type="date" class="form-control" name="date_debut"
              value="{{ date_debut.strftime('%Y-%m-%d') if date_debut else '' }}">
     </div>
-    <div style="flex:1;min-width:160px;">
+    <div style="flex:1;min-width:140px;">
       <label class="form-label">Date fin</label>
       <input type="date" class="form-control" name="date_fin"
              value="{{ date_fin.strftime('%Y-%m-%d') if date_fin else '' }}">
@@ -209,7 +210,75 @@
                value="{{ search }}">
       </div>
     </div>
-    <div class="d-flex gap-2">
+
+    <!-- Filtre Projet -->
+    <div style="flex:2;min-width:220px;position:relative;">
+      <label class="form-label">Projets</label>
+      <div class="dropdown" id="projetDropdown">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDropdown('projetDD')">
+          <span id="projetLabel">Tous les projets</span>
+          <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
+        </button>
+        <div id="projetDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:4px;max-height:260px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher…" style="font-size:.8rem;padding:.4rem .7rem;"
+                   oninput="filterDropdown('projetItems', this.value)">
+          </div>
+          <div id="projetItems" style="overflow-y:auto;max-height:200px;padding:0 .5rem .5rem;">
+            {% for p in all_projets %}
+            <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''"
+                   class="projet-option">
+              <input type="checkbox" name="projet_ids[]" value="{{ p.id }}"
+                     {% if p.id in selected_projet_ids %}checked{% endif %}
+                     onchange="updateProjetLabel()">
+              <span>{{ p.nom }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtre Fonction -->
+    <div style="flex:2;min-width:200px;position:relative;">
+      <label class="form-label">Fonctions</label>
+      <div class="dropdown" id="fonctionDropdown">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDropdown('fonctionDD')">
+          <span id="fonctionLabel">Toutes les fonctions</span>
+          <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
+        </button>
+        <div id="fonctionDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:4px;max-height:260px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher…" style="font-size:.8rem;padding:.4rem .7rem;"
+                   oninput="filterDropdown('fonctionItems', this.value)">
+          </div>
+          <div id="fonctionItems" style="overflow-y:auto;max-height:200px;padding:0 .5rem .5rem;">
+            {% for f in all_fonctions %}
+            <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''"
+                   class="fonction-option">
+              <input type="checkbox" name="fonctions[]" value="{{ f }}"
+                     {% if f in selected_fonctions %}checked{% endif %}
+                     onchange="updateFonctionLabel()">
+              <span>{{ f }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boutons -->
+    <div class="d-flex gap-2 align-items-end">
       <button type="submit" class="btn btn-primary" style="font-size:.84rem;padding:.5rem 1.1rem;">
         <i class="fas fa-filter me-1"></i>Filtrer
       </button>
@@ -230,6 +299,7 @@
         <tr>
           <th>Matricule</th>
           <th>Personnel</th>
+          <th>Fonction</th>
           <th>Projet</th>
           <th>Début déplacement</th>
           <th>Fin déplacement</th>
@@ -249,6 +319,15 @@
           <td>
             <div style="font-weight:700;color:var(--text-primary);">{{ pers.nom }} {{ pers.prenom }}</div>
             <div style="font-size:.72rem;color:var(--text-muted);">{{ pers.societe }}</div>
+          </td>
+          <td>
+            {% if pers.fonction %}
+              <span style="font-size:.75rem;background:rgba(155,92,246,.1);color:#9b5cf6;border:1px solid rgba(155,92,246,.2);border-radius:6px;padding:.2em .55em;font-weight:700;">
+                {{ pers.fonction }}
+              </span>
+            {% else %}
+              <span style="color:var(--text-disabled);font-size:.75rem;">—</span>
+            {% endif %}
           </td>
           <td>
             <div style="font-weight:600;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ dep.projet.nom }}">
@@ -418,6 +497,9 @@ fetch('{{ url_for("main.api_hs_stats") }}')
   .then(d => {
     document.getElementById('statSemaine').textContent = d.hs_semaine.toFixed(2);
     document.getElementById('statMois').textContent    = d.hs_mois.toFixed(2);
+    if (d.debut_mois_sal) {
+      document.getElementById('moisLabel').textContent = `depuis le ${d.debut_mois_sal}`;
+    }
 
     const top5el = document.getElementById('statTop5');
     if (d.top5.length === 0) {
@@ -443,6 +525,68 @@ fetch('{{ url_for("main.api_hs_stats") }}')
       }).join('');
     }
   }).catch(() => {});
+
+// ── Dropdown helpers ──
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  const open = el.style.display !== 'none';
+  // Close all
+  ['projetDD','fonctionDD'].forEach(d => {
+    document.getElementById(d).style.display = 'none';
+    document.getElementById(d).style.flexDirection = '';
+  });
+  if (!open) {
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+    el.querySelector('input').focus();
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#projetDropdown') && !e.target.closest('#fonctionDropdown')) {
+    ['projetDD','fonctionDD'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+  }
+});
+
+function filterDropdown(listId, term) {
+  const items = document.getElementById(listId).querySelectorAll('label');
+  const t = term.trim().toLowerCase();
+  items.forEach(lbl => {
+    lbl.style.display = (!t || lbl.textContent.toLowerCase().includes(t)) ? '' : 'none';
+  });
+}
+
+function updateProjetLabel() {
+  const checked = document.querySelectorAll('input[name="projet_ids[]"]:checked');
+  document.getElementById('projetLabel').textContent =
+    checked.length === 0 ? 'Tous les projets' : `${checked.length} projet(s) sélectionné(s)`;
+}
+
+function updateFonctionLabel() {
+  const checked = document.querySelectorAll('input[name="fonctions[]"]:checked');
+  document.getElementById('fonctionLabel').textContent =
+    checked.length === 0 ? 'Toutes les fonctions' : `${checked.length} fonction(s) sélectionnée(s)`;
+}
+
+// Init labels on page load
+updateProjetLabel();
+updateFonctionLabel();
+
+// ── Export XLSX (via server avec filtres courants) ──
+function exportHsXlsx() {
+  const form   = document.getElementById('hsFilterForm');
+  const params = new URLSearchParams(new FormData(form));
+  // Collect checkboxes manually
+  document.querySelectorAll('input[name="projet_ids[]"]:checked').forEach(cb => {
+    params.append('projet_ids[]', cb.value);
+  });
+  document.querySelectorAll('input[name="fonctions[]"]:checked').forEach(cb => {
+    params.append('fonctions[]', cb.value);
+  });
+  window.location.href = `/heures-supplementaires/export?${params.toString()}`;
+}
 
 {% if current_user.is_admin %}
 // ── Ouvrir modal HS ──

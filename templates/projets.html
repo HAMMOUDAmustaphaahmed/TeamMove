@@ -392,6 +392,19 @@
         <span class="location-badge"><i class="fas fa-map"></i>{{ projet.region }}</span>
         <span class="location-badge"><i class="fas fa-city"></i>{{ projet.gouvernorat }}</span>
         <span class="location-badge"><i class="fas fa-home"></i>{{ projet.ville }}</span>
+        {% if projet.etat == 'en_cours' %}
+          <span style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .75rem;background:rgba(6,214,160,.1);color:#06d6a0;border:1px solid rgba(6,214,160,.25);border-radius:var(--r-full);font-size:.72rem;font-weight:700;margin-right:.3rem;margin-bottom:.3rem;">
+            <i class="fas fa-circle" style="font-size:.45rem;"></i>En cours
+          </span>
+        {% elif projet.etat == 'planifie' %}
+          <span style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .75rem;background:rgba(79,142,247,.1);color:#4f8ef7;border:1px solid rgba(79,142,247,.25);border-radius:var(--r-full);font-size:.72rem;font-weight:700;margin-right:.3rem;margin-bottom:.3rem;">
+            <i class="fas fa-clock" style="font-size:.6rem;"></i>Planifié
+          </span>
+        {% else %}
+          <span style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .75rem;background:rgba(160,160,180,.08);color:var(--text-muted);border:1px solid rgba(160,160,180,.2);border-radius:var(--r-full);font-size:.72rem;font-weight:700;margin-right:.3rem;margin-bottom:.3rem;">
+            <i class="fas fa-check" style="font-size:.6rem;"></i>Terminé
+          </span>
+        {% endif %}
       </div>
 
       <!-- Address -->
@@ -566,8 +579,15 @@
             </div>
           </div>
 
-        </div>
-        <div class="modal-footer">
+          <!-- ── État du projet ── -->
+          <div class="mt-3">
+            <label class="form-label"><i class="fas fa-flag me-1" style="color:#9b5cf6;"></i>État du projet</label>
+            <select class="form-select" name="etat">
+              <option value="en_cours">🟢 En cours</option>
+              <option value="planifie">🔵 Planifié</option>
+              <option value="termine">⚫ Terminé</option>
+            </select>
+          </div>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i>Enregistrer
@@ -661,6 +681,16 @@
               <label class="form-label">Date de fin estimée</label>
               <input type="date" class="form-control" name="date_fin_estimee" id="editDateFin">
             </div>
+          </div>
+
+          <!-- ── État du projet ── -->
+          <div class="mt-3">
+            <label class="form-label"><i class="fas fa-flag me-1" style="color:#9b5cf6;"></i>État du projet</label>
+            <select class="form-select" name="etat" id="editEtat">
+              <option value="en_cours">🟢 En cours</option>
+              <option value="planifie">🔵 Planifié</option>
+              <option value="termine">⚫ Terminé</option>
+            </select>
           </div>
 
         </div>
@@ -925,6 +955,7 @@ function editProjet(id) {
       document.getElementById('editCoordinates').value  = data.coordinates  || '';
       document.getElementById('editDateDebut').value    = data.date_debut_estimee || '';
       document.getElementById('editDateFin').value      = data.date_fin_estimee   || '';
+      document.getElementById('editEtat').value         = data.etat || 'en_cours';
       document.getElementById('editProjetForm').action  = `/projets/edit/${id}`;
       new bootstrap.Modal(document.getElementById('editProjetModal')).show();
     })

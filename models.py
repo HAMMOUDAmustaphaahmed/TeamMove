@@ -78,6 +78,10 @@ class Projet(db.Model):
     coordinates         = db.Column(db.String(100), nullable=True)
     date_debut_estimee  = db.Column(db.Date, nullable=True)
     date_fin_estimee    = db.Column(db.Date, nullable=True)
+    # ── État du projet ──
+    etat                = db.Column(
+        db.Enum('en_cours', 'planifie', 'termine'),
+        nullable=False, default='en_cours')
     created_at          = db.Column(db.DateTime, default=datetime.utcnow)
     active              = db.Column(db.Boolean, default=True)
 
@@ -160,3 +164,17 @@ class HeureSupplementaire(db.Model):
     deplacement    = db.relationship('Deplacement',
                                      backref=db.backref('heures_sup', uselist=False))
     creator        = db.relationship('User', backref='hs_creees')
+
+class PayrollConfig(db.Model):
+    """Configuration de la période salariale mensuelle.
+    Ex : jour_debut = 26  →  mois salarial du 26/M-1 au 25/M
+         jour_debut = 1   →  mois calendaire standard
+    """
+    __tablename__ = 'payroll_config'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    jour_debut  = db.Column(db.Integer, nullable=False, default=1)  # 1..28
+    updated_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    updated_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    updater     = db.relationship('User', backref='payroll_configs')

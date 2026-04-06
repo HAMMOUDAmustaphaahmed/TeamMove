@@ -15,18 +15,18 @@ Assurez-vous que votre fichier .env est présent.
 
 import os
 import sys
+import re
 import pymysql
 from dotenv import load_dotenv
 
-# ── Charger les variables d'environnement depuis .env ──
 load_dotenv()
+
 
 # ══════════════════════════════════════════════════════════════
 # CONFIG CONNEXION
 # ══════════════════════════════════════════════════════════════
 
 def get_connection():
-    """Crée une connexion PyMySQL depuis les variables d'env."""
     db_user     = os.environ.get('DB_USER')
     db_password = os.environ.get('DB_PASSWORD')
     db_host     = os.environ.get('DB_HOST')
@@ -40,21 +40,44 @@ def get_connection():
 
     if missing:
         print(f"\n❌  Variables .env manquantes : {', '.join(missing)}")
-        print("    Vérifiez votre fichier .env\n")
         sys.exit(1)
 
-    conn = pymysql.connect(
-        host=db_host,
-        port=db_port,
-        user=db_user,
-        password=db_password,
+    return pymysql.connect(
+        host=db_host, port=db_port,
+        user=db_user, password=db_password,
         database=db_name,
         charset='utf8mb4',
         ssl={'ssl_mode': 'REQUIRED'},
         connect_timeout=20,
         cursorclass=pymysql.cursors.DictCursor,
     )
-    return conn
+
+
+# ══════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════
+
+def table_exists(cur, db_name, table_name):
+    cur.execute("""
+        SELECT COUNT(*) as cnt
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
+    """, (db_name, table_name))
+    return cur.fetchone()['cnt'] > 0
+
+
+def column_exists(cur, db_name, table_name, col_name):
+    cur.execute("""
+        SELECT COUNT(*) as cnt
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s
+    """, (db_name, table_name, col_name))
+    return cur.fetchone()['cnt'] > 0
+
+
+def get_columns(cur, table_name):
+    cur.execute(f"DESCRIBE `{table_name}`")
+    return cur.fetchall()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -62,24 +85,22 @@ def get_connection():
 # ══════════════════════════════════════════════════════════════
 
 def cmd_inspect():
-    """Affiche la structure complète de la base de données."""
     print("\n" + "═" * 60)
     print("  📊  INSPECTION DE LA BASE DE DONNÉES")
     print("═" * 60)
 
     conn = get_connection()
+    db_name = os.environ.get('DB_NAME')
     try:
         with conn.cursor() as cur:
-
-            # ── Liste des tables ──
             cur.execute("SHOW TABLES")
             tables = [list(row.values())[0] for row in cur.fetchall()]
 
             if not tables:
-                print("\n  ⚠️  Aucune table trouvée dans la base de données.\n")
+                print("\n  ⚠️  Aucune table trouvée.\n")
                 return
 
-            print(f"\n  Base : {os.environ.get('DB_NAME')}  |  {len(tables)} table(s) trouvée(s)")
+            print(f"\n  Base : {db_name}  |  {len(tables)} table(s) trouvée(s)")
             print(f"  Tables : {', '.join(tables)}\n")
 
             for table in tables:
@@ -87,20 +108,13 @@ def cmd_inspect():
                 print(f"  📋  TABLE : {table.upper()}")
                 print("─" * 60)
 
-                # ── Colonnes ──
-                cur.execute(f"DESCRIBE `{table}`")
-                cols = cur.fetchall()
-
                 col_widths = [20, 20, 6, 10, 15, 10]
-                headers = ['Colonne', 'Type', 'Null', 'Clé', 'Défaut', 'Extra']
-                header_line = "  " + "  ".join(
-                    h.ljust(col_widths[i]) for i, h in enumerate(headers)
-                )
-                print(header_line)
+                headers    = ['Colonne', 'Type', 'Null', 'Clé', 'Défaut', 'Extra']
+                print("  " + "  ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers)))
                 print("  " + "-" * 80)
 
-                for col in cols:
-                    row_vals = [
+                for col in get_columns(cur, table):
+                    vals = [
                         str(col.get('Field', '')),
                         str(col.get('Type', '')),
                         str(col.get('Null', '')),
@@ -108,59 +122,38 @@ def cmd_inspect():
                         str(col.get('Default', '') or ''),
                         str(col.get('Extra', '')),
                     ]
-                    line = "  " + "  ".join(
-                        v[:col_widths[i]].ljust(col_widths[i]) for i, v in enumerate(row_vals)
-                    )
-                    print(line)
+                    print("  " + "  ".join(v[:col_widths[i]].ljust(col_widths[i]) for i, v in enumerate(vals)))
 
-                # ── Index ──
                 cur.execute(f"SHOW INDEX FROM `{table}`")
                 indexes = cur.fetchall()
                 if indexes:
-                    index_summary = {}
+                    idx_map = {}
                     for idx in indexes:
-                        name = idx.get('Key_name', '')
-                        col  = idx.get('Column_name', '')
-                        uniq = '(UNIQUE)' if idx.get('Non_unique') == 0 else ''
-                        index_summary.setdefault(name, []).append(col)
-                    print()
-                    print(f"  Index :")
-                    for iname, icols in index_summary.items():
-                        uniq_flag = ''
-                        for idx in indexes:
-                            if idx.get('Key_name') == iname and idx.get('Non_unique') == 0:
-                                uniq_flag = ' [UNIQUE]'
-                                break
-                        print(f"    • {iname}{uniq_flag} → ({', '.join(icols)})")
+                        idx_map.setdefault(idx['Key_name'], []).append(idx['Column_name'])
+                    print("\n  Index :")
+                    for iname, icols in idx_map.items():
+                        uniq = any(i['Key_name'] == iname and i['Non_unique'] == 0 for i in indexes)
+                        flag = ' [UNIQUE]' if uniq else ''
+                        print(f"    • {iname}{flag} → ({', '.join(icols)})")
 
-                # ── Foreign Keys ──
                 cur.execute("""
-                    SELECT
-                        kcu.CONSTRAINT_NAME,
-                        kcu.COLUMN_NAME,
-                        kcu.REFERENCED_TABLE_NAME,
-                        kcu.REFERENCED_COLUMN_NAME
+                    SELECT kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME
                     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
                     JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
                         ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-                        AND tc.TABLE_NAME = kcu.TABLE_NAME
+                       AND tc.TABLE_NAME      = kcu.TABLE_NAME
                     WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
-                      AND kcu.TABLE_SCHEMA = %s
-                      AND kcu.TABLE_NAME   = %s
-                """, (os.environ.get('DB_NAME'), table))
+                      AND kcu.TABLE_SCHEMA   = %s
+                      AND kcu.TABLE_NAME     = %s
+                """, (db_name, table))
                 fks = cur.fetchall()
                 if fks:
-                    print()
-                    print(f"  Clés étrangères :")
+                    print("\n  Clés étrangères :")
                     for fk in fks:
                         print(f"    • {fk['COLUMN_NAME']} → {fk['REFERENCED_TABLE_NAME']}.{fk['REFERENCED_COLUMN_NAME']}")
 
-                # ── Nombre de lignes ──
                 cur.execute(f"SELECT COUNT(*) as cnt FROM `{table}`")
-                count = cur.fetchone()['cnt']
-                print()
-                print(f"  Lignes : {count}")
-                print()
+                print(f"\n  Lignes : {cur.fetchone()['cnt']}\n")
 
     finally:
         conn.close()
@@ -174,162 +167,233 @@ def cmd_inspect():
 # COMMANDE : CHECK
 # ══════════════════════════════════════════════════════════════
 
+# Liste exhaustive de tout ce que la migration doit garantir :
+#   (type, table, colonne_ou_None)
+MIGRATION_CHECKS = [
+    # Tables existantes à compléter
+    ('column', 'projets',  'etat'),
+    # Nouvelles tables
+    ('table',  'payroll_config',   None),
+    # Tables déjà présentes (vérification)
+    ('table',  'work_schedules',         None),
+    ('table',  'heures_supplementaires', None),
+]
+
+
 def cmd_check():
-    """Vérifie si les nouvelles tables existent déjà."""
     print("\n" + "═" * 60)
-    print("  🔍  VÉRIFICATION DES TABLES DE MIGRATION")
+    print("  🔍  VÉRIFICATION DES TABLES ET COLONNES")
     print("═" * 60)
 
-    REQUIRED_TABLES = ['work_schedules', 'heures_supplementaires']
+    conn    = get_connection()
+    db_name = os.environ.get('DB_NAME')
+    all_ok  = True
 
-    conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SHOW TABLES")
-            existing = {list(row.values())[0] for row in cur.fetchall()}
+            for kind, table, col in MIGRATION_CHECKS:
+                if kind == 'table':
+                    exists = table_exists(cur, db_name, table)
+                    status = '✅' if exists else '❌'
+                    note   = 'existe' if exists else 'MANQUANTE → migration nécessaire'
+                    print(f"\n  {status}  table  `{table}` — {note}")
+                    if exists:
+                        for c in get_columns(cur, table):
+                            print(f"       • {c['Field']:25s} {c['Type']}")
+                    else:
+                        all_ok = False
 
-            all_ok = True
-            for table in REQUIRED_TABLES:
-                if table in existing:
-                    print(f"\n  ✅  {table} — existe déjà")
-                    # Afficher les colonnes rapidement
-                    cur.execute(f"DESCRIBE `{table}`")
-                    cols = cur.fetchall()
-                    for c in cols:
-                        print(f"       • {c['Field']:25s} {c['Type']}")
-                else:
-                    print(f"\n  ❌  {table} — MANQUANTE → migration nécessaire")
-                    all_ok = False
+                elif kind == 'column':
+                    exists = column_exists(cur, db_name, table, col)
+                    status = '✅' if exists else '❌'
+                    note   = 'présente' if exists else 'MANQUANTE → migration nécessaire'
+                    print(f"\n  {status}  colonne `{table}.{col}` — {note}")
+                    if not exists:
+                        all_ok = False
 
-            print()
-            if all_ok:
-                print("  ✅  Toutes les tables sont présentes. Migration déjà effectuée.\n")
-            else:
-                print("  ⚠️   Exécutez :  python db_tool.py migrate\n")
+        print()
+        if all_ok:
+            print("  ✅  Base de données à jour. Aucune migration nécessaire.\n")
+        else:
+            print("  ⚠️   Exécutez :  python db_tool.py migrate\n")
 
     finally:
         conn.close()
 
 
 # ══════════════════════════════════════════════════════════════
-# COMMANDE : MIGRATE
+# MIGRATION SQL
+# Chaque entrée : (description, SQL, idempotent)
 # ══════════════════════════════════════════════════════════════
 
-MIGRATION_SQL = """
--- ────────────────────────────────────────────────────────────
--- Table : work_schedules
--- Séances de travail journalières (ex : matin 08h-12h)
--- ────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `work_schedules` (
-    `id`          INT           NOT NULL AUTO_INCREMENT,
-    `nom`         VARCHAR(100)  NOT NULL,
-    `heure_debut` TIME          NOT NULL,
-    `heure_fin`   TIME          NOT NULL,
-    `is_active`   TINYINT(1)    NOT NULL DEFAULT 1,
-    `created_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+def build_migration_steps(cur, db_name):
+    """
+    Retourne la liste des étapes à exécuter selon l'état réel de la DB.
+    Chaque étape : (label, sql_statement)
+    """
+    steps = []
 
--- ────────────────────────────────────────────────────────────
--- Table : heures_supplementaires
--- Heures supplémentaires rattachées à un déplacement
--- ────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `heures_supplementaires` (
-    `id`             INT          NOT NULL AUTO_INCREMENT,
-    `deplacement_id` INT          NOT NULL,
-    `heures`         DECIMAL(6,2) NOT NULL,
-    `commentaire`    TEXT,
-    `created_by`     INT,
-    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    INDEX `ix_hs_deplacement_id` (`deplacement_id`),
-    CONSTRAINT `fk_hs_deplacement`
-        FOREIGN KEY (`deplacement_id`)
-        REFERENCES `deplacements` (`id`)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    CONSTRAINT `fk_hs_created_by`
-        FOREIGN KEY (`created_by`)
-        REFERENCES `users` (`id`)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-"""
+    # ── 1. Colonne projets.etat ──────────────────────────────
+    if not column_exists(cur, db_name, 'projets', 'etat'):
+        steps.append((
+            "ADD COLUMN projets.etat",
+            """
+            ALTER TABLE `projets`
+            ADD COLUMN `etat` ENUM('en_cours','planifie','termine')
+                NOT NULL DEFAULT 'en_cours'
+                AFTER `coordinates`
+            """
+        ))
+    else:
+        steps.append(("SKIP   projets.etat (déjà présent)", None))
+
+    # ── 2. Table payroll_config ──────────────────────────────
+    if not table_exists(cur, db_name, 'payroll_config'):
+        steps.append((
+            "CREATE TABLE payroll_config",
+            """
+            CREATE TABLE `payroll_config` (
+                `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+                `jour_debut` TINYINT       NOT NULL DEFAULT 1
+                                           COMMENT 'Jour de début du mois salarial (1-28)',
+                `updated_by` INT UNSIGNED  NULL,
+                `updated_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                           ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                CONSTRAINT `fk_pc_user`
+                    FOREIGN KEY (`updated_by`)
+                    REFERENCES `users` (`id`)
+                    ON DELETE SET NULL ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+              COMMENT='Configuration de la période salariale mensuelle'
+            """
+        ))
+    else:
+        steps.append(("SKIP   payroll_config (déjà présente)", None))
+
+    # ── 3. Table work_schedules (déjà existante, vérification) ──
+    if not table_exists(cur, db_name, 'work_schedules'):
+        steps.append((
+            "CREATE TABLE work_schedules",
+            """
+            CREATE TABLE `work_schedules` (
+                `id`          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+                `nom`         VARCHAR(100)  NOT NULL,
+                `heure_debut` TIME          NOT NULL,
+                `heure_fin`   TIME          NOT NULL,
+                `is_active`   TINYINT(1)    NOT NULL DEFAULT 1,
+                `created_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        ))
+    else:
+        steps.append(("SKIP   work_schedules (déjà présente)", None))
+
+    # ── 4. Table heures_supplementaires (déjà existante, vérification) ──
+    if not table_exists(cur, db_name, 'heures_supplementaires'):
+        steps.append((
+            "CREATE TABLE heures_supplementaires",
+            """
+            CREATE TABLE `heures_supplementaires` (
+                `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+                `deplacement_id` INT UNSIGNED  NOT NULL,
+                `heures`         DECIMAL(6,2)  NOT NULL,
+                `commentaire`    TEXT,
+                `created_by`     INT UNSIGNED  NULL,
+                `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_hs_deplacement` (`deplacement_id`),
+                INDEX `ix_hs_created_by` (`created_by`),
+                CONSTRAINT `fk_hs_deplacement`
+                    FOREIGN KEY (`deplacement_id`)
+                    REFERENCES `deplacements` (`id`)
+                    ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT `fk_hs_created_by`
+                    FOREIGN KEY (`created_by`)
+                    REFERENCES `users` (`id`)
+                    ON DELETE SET NULL ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        ))
+    else:
+        steps.append(("SKIP   heures_supplementaires (déjà présente)", None))
+
+    return steps
 
 
 def cmd_migrate():
-    """Crée les nouvelles tables dans la base de données."""
     print("\n" + "═" * 60)
-    print("  🚀  MIGRATION — AJOUT DES NOUVELLES TABLES")
+    print("  🚀  MIGRATION — MISE À JOUR DE LA BASE DE DONNÉES")
     print("═" * 60)
 
-    conn = get_connection()
+    conn    = get_connection()
+    db_name = os.environ.get('DB_NAME')
+
     try:
         with conn.cursor() as cur:
 
-            # Vérifier les tables existantes avant
-            cur.execute("SHOW TABLES")
-            existing_before = {list(row.values())[0] for row in cur.fetchall()}
+            # Vérifier prérequis
+            for required in ('users', 'projets', 'deplacements'):
+                if not table_exists(cur, db_name, required):
+                    print(f"\n  ❌  Table prérequise `{required}` manquante.")
+                    print("      Lancez d'abord l'application Flask : python app.py\n")
+                    return
 
-            # Vérifier que la table deplacements existe (dépendance FK)
-            if 'deplacements' not in existing_before:
-                print("\n  ❌  La table 'deplacements' n'existe pas encore.")
-                print("      Lancez d'abord l'application Flask pour créer les tables de base.")
-                print("      (python app.py)\n")
-                return
+            steps = build_migration_steps(cur, db_name)
 
-            print(f"\n  Tables existantes : {', '.join(sorted(existing_before))}\n")
+            print(f"\n  {len(steps)} étape(s) planifiée(s) :\n")
+            for label, sql in steps:
+                print(f"    {'⏭️ ' if sql is None else '▶️ '}  {label}")
 
-            # Exécuter les CREATE TABLE
-            statements = [s.strip() for s in MIGRATION_SQL.split(';') if s.strip()
-                          and not s.strip().startswith('--')]
+            print()
+            executed = 0
+            skipped  = 0
+            errors   = 0
 
-            created = []
-            skipped = []
-
-            for stmt in statements:
-                # Extraire le nom de table du statement
-                import re
-                m = re.search(r'CREATE TABLE IF NOT EXISTS `(\w+)`', stmt)
-                if not m:
+            for label, sql in steps:
+                if sql is None:
+                    print(f"  ⏭️   {label}")
+                    skipped += 1
                     continue
-                table_name = m.group(1)
-
                 try:
-                    cur.execute(stmt)
+                    # Nettoyer les espaces superflus
+                    clean_sql = re.sub(r'\s+', ' ', sql).strip()
+                    cur.execute(clean_sql)
                     conn.commit()
-                    if table_name in existing_before:
-                        skipped.append(table_name)
-                        print(f"  ⏭️   {table_name:35s} déjà existante — ignorée")
-                    else:
-                        created.append(table_name)
-                        print(f"  ✅  {table_name:35s} créée avec succès")
+                    print(f"  ✅  {label}")
+                    executed += 1
                 except Exception as e:
                     conn.rollback()
-                    print(f"  ❌  {table_name:35s} ERREUR : {e}")
+                    print(f"  ❌  {label}")
+                    print(f"       Erreur : {e}")
+                    errors += 1
 
-            # Résumé
+            # ── Résumé ──
             print()
             print("─" * 60)
-            print(f"  Créées  : {len(created)}  ({', '.join(created) if created else 'aucune'})")
-            print(f"  Ignorées: {len(skipped)}  ({', '.join(skipped) if skipped else 'aucune'})")
+            print(f"  Exécutées : {executed}")
+            print(f"  Ignorées  : {skipped}  (déjà à jour)")
+            print(f"  Erreurs   : {errors}")
             print("─" * 60)
 
-            if created:
-                print("\n  ✅  Migration terminée avec succès !")
-                print("      Les nouvelles tables sont prêtes.\n")
+            if errors == 0:
+                print("\n  ✅  Migration terminée avec succès !\n")
             else:
-                print("\n  ℹ️   Aucune nouvelle table créée (déjà à jour).\n")
+                print("\n  ⚠️   Migration terminée avec des erreurs. Vérifiez ci-dessus.\n")
 
-            # Afficher la structure des tables créées/vérifiées
-            for tname in ['work_schedules', 'heures_supplementaires']:
-                cur.execute(f"DESCRIBE `{tname}`")
-                cols = cur.fetchall()
-                print(f"  Structure de '{tname}' :")
-                for c in cols:
-                    null_flag = '' if c['Null'] == 'NO' else ' (nullable)'
-                    key_flag  = f" [{c['Key']}]" if c['Key'] else ''
-                    print(f"    • {c['Field']:20s} {c['Type']:20s}{key_flag}{null_flag}")
+            # ── Afficher la structure finale des tables touchées ──
+            TABLES_TO_SHOW = ['projets', 'payroll_config', 'work_schedules', 'heures_supplementaires']
+            print("  Structure finale des tables migrées :\n")
+            for tname in TABLES_TO_SHOW:
+                if not table_exists(cur, db_name, tname):
+                    continue
+                print(f"  📋  {tname.upper()} :")
+                for c in get_columns(cur, tname):
+                    key_flag  = f" [{c['Key']}]"  if c['Key']  else ''
+                    null_flag = ''                 if c['Null'] == 'NO' else ' (nullable)'
+                    dft_flag  = f" = {c['Default']}" if c['Default'] is not None else ''
+                    print(f"    • {c['Field']:22s} {str(c['Type']):28s}{key_flag}{null_flag}{dft_flag}")
                 print()
 
     finally:
@@ -350,8 +414,8 @@ def print_help():
 ║  Commandes disponibles :                                     ║
 ║                                                              ║
 ║   python db_tool.py inspect  → Structure complète de la DB  ║
-║   python db_tool.py check    → Tables migration présentes ? ║
-║   python db_tool.py migrate  → Créer les nouvelles tables   ║
+║   python db_tool.py check    → Colonnes/tables à jour ?     ║
+║   python db_tool.py migrate  → Appliquer les migrations     ║
 ╚══════════════════════════════════════════════════════════════╝
 
   Prérequis : fichier .env avec DB_USER, DB_PASSWORD, DB_HOST,
@@ -365,13 +429,9 @@ if __name__ == '__main__':
         sys.exit(0)
 
     command = sys.argv[1].lower()
-
-    if command == 'inspect':
-        cmd_inspect()
-    elif command == 'check':
-        cmd_check()
-    elif command == 'migrate':
-        cmd_migrate()
+    if   command == 'inspect': cmd_inspect()
+    elif command == 'check':   cmd_check()
+    elif command == 'migrate': cmd_migrate()
     else:
         print(f"\n  ❌  Commande inconnue : '{command}'")
         print_help()

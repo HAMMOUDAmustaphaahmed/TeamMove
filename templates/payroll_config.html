@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration de Mois — TeamMove{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-title { font-size: clamp(1.3rem,3vw,1.85rem); font-weight:800; letter-spacing:-.03em; display:flex; align-items:center; gap:.75rem; }
+  .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
+
+  .cfg-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .cfg-card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: .75rem;
+    background: rgba(255,255,255,.02);
+  }
+  .cfg-card-header .hdr-icon {
+    width: 38px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; flex-shrink: 0;
+  }
+  .cfg-card-header h5 { font-size:.95rem; font-weight:800; margin:0; color:var(--text-primary); }
+  .cfg-card-header p  { font-size:.74rem; color:var(--text-muted); margin:0; }
+  .cfg-card-body { padding: 1.5rem; }
+
+  .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; }
+  .form-control, .form-select {
+    background: rgba(255,255,255,.05); border:1px solid var(--border-md);
+    border-radius: var(--r-md); color: var(--text-primary); font-size:.85rem;
+    padding: .55rem .85rem; transition: var(--t-fast);
+  }
+  .form-control:focus, .form-select:focus {
+    background: rgba(255,255,255,.08); border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary); outline: none;
+  }
+  .form-control::placeholder { color: var(--text-disabled); }
+
+  .preview-box {
+    background: rgba(79,142,247,.06);
+    border: 1px solid rgba(79,142,247,.2);
+    border-radius: var(--r-lg);
+    padding: 1rem 1.25rem;
+    margin-top: 1.25rem;
+  }
+  .preview-box .lbl { font-size:.72rem; font-weight:700; color:#4f8ef7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.6rem; }
+  .preview-row { display:flex; justify-content:space-between; align-items:center; padding:.4rem 0; border-bottom:1px solid rgba(79,142,247,.1); font-size:.82rem; }
+  .preview-row:last-child { border-bottom:none; }
+  .preview-row .k { color:var(--text-muted); }
+  .preview-row .v { font-weight:700; color:var(--text-primary); }
+
+  .day-picker {
+    display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem;
+  }
+  .day-btn {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border-md);
+    background: rgba(255,255,255,.04);
+    color: var(--text-muted);
+    font-size: .8rem; font-weight: 700;
+    cursor: pointer; transition: var(--t-fast);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .day-btn:hover {
+    background: rgba(79,142,247,.12);
+    border-color: rgba(79,142,247,.3);
+    color: #4f8ef7;
+  }
+  .day-btn.selected {
+    background: linear-gradient(135deg,rgba(79,142,247,.3),rgba(155,92,246,.3));
+    border-color: rgba(79,142,247,.55);
+    color: #fff;
+  }
+
+  .schedule-item {
+    display: flex; align-items:center; justify-content:space-between;
+    padding: .85rem 1rem;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: .75rem;
+  }
+  .schedule-item:last-child { margin-bottom: 0; }
+
+  .duration-badge {
+    font-size:.72rem; font-weight:700;
+    background:rgba(6,214,160,.12); color:#06d6a0;
+    border:1px solid rgba(6,214,160,.25); border-radius:20px;
+    padding:.2em .65em;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h2 class="page-title">
+      <i class="fas fa-cog" style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
+      Configuration de Mois
+    </h2>
+    <p class="page-sub">Définissez le découpage mensuel salarial et les séances journalières</p>
+  </div>
+  <a href="{{ url_for('main.heures_supplementaires') }}" class="btn btn-sm"
+     style="background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.82rem;">
+    <i class="fas fa-arrow-left me-1"></i>Retour HS
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- ═══════════════════════════════════════
+       COL GAUCHE : Configuration salariale
+  ════════════════════════════════════════ -->
+  <div class="col-lg-6">
+
+    <!-- Payroll config card -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="hdr-icon" style="background:linear-gradient(135deg,rgba(247,201,72,.2),rgba(251,146,60,.2));">
+          <i class="fas fa-calendar-check" style="color:#f7c948;"></i>
+        </div>
+        <div>
+          <h5>Période Salariale Mensuelle</h5>
+          <p>Définissez le jour de début du mois salarial RH</p>
+        </div>
+      </div>
+      <div class="cfg-card-body">
+        <form method="POST" action="{{ url_for('main.payroll_config') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="save_payroll">
+          <input type="hidden" name="jour_debut" id="jourDebutHidden" value="{{ cfg.jour_debut if cfg else 1 }}">
+
+          <label class="form-label">Jour de début du mois salarial</label>
+          <div class="day-picker" id="dayPicker">
+            {% for d in range(1, 29) %}
+            <button type="button" class="day-btn {% if cfg and cfg.jour_debut == d %}selected{% elif not cfg and d == 1 %}selected{% endif %}"
+                    data-day="{{ d }}" onclick="selectDay({{ d }})">{{ d }}</button>
+            {% endfor %}
+          </div>
+
+          <!-- Live preview -->
+          <div class="preview-box" id="previewBox">
+            <div class="lbl"><i class="fas fa-eye me-1"></i>Aperçu du mois salarial courant</div>
+            <div id="previewRows">…</div>
+          </div>
+
+          <div class="d-flex justify-content-end mt-4">
+            <button type="submit" class="btn btn-warning" style="font-size:.84rem;padding:.5rem 1.4rem;color:#000;font-weight:700;">
+              <i class="fas fa-save me-2"></i>Enregistrer la configuration
+            </button>
+          </div>
+        </form>
+
+        {% if cfg and cfg.updater %}
+        <div style="margin-top:1rem;font-size:.72rem;color:var(--text-disabled);">
+          <i class="fas fa-user me-1"></i>Dernière mise à jour par <strong>{{ cfg.updater.username }}</strong>
+          le {{ cfg.updated_at.strftime('%d/%m/%Y à %H:%M') if cfg.updated_at else '—' }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Info card -->
+    <div style="background:rgba(247,201,72,.05);border:1px solid rgba(247,201,72,.2);border-radius:var(--r-lg);padding:1rem 1.25rem;">
+      <div style="font-size:.78rem;font-weight:800;color:#f7c948;margin-bottom:.6rem;">
+        <i class="fas fa-lightbulb me-1"></i>Comment ça marche ?
+      </div>
+      <div style="font-size:.75rem;color:var(--text-muted);line-height:1.75;">
+        Si le RH compte le mois du <strong>26 au 25</strong>, configurez le jour <strong>26</strong>.<br>
+        La stat <em>« Ce mois salarial »</em> dans les Heures Supplémentaires calculera alors les HS
+        à partir du 26 du mois précédent jusqu'à aujourd'hui, de façon cohérente avec votre paie.
+        <br><br>
+        Exemple : le <strong>28/01/2026</strong>, avec jour = 26, la période salariale commence
+        le <strong>26/01/2026</strong> (car 28 ≥ 26).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       COL DROITE : Séances de travail
+  ════════════════════════════════════════ -->
+  <div class="col-lg-6">
+
+    <!-- Add schedule -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="hdr-icon" style="background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(155,92,246,.2));">
+          <i class="fas fa-plus" style="color:#4f8ef7;"></i>
+        </div>
+        <div>
+          <h5>Ajouter une séance journalière</h5>
+          <p>Référence rapide pour saisir les heures supplémentaires</p>
+        </div>
+      </div>
+      <div class="cfg-card-body">
+        <form method="POST" action="{{ url_for('main.payroll_config') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_schedule">
+          <div class="mb-3">
+            <label class="form-label">Nom de la séance *</label>
+            <input type="text" class="form-control" name="nom" required
+                   placeholder="ex: Séance matin" maxlength="100">
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label">Heure début *</label>
+              <input type="time" class="form-control" name="heure_debut" required value="08:00">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Heure fin *</label>
+              <input type="time" class="form-control" name="heure_fin" required value="12:00">
+            </div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary" style="font-size:.84rem;">
+              <i class="fas fa-plus me-2"></i>Ajouter
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Séances list -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="hdr-icon" style="background:linear-gradient(135deg,rgba(6,214,160,.15),rgba(79,142,247,.15));">
+          <i class="fas fa-list-alt" style="color:#06d6a0;"></i>
+        </div>
+        <div>
+          <h5>Séances configurées</h5>
+          <p>Séances actives utilisées comme référence</p>
+        </div>
+      </div>
+      <div class="cfg-card-body">
+        {% if schedules %}
+          {% for s in schedules %}
+          <div class="schedule-item">
+            <div>
+              <div style="font-weight:700;color:var(--text-primary);font-size:.88rem;">{{ s.nom }}</div>
+              <div style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem;">
+                <i class="fas fa-clock me-1" style="font-size:.68rem;"></i>
+                {{ s.heure_debut.strftime('%H:%M') }} → {{ s.heure_fin.strftime('%H:%M') }}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span class="duration-badge">{{ s.duree_heures }}h</span>
+              <form method="POST" action="{{ url_for('main.payroll_config') }}"
+                    onsubmit="return confirm('Supprimer cette séance ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="delete_schedule">
+                <input type="hidden" name="schedule_id" value="{{ s.id }}">
+                <button type="submit" class="btn btn-sm"
+                  style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);padding:.3rem .65rem;font-size:.75rem;">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+
+          {% set total_h = namespace(v=0) %}
+          {% for s in schedules %}{% set total_h.v = total_h.v + s.duree_heures %}{% endfor %}
+          <div style="margin-top:1rem;padding:.75rem 1rem;background:rgba(247,201,72,.06);border:1px solid rgba(247,201,72,.2);border-radius:var(--r-md);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.78rem;font-weight:700;color:#f7c948;">
+              <i class="fas fa-sigma me-1"></i>Total journée de travail
+            </span>
+            <span style="font-size:.88rem;font-weight:900;color:#f7c948;">{{ "%.2f"|format(total_h.v) }}h</span>
+          </div>
+        {% else %}
+          <div style="text-align:center;padding:3rem 2rem;color:var(--text-disabled);">
+            <i class="fas fa-calendar-times" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.3;"></i>
+            <p style="font-size:.85rem;">Aucune séance configurée.<br>Ajoutez une séance ci-dessus.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TODAY = new Date();
+let _selectedDay = {{ cfg.jour_debut if cfg else 1 }};
+
+function selectDay(d) {
+  _selectedDay = d;
+  document.getElementById('jourDebutHidden').value = d;
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.day) === d);
+  });
+  updatePreview();
+}
+
+function updatePreview() {
+  const d = _selectedDay;
+  const today = new Date();
+  let debutMois;
+
+  if (today.getDate() >= d) {
+    debutMois = new Date(today.getFullYear(), today.getMonth(), d);
+  } else {
+    // Mois précédent
+    const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    // Dernier jour du mois précédent pour vérification
+    const lastDayPrev = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    const adjustedDay = Math.min(d, lastDayPrev);
+    debutMois = new Date(prev.getFullYear(), prev.getMonth(), adjustedDay);
+  }
+
+  // Fin = jour d-1 du mois suivant
+  const finMois = new Date(debutMois.getFullYear(), debutMois.getMonth() + 1, d - 1);
+
+  const fmt = dt => dt.toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const rows = [
+    { k: 'Jour de début configuré', v: `${d} de chaque mois` },
+    { k: 'Début du mois salarial courant', v: fmt(debutMois) },
+    { k: 'Fin du mois salarial courant', v: fmt(finMois) },
+    { k: 'Date du jour', v: fmt(today) },
+  ];
+
+  document.getElementById('previewRows').innerHTML = rows.map(r =>
+    `<div class="preview-row"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`
+  ).join('');
+}
+
+document.addEventListener('DOMContentLoaded', updatePreview);
+</script>
+{% endblock %}

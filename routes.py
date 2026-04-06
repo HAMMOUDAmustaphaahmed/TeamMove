@@ -6,6 +6,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import func, and_, or_
 from models import db, User, Personnel, Projet, Deplacement, DeplacementValidation
 from models import ROLE_ADMIN, ROLE_RESPONSABLE_PROJET, ROLE_LECTEUR
+from models import WorkSchedule, HeureSupplementaire, PayrollConfig
 from datetime import datetime, date
 from functools import wraps
 
@@ -341,6 +342,23 @@ def delete_personnel(id):
     return redirect(url_for('main.personnels'))
 
 
+@main.route('/personnels/toggle-active/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def toggle_personnel_active(id):
+    """Bascule l'état actif/inactif d'un personnel."""
+    personnel = db.get_or_404(Personnel, id)
+    try:
+        personnel.active = not personnel.active
+        db.session.commit()
+        etat = 'activé' if personnel.active else 'désactivé'
+        return jsonify({'success': True, 'active': personnel.active,
+                        'message': f'Personnel {etat}.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # ═══════════════════════════════════════════════════════
 # PROJETS
 # ═══════════════════════════════════════════════════════
@@ -395,6 +413,7 @@ def add_projet():
             gouvernorat        = sanitize_input(request.form['gouvernorat']),
             ville              = sanitize_input(request.form['ville']),
             adresse            = sanitize_input(request.form['adresse']),
+            etat               = request.form.get('etat', 'en_cours'),
             date_debut_estimee = parse_date_opt(request.form.get('date_debut_estimee', '')),
             date_fin_estimee   = parse_date_opt(request.form.get('date_fin_estimee', '')),
         )
@@ -425,6 +444,7 @@ def edit_projet(id):
         projet.gouvernorat        = sanitize_input(request.form['gouvernorat'])
         projet.ville              = sanitize_input(request.form['ville'])
         projet.adresse            = sanitize_input(request.form['adresse'])
+        projet.etat               = request.form.get('etat', projet.etat)
         projet.date_debut_estimee = parse_date_opt(request.form.get('date_debut_estimee', ''))
         projet.date_fin_estimee   = parse_date_opt(request.form.get('date_fin_estimee', ''))
         db.session.execute(
@@ -471,6 +491,7 @@ def api_projet(id):
         'ville':               projet.ville,
         'adresse':             projet.adresse,
         'coordinates':         coordinates,
+        'etat':                projet.etat,
         'date_debut_estimee':  projet.date_debut_estimee.isoformat() if projet.date_debut_estimee else '',
         'date_fin_estimee':    projet.date_fin_estimee.isoformat()   if projet.date_fin_estimee   else '',
         'created_at':          projet.created_at.strftime('%d/%m/%Y') if projet.created_at else '',
@@ -481,8 +502,17 @@ def api_projet(id):
 @login_required
 def api_projet_stats(id):
     projet = db.get_or_404(Projet, id)
-    nb_deplacements = projet.deplacements.filter(
-        Deplacement.statut.in_(['valide', 'approuve'])).count()
+
+    deplacements_list = projet.deplacements.filter(
+        Deplacement.statut.in_(['valide', 'approuve'])).all()
+
+    # nb_deplacements : créneaux uniques (même date/heure = une seule mission)
+    unique_slots = set(
+        (d.date_debut, d.heure_debut, d.date_fin, d.heure_fin)
+        for d in deplacements_list
+    )
+    nb_deplacements = len(unique_slots)
+
     nb_personnels = db.session.query(
         func.count(Deplacement.personnel_id.distinct())
     ).filter(
@@ -490,8 +520,7 @@ def api_projet_stats(id):
         Deplacement.statut.in_(['valide', 'approuve'])
     ).scalar() or 0
 
-    deplacements_list = projet.deplacements.filter(
-        Deplacement.statut.in_(['valide', 'approuve'])).all()
+    # nb_jours : jours-hommes (chaque déplacement compte individuellement)
     nb_jours = sum((d.date_fin - d.date_debut).days + 1 for d in deplacements_list)
 
     date_premiere_activite = date_derniere_activite = duree_projet_jours = None
@@ -1684,18 +1713,19 @@ def api_dash_top_jours_homme():
 @login_required
 def heures_supplementaires():
     """Page principale : tableau filtrable des HS par déplacement."""
-    from models import WorkSchedule, HeureSupplementaire
-    from datetime import date, timedelta
 
     # ── Paramètres de filtre ──
-    date_debut = parse_date_opt(request.args.get('date_debut', ''))
-    date_fin   = parse_date_opt(request.args.get('date_fin', ''))
-    search     = sanitize_input(request.args.get('search', ''))
+    date_debut    = parse_date_opt(request.args.get('date_debut', ''))
+    date_fin      = parse_date_opt(request.args.get('date_fin', ''))
+    search        = sanitize_input(request.args.get('search', ''))
+    projet_ids    = request.args.getlist('projet_ids[]')
+    fonctions     = request.args.getlist('fonctions[]')
 
-    # ── Requête de base : jointure Deplacement ↔ Personnel ──
+    # ── Requête de base : jointure Deplacement ↔ Personnel ↔ Projet ──
     query = db.session.query(
         Deplacement, Personnel, HeureSupplementaire
     ).join(Personnel, Deplacement.personnel_id == Personnel.id)\
+     .join(Projet, Deplacement.projet_id == Projet.id)\
      .outerjoin(HeureSupplementaire,
                 HeureSupplementaire.deplacement_id == Deplacement.id)\
      .filter(Personnel.active == True,
@@ -1716,11 +1746,32 @@ def heures_supplementaires():
             Personnel.matricule.ilike(like),
         ))
 
+    # ── Filtre par projet(s) ──
+    if projet_ids:
+        try:
+            pid_ints = [int(x) for x in projet_ids if x]
+            if pid_ints:
+                query = query.filter(Deplacement.projet_id.in_(pid_ints))
+        except ValueError:
+            pass
+
+    # ── Filtre par fonction(s) ──
+    if fonctions:
+        filt = [f for f in fonctions if f]
+        if filt:
+            query = query.filter(Personnel.fonction.in_(filt))
+
     rows = query.order_by(Deplacement.date_debut.desc()).all()
 
     # ── Séances de travail configurées ──
     schedules = WorkSchedule.query.filter_by(is_active=True)\
                                   .order_by(WorkSchedule.heure_debut).all()
+
+    # ── Listes pour les filtres ──
+    all_projets = Projet.query.filter_by(active=True).order_by(Projet.nom).all()
+    all_fonctions = [r[0] for r in db.session.query(Personnel.fonction.distinct())
+                     .filter(Personnel.active == True, Personnel.fonction != None,
+                             Personnel.fonction != '').order_by(Personnel.fonction).all()]
 
     return render_template(
         'heures_supplementaires.html',
@@ -1729,6 +1780,10 @@ def heures_supplementaires():
         search=search,
         date_debut=date_debut,
         date_fin=date_fin,
+        all_projets=all_projets,
+        all_fonctions=all_fonctions,
+        selected_projet_ids=[int(x) for x in projet_ids if x],
+        selected_fonctions=fonctions,
     )
 
 
@@ -1792,7 +1847,6 @@ def delete_heure_supplementaire(id):
 @login_required
 def export_heures_supplementaires():
     """Export XLSX des HS filtrées (openpyxl)."""
-    from models import HeureSupplementaire
     import io
     try:
         import openpyxl
@@ -1803,18 +1857,21 @@ def export_heures_supplementaires():
 
     from flask import send_file
 
-    date_debut = parse_date_opt(request.args.get('date_debut', ''))
-    date_fin   = parse_date_opt(request.args.get('date_fin', ''))
-    search     = sanitize_input(request.args.get('search', ''))
+    date_debut    = parse_date_opt(request.args.get('date_debut', ''))
+    date_fin      = parse_date_opt(request.args.get('date_fin', ''))
+    search        = sanitize_input(request.args.get('search', ''))
+    projet_ids    = request.args.getlist('projet_ids[]')
+    fonctions     = request.args.getlist('fonctions[]')
 
     query = db.session.query(
         Deplacement, Personnel, HeureSupplementaire
     ).join(Personnel, Deplacement.personnel_id == Personnel.id)\
+     .join(Projet, Deplacement.projet_id == Projet.id)\
      .outerjoin(HeureSupplementaire,
                 HeureSupplementaire.deplacement_id == Deplacement.id)\
      .filter(Personnel.active == True,
              Deplacement.statut.in_(['valide', 'approuve']),
-             HeureSupplementaire.id != None)  # seulement avec HS
+             HeureSupplementaire.id != None)
 
     if date_debut:
         query = query.filter(Deplacement.date_fin >= date_debut)
@@ -1827,10 +1884,20 @@ def export_heures_supplementaires():
             Personnel.prenom.ilike(like),
             Personnel.matricule.ilike(like),
         ))
+    if projet_ids:
+        try:
+            pid_ints = [int(x) for x in projet_ids if x]
+            if pid_ints:
+                query = query.filter(Deplacement.projet_id.in_(pid_ints))
+        except ValueError:
+            pass
+    if fonctions:
+        filt = [f for f in fonctions if f]
+        if filt:
+            query = query.filter(Personnel.fonction.in_(filt))
 
     rows = query.order_by(Deplacement.date_debut.desc()).all()
 
-    # ── Créer le classeur ──
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Heures Supplémentaires"
@@ -1844,7 +1911,7 @@ def export_heures_supplementaires():
     )
 
     headers = [
-        "Matricule", "Nom", "Prénom", "Société",
+        "Matricule", "Nom", "Prénom", "Fonction", "Société",
         "Projet", "Région", "Gouvernorat",
         "Début déplacement", "Fin déplacement",
         "Heures Supp.", "Commentaire"
@@ -1862,6 +1929,7 @@ def export_heures_supplementaires():
             pers.matricule,
             pers.nom,
             pers.prenom,
+            pers.fonction or '',
             pers.societe,
             dep.projet.nom,
             dep.projet.region,
@@ -1878,11 +1946,9 @@ def export_heures_supplementaires():
             cell.border    = thin_border
             cell.alignment = Alignment(vertical="center")
 
-    # Ajuster largeurs colonnes
-    col_widths = [14, 18, 18, 20, 30, 16, 18, 22, 22, 14, 30]
+    col_widths = [14, 18, 18, 20, 20, 30, 16, 18, 22, 22, 14, 30]
     for col_idx, width in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
-
     ws.row_dimensions[1].height = 25
 
     output = io.BytesIO()
@@ -1899,17 +1965,37 @@ def export_heures_supplementaires():
     )
 
 
-# ── Gestion des séances ──
+# ── Gestion des séances + configuration paie ──
 
-@main.route('/heures-supplementaires/schedules', methods=['GET', 'POST'])
+@main.route('/heures-supplementaires/payroll-config', methods=['GET', 'POST'])
 @login_required
 @admin_required
-def manage_schedules():
-    from models import WorkSchedule
+def payroll_config():
+    """Configuration de la période salariale et des séances de travail."""
     if request.method == 'POST':
         action = request.form.get('action')
 
-        if action == 'add':
+        if action == 'save_payroll':
+            try:
+                jour = int(request.form.get('jour_debut', 1))
+                if not (1 <= jour <= 28):
+                    flash('Le jour de début doit être entre 1 et 28.', 'danger')
+                else:
+                    cfg = PayrollConfig.query.first()
+                    if cfg:
+                        cfg.jour_debut  = jour
+                        cfg.updated_by  = current_user.id
+                        cfg.updated_at  = datetime.utcnow()
+                    else:
+                        cfg = PayrollConfig(jour_debut=jour, updated_by=current_user.id)
+                        db.session.add(cfg)
+                    db.session.commit()
+                    flash('Configuration salariale enregistrée.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Erreur : {str(e)}', 'danger')
+
+        elif action == 'add_schedule':
             try:
                 nom         = sanitize_input(request.form['nom'])
                 heure_debut = datetime.strptime(request.form['heure_debut'], '%H:%M').time()
@@ -1925,7 +2011,7 @@ def manage_schedules():
                 db.session.rollback()
                 flash(f'Erreur : {str(e)}', 'danger')
 
-        elif action == 'delete':
+        elif action == 'delete_schedule':
             try:
                 ws_id = int(request.form['schedule_id'])
                 ws = db.get_or_404(WorkSchedule, ws_id)
@@ -1936,9 +2022,18 @@ def manage_schedules():
                 db.session.rollback()
                 flash(f'Erreur : {str(e)}', 'danger')
 
+    cfg       = PayrollConfig.query.first()
     schedules = WorkSchedule.query.filter_by(is_active=True)\
                                   .order_by(WorkSchedule.heure_debut).all()
-    return render_template('schedules.html', schedules=schedules)
+    return render_template('payroll_config.html', cfg=cfg, schedules=schedules)
+
+
+# Redirection legacy
+@main.route('/heures-supplementaires/schedules', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_schedules():
+    return redirect(url_for('main.payroll_config'))
 
 
 # ── API dashboard HS ──
@@ -1946,15 +2041,26 @@ def manage_schedules():
 @main.route('/api/hs/stats')
 @login_required
 def api_hs_stats():
-    """KPIs heures supplémentaires : cette semaine, ce mois, top 5."""
-    from models import HeureSupplementaire
+    """KPIs heures supplémentaires : cette semaine, ce mois (selon config paie), top 5."""
     from datetime import date, timedelta
 
-    today      = date.today()
+    today = date.today()
     # Semaine : lundi → aujourd'hui
-    lundi      = today - timedelta(days=today.weekday())
-    # Mois : 1er du mois → aujourd'hui
-    premier    = today.replace(day=1)
+    lundi = today - timedelta(days=today.weekday())
+
+    # Mois salarial : selon PayrollConfig
+    cfg        = PayrollConfig.query.first()
+    jour_debut = cfg.jour_debut if cfg else 1
+
+    if today.day >= jour_debut:
+        # On est dans la 2ème partie du mois salarial (du jour_debut de ce mois)
+        debut_mois_sal = today.replace(day=jour_debut)
+    else:
+        # On est dans la 1ère partie : le mois salarial a démarré le mois dernier
+        if today.month == 1:
+            debut_mois_sal = date(today.year - 1, 12, jour_debut)
+        else:
+            debut_mois_sal = date(today.year, today.month - 1, jour_debut)
 
     def total_hs(date_from):
         result = db.session.query(
@@ -1965,9 +2071,8 @@ def api_hs_stats():
         return float(result or 0)
 
     hs_semaine = total_hs(lundi)
-    hs_mois    = total_hs(premier)
+    hs_mois    = total_hs(debut_mois_sal)
 
-    # Top 5 personnels avec le plus de HS (tous temps)
     top5 = db.session.query(
         Personnel.nom, Personnel.prenom, Personnel.matricule,
         func.sum(HeureSupplementaire.heures).label('total_hs')
@@ -1980,8 +2085,9 @@ def api_hs_stats():
      .limit(5).all()
 
     return jsonify({
-        'hs_semaine': hs_semaine,
-        'hs_mois':    hs_mois,
+        'hs_semaine':       hs_semaine,
+        'hs_mois':          hs_mois,
+        'debut_mois_sal':   debut_mois_sal.strftime('%d/%m/%Y'),
         'top5': [{
             'nom':        r.nom,
             'prenom':     r.prenom,
@@ -1989,3 +2095,71 @@ def api_hs_stats():
             'total_hs':   float(r.total_hs),
         } for r in top5],
     })
+
+
+@main.route('/api/dashboard/fonctions')
+@login_required
+def api_dashboard_fonctions():
+    """Stats par poste de travail (fonction) avec filtre date optionnel."""
+    date_debut = parse_date_opt(request.args.get('date_debut', ''))
+    date_fin   = parse_date_opt(request.args.get('date_fin', ''))
+    fonctions_filter = request.args.getlist('fonctions[]')
+
+    # ── Base query ──
+    dep_q = db.session.query(
+        Personnel.fonction,
+        func.count(Deplacement.id).label('nb_deplacements'),
+        func.count(Deplacement.personnel_id.distinct()).label('nb_personnels'),
+        func.count(Deplacement.projet_id.distinct()).label('nb_projets'),
+    ).join(Deplacement, Deplacement.personnel_id == Personnel.id)\
+     .filter(Personnel.active == True,
+             Personnel.fonction != None, Personnel.fonction != '',
+             Deplacement.statut.in_(['valide', 'approuve']))
+
+    if date_debut:
+        dep_q = dep_q.filter(Deplacement.date_fin   >= date_debut)
+    if date_fin:
+        dep_q = dep_q.filter(Deplacement.date_debut <= date_fin)
+    if fonctions_filter:
+        dep_q = dep_q.filter(Personnel.fonction.in_(fonctions_filter))
+
+    dep_q = dep_q.group_by(Personnel.fonction).order_by(Personnel.fonction)
+    dep_rows = dep_q.all()
+
+    # ── Heures supplémentaires par fonction ──
+    hs_q = db.session.query(
+        Personnel.fonction,
+        func.sum(HeureSupplementaire.heures).label('total_hs'),
+    ).join(Deplacement, HeureSupplementaire.deplacement_id == Deplacement.id)\
+     .join(Personnel, Deplacement.personnel_id == Personnel.id)\
+     .filter(Personnel.active == True,
+             Personnel.fonction != None, Personnel.fonction != '',
+             Deplacement.statut.in_(['valide', 'approuve']))
+
+    if date_debut:
+        hs_q = hs_q.filter(Deplacement.date_fin   >= date_debut)
+    if date_fin:
+        hs_q = hs_q.filter(Deplacement.date_debut <= date_fin)
+    if fonctions_filter:
+        hs_q = hs_q.filter(Personnel.fonction.in_(fonctions_filter))
+
+    hs_q = hs_q.group_by(Personnel.fonction)
+    hs_map = {r.fonction: float(r.total_hs or 0) for r in hs_q.all()}
+
+    result = []
+    for r in dep_rows:
+        result.append({
+            'fonction':        r.fonction,
+            'nb_deplacements': r.nb_deplacements,
+            'nb_personnels':   r.nb_personnels,
+            'nb_projets':      r.nb_projets,
+            'total_hs':        hs_map.get(r.fonction, 0),
+        })
+
+    # ── Toutes les fonctions disponibles (pour les checkboxes) ──
+    all_fonctions = [row[0] for row in
+        db.session.query(Personnel.fonction.distinct())
+        .filter(Personnel.active == True, Personnel.fonction != None, Personnel.fonction != '')
+        .order_by(Personnel.fonction).all()]
+
+    return jsonify({'data': result, 'all_fonctions': all_fonctions})

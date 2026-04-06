@@ -5,6 +5,7 @@ GESTION-PERSONNELS/
 ├── routes.py               # Définition des routes et logique métier
 ├── models.py               # Modèles de données SQLAlchemy
 ├── requirements.txt        # Dépendances Python
+├── db_tool.py              # Outil CLI : inspect / check / migrate
 ├── structure.txt           # Ce fichier - Structure du projet
 │
 ├── static/                 # Fichiers statiques (CSS, JS, images)
@@ -18,14 +19,20 @@ GESTION-PERSONNELS/
 │   ├── base.html           # Template de base avec navbar commun
 │   ├── landing.html        # Page d'accueil publique
 │   ├── login.html          # Page de connexion sécurisée
-│   ├── dashboard.html      # Tableau de bord avec statistiques
-│   ├── personnels.html     # Gestion des personnels (CRUD)
-│   ├── projets.html        # Gestion des projets/chantiers
+│   ├── dashboard.html      # Tableau de bord avec statistiques + stats par poste
+│   ├── personnels.html     # Gestion des personnels (CRUD + toggle actif)
+│   ├── projets.html        # Gestion des projets/chantiers (avec état)
 │   ├── deplacements.html   # Gestion des déplacements avec Select2
+│   ├── heures_supplementaires.html  # HS avec filtres projet/fonction + export
+│   ├── payroll_config.html # Config période salariale + séances (admin)
+│   ├── validations.html    # Validation des déplacements (admin)
+│   ├── profile.html        # Profil utilisateur (username + mot de passe)
+│   ├── schedules.html      # Redirige vers payroll_config.html (legacy)
 │   └── users.html          # Gestion des utilisateurs (admin)
 │
 └── instance/               # Données de l'instance (créé automatiquement)
     └── config.py           # Configuration locale (non versionnée)
+
 
 ========================================
 ARCHITECTURE DE SÉCURITÉ
@@ -65,41 +72,145 @@ ARCHITECTURE DE SÉCURITÉ
    - Regex patterns sur les inputs
    - Types de données stricts
 
+
 ========================================
 FONCTIONNALITÉS CLÉS
 ========================================
 
-• Landing Page : Présentation avec animation
-• Authentification : Login sécurisé avec protection brute-force
-• Dashboard : Statistiques visuelles (Chart.js) et indicateurs clés
-• Personnels : CRUD complet avec matricule, salaire (mensuel/horaire)
-• Projets : Gestion géographique (Région, Gouvernorat, Ville)
-• Déplacements : Affectation multi-personnels avec Select2 AJAX
-• Utilisateurs : Gestion des accès avec rôles (Admin/User)
-• Responsive : Design adaptatif Bootstrap 5
-• Animations : Micro-interactions et transitions fluides
+• Landing Page       : Présentation avec animation
+• Authentification   : Login sécurisé avec protection brute-force
+• Dashboard          : Statistiques visuelles (Chart.js), indicateurs clés
+                       + stats par poste de travail (fonction) filtrable par date
+• Personnels         : CRUD complet + toggle actif/inactif en un clic
+• Projets            : CRUD + état (En cours / Planifié / Terminé) + mini-carte Leaflet
+• Déplacements       : Affectation multi-personnels avec Select2 AJAX
+• Heures Supp.       : Filtres par date, personnels, projets (multi), fonctions (multi)
+                       + export XLSX du tableau filtré
+• Config de Mois     : Paramétrage du découpage mensuel salarial (jour de début 1–28)
+                       + séances journalières de référence (admin uniquement)
+• Validations        : Workflow de validation des déplacements (admin)
+• Utilisateurs       : Gestion des accès avec rôles (Admin / Responsable / Lecteur)
+• Profil             : Changement du nom d'utilisateur et du mot de passe
+• Responsive         : Design adaptatif Bootstrap 5
+• Animations         : Micro-interactions et transitions fluides
+
 
 ========================================
-BASE DE DONNÉES MYSQL (XAMPP)
+BASE DE DONNÉES MYSQL (Aiven Cloud)
 ========================================
 
-Tables:
-- users (id, username, email, password_hash, is_admin, is_active, created_at, last_login)
-- personnels (id, matricule, nom, prenom, societe, salaire, type_salaire, active, created_at)
-- projets (id, nom, region, gouvernorat, ville, adresse, active, created_at)
-- deplacements (id, personnel_id, projet_id, date_debut, heure_debut, date_fin, heure_fin, created_at, created_by)
+Tables :
 
-Relations:
-- personnel 1:N deplacements
-- projet 1:N deplacements
-- user 1:N deplacements (created_by)
+  users
+    id, username, email, password_hash,
+    is_admin, role, is_active, created_at, last_login
+
+  personnels
+    id, matricule, nom, prenom, fonction, societe,
+    salaire, type_salaire, active, created_at
+
+  projets
+    id, nom, region, gouvernorat, ville, adresse,
+    coordinates, date_debut_estimee, date_fin_estimee,
+    etat  ← NOUVEAU (en_cours | planifie | termine, défaut en_cours)
+    active, created_at
+
+  deplacements
+    id, personnel_id, projet_id,
+    date_debut, heure_debut, date_fin, heure_fin,
+    statut, created_at, created_by
+
+  deplacement_validations
+    id, deplacement_id, validated_by,
+    action, commentaire, created_at
+
+  work_schedules
+    id, nom, heure_debut, heure_fin,
+    is_active, created_at
+
+  heures_supplementaires
+    id, deplacement_id, heures,
+    commentaire, created_by, created_at
+
+  payroll_config                    ← NOUVEAU
+    id, jour_debut (1-28),
+    updated_by, updated_at
+
+Relations :
+  personnel     1:N  deplacements
+  projet        1:N  deplacements
+  user          1:N  deplacements         (created_by)
+  deplacement   1:1  heures_supplementaires
+  deplacement   1:N  deplacement_validations
+  user          1:N  deplacement_validations (validated_by)
+  user          0:1  payroll_config          (updated_by)
+
+
+========================================
+MIGRATIONS DB (db_tool.py)
+========================================
+
+Après toute mise à jour du projet, lancez :
+
+  python db_tool.py check    → vérifie l'état de la DB
+  python db_tool.py migrate  → applique les modifications manquantes
+  python db_tool.py inspect  → affiche la structure complète
+
+Migrations v2 (release actuelle) :
+  • ALTER TABLE projets ADD COLUMN etat ENUM(...)
+  • CREATE TABLE payroll_config
+
+Les migrations sont idempotentes : relancer migrate plusieurs fois
+ne crée pas de doublons et ne modifie pas les données existantes.
+
+
+========================================
+ROUTES PRINCIPALES
+========================================
+
+  GET  /                             → landing
+  GET/POST /login                    → authentification
+  GET  /logout                       → déconnexion
+
+  GET  /dashboard                    → tableau de bord
+  GET  /api/dashboard/fonctions      → stats par poste (AJAX)
+
+  GET  /personnels                   → liste personnels
+  POST /personnels/add               → ajouter
+  POST /personnels/edit/<id>         → modifier
+  POST /personnels/delete/<id>       → archiver (active=False)
+  POST /personnels/toggle-active/<id>→ basculer actif/inactif (JSON)
+
+  GET  /projets                      → liste projets
+  POST /projets/add                  → ajouter (avec etat)
+  POST /projets/edit/<id>            → modifier (avec etat)
+  POST /projets/delete/<id>          → archiver
+  GET  /api/projet/<id>              → données JSON (avec etat)
+  GET  /api/projet/<id>/stats        → stats déplacements (déduplication)
+
+  GET  /deplacements                 → liste déplacements
+  POST /deplacements/add             → ajouter multi-personnel
+
+  GET  /heures-supplementaires       → liste HS (filtres date/perso/projet/fonction)
+  GET  /heures-supplementaires/export→ export XLSX (mêmes filtres)
+  POST /heures-supplementaires/add   → ajouter/modifier HS
+  POST /heures-supplementaires/delete/<id>
+
+  GET/POST /heures-supplementaires/payroll-config → config mois salarial + séances
+  GET  /api/hs/stats                 → KPIs HS (semaine + mois salarial configuré)
+
+  GET  /validations                  → déplacements en attente
+  GET  /users                        → gestion utilisateurs (admin)
+  GET/POST /profile                  → profil utilisateur
+
 
 ========================================
 INSTALLATION RAPIDE
 ========================================
 
-1. Installer XAMPP et démarrer Apache + MySQL
-2. Créer la BDD : CREATE DATABASE gestion_personnels;
-3. pip install -r requirements.txt
-4. python app.py
+1. Configurer .env (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME, SECRET_KEY)
+2. pip install -r requirements.txt
+3. python app.py         (crée les tables de base via SQLAlchemy)
+4. python db_tool.py migrate  (ajoute les colonnes/tables supplémentaires)
 5. Accès : http://localhost:5000
+   Login par défaut : admin / Admin.Init!2026  (à changer immédiatement)

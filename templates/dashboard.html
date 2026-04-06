@@ -805,8 +805,57 @@
 
 
 <!-- ═══════════════════════════════════════════
-     MODAL A — Déplacements d'un Projet (Chart A)
+     STATS PAR POSTE DE TRAVAIL (FONCTION)
      ═══════════════════════════════════════════ -->
+<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;margin-bottom:1.75rem;">
+
+  <!-- Header -->
+  <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;background:rgba(255,255,255,.02);">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,rgba(155,92,246,.2),rgba(236,72,153,.2));display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-briefcase" style="color:#9b5cf6;font-size:.9rem;"></i>
+      </div>
+      <div>
+        <div style="font-size:.95rem;font-weight:800;color:var(--text-primary);">Stats par Poste de Travail</div>
+        <div style="font-size:.73rem;color:var(--text-muted);">Déplacements, HS et projets regroupés par fonction</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="foncDateDebut" style="background:rgba(255,255,255,.05);border:1px solid var(--border-md);border-radius:var(--r-md);color:var(--text-primary);font-size:.78rem;padding:.35rem .7rem;">
+      <input type="date" id="foncDateFin"   style="background:rgba(255,255,255,.05);border:1px solid var(--border-md);border-radius:var(--r-md);color:var(--text-primary);font-size:.78rem;padding:.35rem .7rem;">
+      <button onclick="loadFonctionStats()" class="btn btn-sm btn-primary" style="font-size:.78rem;padding:.35rem .85rem;">
+        <i class="fas fa-filter me-1"></i>Filtrer
+      </button>
+    </div>
+  </div>
+
+  <!-- Fonction checkboxes -->
+  <div style="padding:.75rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;" id="foncCheckboxes">
+    <span style="font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-right:.25rem;">Fonctions :</span>
+    <span style="font-size:.75rem;color:var(--text-disabled);">Chargement…</span>
+  </div>
+
+  <!-- Table -->
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem;" id="foncTable">
+      <thead>
+        <tr style="background:rgba(255,255,255,.025);border-bottom:1px solid var(--border);">
+          <th style="padding:.7rem 1rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);">Fonction</th>
+          <th style="padding:.7rem 1rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);text-align:center;">Personnels</th>
+          <th style="padding:.7rem 1rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);text-align:center;">Déplacements</th>
+          <th style="padding:.7rem 1rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);text-align:center;">Projets</th>
+          <th style="padding:.7rem 1rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);text-align:center;">HS Totales</th>
+        </tr>
+      </thead>
+      <tbody id="foncTbody">
+        <tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--text-disabled);">
+          <div class="spinner-border" style="width:1.2rem;height:1.2rem;border-width:2px;color:#9b5cf6;"></div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div class="modal fade" id="modalProjetDeps" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
@@ -1855,6 +1904,137 @@ fetch('/api/hs/stats')
     if (el) el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-disabled);font-size:.78rem;">Impossible de charger les données</div>';
   });
 </script>
- 
+
+<script>
+// ══════════════════════════════════════════
+// STATS PAR POSTE DE TRAVAIL (FONCTION)
+// ══════════════════════════════════════════
+let _foncAllFonctions = [];
+let _foncChecked      = new Set();
+
+function loadFonctionStats() {
+  const d1  = document.getElementById('foncDateDebut').value;
+  const d2  = document.getElementById('foncDateFin').value;
+  const sel = [..._foncChecked];
+
+  const params = new URLSearchParams();
+  if (d1) params.append('date_debut', d1);
+  if (d2) params.append('date_fin',   d2);
+  sel.forEach(f => params.append('fonctions[]', f));
+
+  document.getElementById('foncTbody').innerHTML =
+    `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-disabled);">
+       <div class="spinner-border" style="width:1.2rem;height:1.2rem;border-width:2px;color:#9b5cf6;"></div>
+     </td></tr>`;
+
+  fetch('/api/dashboard/fonctions?' + params.toString())
+    .then(r => r.json())
+    .then(res => {
+      // Build checkboxes once
+      if (_foncAllFonctions.length === 0) {
+        _foncAllFonctions = res.all_fonctions || [];
+        buildFoncCheckboxes();
+      }
+
+      const data = res.data || [];
+      const tbody = document.getElementById('foncTbody');
+
+      if (data.length === 0) {
+        tbody.innerHTML =
+          `<tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--text-disabled);">
+             <i class="fas fa-briefcase" style="font-size:2rem;opacity:.15;display:block;margin-bottom:.6rem;"></i>
+             Aucune donnée pour ces critères
+           </td></tr>`;
+        return;
+      }
+
+      const maxDeps = Math.max(...data.map(r => r.nb_deplacements), 1);
+      const colors  = ['#9b5cf6','#4f8ef7','#06d6a0','#fb923c','#f7c948','#38bdf8','#ec4899'];
+
+      tbody.innerHTML = data.map((r, i) => {
+        const color = colors[i % colors.length];
+        const barW  = ((r.nb_deplacements / maxDeps) * 100).toFixed(0);
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s;"
+                    onmouseover="this.style.background='rgba(255,255,255,.03)'"
+                    onmouseout="this.style.background=''">
+          <td style="padding:.75rem 1rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;">
+              <div style="width:10px;height:10px;border-radius:3px;background:${color};flex-shrink:0;"></div>
+              <span style="font-weight:700;color:var(--text-primary);">${r.fonction}</span>
+            </div>
+            <div style="margin-top:.3rem;height:3px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;">
+              <div style="height:100%;width:${barW}%;background:${color};border-radius:99px;"></div>
+            </div>
+          </td>
+          <td style="padding:.75rem 1rem;text-align:center;">
+            <span style="font-size:.95rem;font-weight:800;color:var(--text-primary);">${r.nb_personnels}</span>
+          </td>
+          <td style="padding:.75rem 1rem;text-align:center;">
+            <span style="font-size:.95rem;font-weight:800;color:${color};">${r.nb_deplacements}</span>
+          </td>
+          <td style="padding:.75rem 1rem;text-align:center;">
+            <span style="font-size:.95rem;font-weight:800;color:var(--text-secondary);">${r.nb_projets}</span>
+          </td>
+          <td style="padding:.75rem 1rem;text-align:center;">
+            <span style="font-size:.88rem;font-weight:800;color:#fb923c;">${r.total_hs.toFixed(2)}h</span>
+          </td>
+        </tr>`;
+      }).join('');
+    })
+    .catch(() => {
+      document.getElementById('foncTbody').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#ff6b6b;font-size:.82rem;">
+           <i class="fas fa-exclamation-circle me-1"></i>Erreur de chargement
+         </td></tr>`;
+    });
+}
+
+function buildFoncCheckboxes() {
+  const wrap = document.getElementById('foncCheckboxes');
+  if (_foncAllFonctions.length === 0) {
+    wrap.innerHTML = '<span style="font-size:.75rem;color:var(--text-disabled);">Aucune fonction définie</span>';
+    return;
+  }
+
+  const colors = ['#9b5cf6','#4f8ef7','#06d6a0','#fb923c','#f7c948','#38bdf8','#ec4899'];
+  wrap.innerHTML = '<span style="font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-right:.25rem;">Fonctions :</span>'
+    + _foncAllFonctions.map((f, i) => {
+      const color = colors[i % colors.length];
+      const checked = _foncChecked.size === 0 || _foncChecked.has(f);
+      return `<label style="display:inline-flex;align-items:center;gap:.35rem;
+                             background:${checked ? color + '22' : 'rgba(255,255,255,.04)'};
+                             border:1px solid ${checked ? color + '55' : 'var(--border-md)'};
+                             border-radius:var(--r-full);padding:.25rem .7rem;
+                             cursor:pointer;font-size:.75rem;font-weight:700;
+                             color:${checked ? color : 'var(--text-muted)'};
+                             transition:all .15s;" id="foncLbl_${i}">
+               <input type="checkbox" ${checked ? 'checked' : ''} style="display:none;"
+                      onchange="toggleFonc('${f.replace(/'/g,"\\'")}', ${i}, '${color}', this)">
+               <span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+               ${f}
+             </label>`;
+    }).join('');
+}
+
+function toggleFonc(f, i, color, cb) {
+  const lbl = document.getElementById('foncLbl_' + i);
+  if (cb.checked) {
+    _foncChecked.add(f);
+    lbl.style.background   = color + '22';
+    lbl.style.borderColor  = color + '55';
+    lbl.style.color        = color;
+  } else {
+    _foncChecked.delete(f);
+    lbl.style.background   = 'rgba(255,255,255,.04)';
+    lbl.style.borderColor  = 'var(--border-md)';
+    lbl.style.color        = 'var(--text-muted)';
+  }
+  loadFonctionStats();
+}
+
+// Initial load
+loadFonctionStats();
+</script>
+
 
 {% endblock %}

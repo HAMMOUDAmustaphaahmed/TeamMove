@@ -655,6 +655,15 @@ function renderTable() {
       ? `<button class="btn-action edit" title="Modifier" onclick="editPersonnel(${p.id})">
            <i class="fas fa-edit"></i>
          </button>
+         <button class="btn-action" title="${p.active !== false ? 'Désactiver' : 'Activer'}"
+                 style="background:${p.active !== false ? 'rgba(247,201,72,.12)' : 'rgba(6,214,160,.12)'};
+                        color:${p.active !== false ? '#f7c948' : '#06d6a0'};
+                        border:1px solid ${p.active !== false ? 'rgba(247,201,72,.25)' : 'rgba(6,214,160,.25)'};
+                        border-radius:8px;width:30px;height:30px;display:flex;align-items:center;
+                        justify-content:center;cursor:pointer;transition:var(--t-fast);"
+                 onclick="toggleActive(${p.id}, this)">
+           <i class="fas fa-${p.active !== false ? 'toggle-on' : 'toggle-off'}"></i>
+         </button>
          <button class="btn-action del" title="Supprimer"
                  onclick="confirmDeletePersonnel(${p.id}, '${escQ(p.nom)} ${escQ(p.prenom)}')">
            <i class="fas fa-trash"></i>
@@ -937,6 +946,42 @@ function editPersonnel(id) {
            Impossible de charger les données. Réessayez.
          </div>`;
     });
+}
+
+// ─────────────────────────────────────────────────────────
+// Toggle actif/inactif
+// ─────────────────────────────────────────────────────────
+function toggleActive(id, btn) {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrf = csrfMeta ? csrfMeta.content : '';
+  fetch(`/personnels/toggle-active/${id}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `csrf_token=${encodeURIComponent(csrf)}`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const icon = btn.querySelector('i');
+      if (data.active) {
+        btn.style.background = 'rgba(247,201,72,.12)';
+        btn.style.color = '#f7c948';
+        btn.style.borderColor = 'rgba(247,201,72,.25)';
+        btn.title = 'Désactiver';
+        icon.className = 'fas fa-toggle-on';
+      } else {
+        btn.style.background = 'rgba(6,214,160,.12)';
+        btn.style.color = '#06d6a0';
+        btn.style.borderColor = 'rgba(6,214,160,.25)';
+        btn.title = 'Activer';
+        icon.className = 'fas fa-toggle-off';
+      }
+      // Update local data so stats reflect change
+      const p = ALL_DATA.find(x => x.id === id);
+      if (p) p.active = data.active;
+    }
+  })
+  .catch(() => alert('Erreur lors du changement d\'état.'));
 }
 
 // ─────────────────────────────────────────────────────────
