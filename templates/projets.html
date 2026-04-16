@@ -265,16 +265,34 @@
 </div>
 
 <!-- ── STATS ── -->
-<div class="stats-row">
+<div class="stats-row" style="grid-template-columns:repeat(7,1fr);">
   <div class="stat-mini">
     <div class="num">{{ projets|length }}</div>
-    <div class="lbl">Total projets</div>
+    <div class="lbl">Total</div>
     <i class="fas fa-building ico"></i>
   </div>
   <div class="stat-mini s2">
     <div class="num" id="activeCount">{{ projets|length }}</div>
     <div class="lbl">Affichés</div>
     <i class="fas fa-eye ico"></i>
+  </div>
+  <div class="stat-mini" style="cursor:pointer;" onclick="filterEtatFromStat('en_cours')"
+       title="Filtrer : En cours">
+    <div class="num" style="color:#06d6a0;">{{ count_en_cours }}</div>
+    <div class="lbl" style="color:#06d6a0;">En cours</div>
+    <i class="fas fa-circle ico" style="color:#06d6a0;opacity:.15;"></i>
+  </div>
+  <div class="stat-mini" style="cursor:pointer;" onclick="filterEtatFromStat('planifie')"
+       title="Filtrer : Planifiés">
+    <div class="num" style="color:#4f8ef7;">{{ count_planifie }}</div>
+    <div class="lbl" style="color:#4f8ef7;">Planifiés</div>
+    <i class="fas fa-clock ico" style="color:#4f8ef7;opacity:.15;"></i>
+  </div>
+  <div class="stat-mini" style="cursor:pointer;" onclick="filterEtatFromStat('termine')"
+       title="Filtrer : Terminés">
+    <div class="num" style="color:var(--text-muted);">{{ count_termine }}</div>
+    <div class="lbl">Terminés</div>
+    <i class="fas fa-check ico"></i>
   </div>
   <div class="stat-mini s3">
     <div class="num" id="regionCount">0</div>
@@ -313,6 +331,30 @@
       </div>
     </div>
   </div>
+  <!-- Filtre par état -->
+  <div style="margin-top:.85rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+    <span style="font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-right:.25rem;">État :</span>
+    <button class="region-btn etat-filter-btn active" onclick="filterEtat('all',this)">Tous</button>
+    <button class="region-btn etat-filter-btn" onclick="filterEtat('en_cours',this)"
+            style="color:#06d6a0;border-color:rgba(6,214,160,.25);">
+      <i class="fas fa-circle" style="font-size:.4rem;vertical-align:middle;margin-right:.3rem;"></i>En cours
+    </button>
+    <button class="region-btn etat-filter-btn" onclick="filterEtat('planifie',this)"
+            style="color:#4f8ef7;border-color:rgba(79,142,247,.25);">
+      <i class="fas fa-clock" style="font-size:.65rem;margin-right:.3rem;"></i>Planifié
+    </button>
+    <button class="region-btn etat-filter-btn" onclick="filterEtat('termine',this)"
+            style="color:var(--text-muted);">
+      <i class="fas fa-check" style="font-size:.65rem;margin-right:.3rem;"></i>Terminé
+    </button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:.4rem;">
+      <span style="font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Trier :</span>
+      <button class="region-btn active" id="sortNomBtn" onclick="sortCards('nom',this)">A → Z</button>
+      <button class="region-btn" id="sortRecentBtn" onclick="sortCards('recent',this)">
+        <i class="fas fa-history" style="font-size:.65rem;margin-right:.3rem;"></i>Récents
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- ── PROJECT GRID ── -->
@@ -322,6 +364,8 @@
        data-region="{{ projet.region }}"
        data-name="{{ projet.nom.lower() }}"
        data-coords="{{ projet._coordinates }}"
+       data-etat="{{ projet.etat }}"
+       data-lastdep="{{ projet._last_deplacement.isoformat() if projet._last_deplacement else '' }}"
        data-id="{{ projet.id }}"
        style="overflow:hidden;">
 
@@ -465,11 +509,32 @@
         </div>
       </div>
 
-      <div class="mt-3 pt-2" style="border-top:1px solid var(--border);">
+      <div class="mt-3 pt-2" style="border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem;">
         <small style="font-size:.7rem; color:var(--text-disabled);">
           <i class="fas fa-calendar-alt me-1"></i>
           Créé le {{ projet.created_at.strftime('%d/%m/%Y') }}
         </small>
+        {% if projet._last_deplacement %}
+          <span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.7rem;font-weight:700;
+                {% if projet._jours_depuis is not none and projet._jours_depuis <= 7 %}
+                  color:#06d6a0;background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.2);
+                {% elif projet._jours_depuis is not none and projet._jours_depuis <= 30 %}
+                  color:#f7c948;background:rgba(247,201,72,.08);border:1px solid rgba(247,201,72,.2);
+                {% else %}
+                  color:var(--text-muted);background:rgba(255,255,255,.04);border:1px solid var(--border);
+                {% endif %}
+                border-radius:var(--r-full);padding:.15em .6em;">
+            <i class="fas fa-clock" style="font-size:.62rem;"></i>
+            Dernier dép. : {{ projet._last_deplacement.strftime('%d/%m/%Y') }}
+            {% if projet._jours_depuis is not none %}
+              · {{ projet._jours_depuis }}j
+            {% endif %}
+          </span>
+        {% else %}
+          <small style="font-size:.7rem;color:var(--text-disabled);">
+            <i class="fas fa-minus me-1"></i>Aucun déplacement
+          </small>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -868,29 +933,59 @@ document.getElementById('regionSelect')?.addEventListener('input', function () {
 });
 
 /* ──────────────────────────────────────────
-   Filtrage par région (boutons)
+   Filtrage : région + état + recherche texte
    ────────────────────────────────────────── */
-document.querySelectorAll('.region-btn').forEach(btn => {
+let _activeRegion = 'all';
+let _activeEtat   = 'all';
+let _searchTerm   = '';
+
+function applyCardFilters() {
+  document.querySelectorAll('.project-card').forEach(card => {
+    const regionOk = _activeRegion === 'all' || card.dataset.region === _activeRegion;
+    const etatOk   = _activeEtat   === 'all' || card.dataset.etat   === _activeEtat;
+    const nameOk   = !_searchTerm  ||
+                     (card.dataset.name   || '').includes(_searchTerm) ||
+                     (card.dataset.region || '').toLowerCase().includes(_searchTerm);
+    card.closest('.project-card-wrapper')?.style ?
+      card.closest('.project-card-wrapper').style.display = (regionOk && etatOk && nameOk) ? '' : 'none' :
+      card.style.display = (regionOk && etatOk && nameOk) ? '' : 'none';
+  });
+  updateStats();
+}
+
+document.querySelectorAll('[data-filter]').forEach(btn => {
   btn.addEventListener('click', function () {
-    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
     this.classList.add('active');
-    const filter = this.dataset.filter;
-    document.querySelectorAll('.project-card').forEach(card => {
-      card.style.display = (filter === 'all' || card.dataset.region === filter) ? '' : 'none';
-    });
-    updateStats();
+    _activeRegion = this.dataset.filter;
+    applyCardFilters();
   });
 });
 
-/* ── Recherche en temps réel ── */
+function filterEtat(etat, btn) {
+  // Only toggle active on the état filter buttons (not project cards)
+  document.querySelectorAll('.etat-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  _activeEtat = etat;
+  applyCardFilters();
+}
+
+function filterEtatFromStat(etat) {
+  // Find the corresponding filter button and click it
+  const btn = [...document.querySelectorAll('.etat-filter-btn')]
+    .find(b => {
+      const txt = b.textContent.trim().toLowerCase();
+      if (etat === 'en_cours')  return txt.includes('cours');
+      if (etat === 'planifie')  return txt.includes('planif');
+      if (etat === 'termine')   return txt.includes('termin');
+      return false;
+    });
+  filterEtat(etat, btn || null);
+}
+
 document.getElementById('searchProjet')?.addEventListener('input', function () {
-  const term = this.value.toLowerCase();
-  document.querySelectorAll('.project-card').forEach(card => {
-    const match = (card.dataset.name || '').includes(term) ||
-                  (card.dataset.region || '').toLowerCase().includes(term);
-    card.style.display = match ? '' : 'none';
-  });
-  updateStats();
+  _searchTerm = this.value.toLowerCase();
+  applyCardFilters();
 });
 
 /* ── Mise à jour compteurs ── */
@@ -899,6 +994,33 @@ function updateStats() {
   document.getElementById('activeCount').textContent = visible.length;
   const regions = new Set(visible.map(c => c.dataset.region));
   document.getElementById('regionCount').textContent = regions.size;
+}
+
+/* ── Tri des cartes ── */
+let _currentSort = 'nom';
+function sortCards(mode, btn) {
+  _currentSort = mode;
+  document.querySelectorAll('#sortNomBtn,#sortRecentBtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const grid = document.getElementById('projetsGrid');
+  const cards = [...grid.querySelectorAll('.project-card')];
+
+  cards.sort((a, b) => {
+    if (mode === 'nom') {
+      return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'fr');
+    } else {
+      // recent: sort by data-lastdep descending, null goes last
+      const da = a.dataset.lastdep || '';
+      const db_ = b.dataset.lastdep || '';
+      if (!da && !db_) return 0;
+      if (!da) return 1;
+      if (!db_) return -1;
+      return db_.localeCompare(da); // ISO date string compare works
+    }
+  });
+
+  cards.forEach(c => grid.appendChild(c));
 }
 
 /* ── Timeline progress bars ── */

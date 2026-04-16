@@ -189,7 +189,7 @@
 <form method="GET" action="{{ url_for('main.heures_supplementaires') }}" id="hsFilterForm">
   <div class="filter-bar" style="flex-wrap:wrap;gap:.75rem;">
 
-    <!-- Row 1 -->
+    <!-- Dates -->
     <div style="flex:1;min-width:140px;">
       <label class="form-label">Date début</label>
       <input type="date" class="form-control" name="date_debut"
@@ -200,14 +200,41 @@
       <input type="date" class="form-control" name="date_fin"
              value="{{ date_fin.strftime('%Y-%m-%d') if date_fin else '' }}">
     </div>
-    <div style="flex:2;min-width:200px;">
-      <label class="form-label">Recherche personnel</label>
-      <div class="input-group">
-        <span class="input-group-text" style="background:rgba(255,255,255,.04);border-color:var(--border-md);color:var(--text-muted);">
-          <i class="fas fa-search" style="font-size:.8rem;"></i>
-        </span>
-        <input type="text" class="form-control" name="search" placeholder="Nom, prénom ou matricule…"
-               value="{{ search }}">
+
+    <!-- Filtre Personnel (static multi-select dropdown) -->
+    <div style="flex:2;min-width:210px;position:relative;">
+      <label class="form-label">Personnels</label>
+      <div id="personnelDropdown">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDropdown('personnelDD')">
+          <span id="personnelLabel">{% if selected_personnel_ids_hs %}{{ selected_personnel_ids_hs|length }} sélectionné(s){% else %}Tous les personnels{% endif %}</span>
+          <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
+        </button>
+        <div id="personnelDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1060;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:4px;max-height:300px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher un personnel…"
+                   style="font-size:.8rem;padding:.4rem .7rem;"
+                   oninput="filterDropdown('personnelItems', this.value)">
+          </div>
+          <div id="personnelItems" style="overflow-y:auto;max-height:230px;padding:0 .5rem .5rem;">
+            {% for p in all_personnels %}
+            <label style="display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
+              <input type="checkbox" name="personnel_ids[]" value="{{ p.id }}"
+                     {% if p.id in selected_personnel_ids_hs %}checked{% endif %}
+                     style="accent-color:#4f8ef7;width:15px;height:15px;cursor:pointer;flex-shrink:0;"
+                     onchange="updateLabel('personnelDD','personnel_ids[]','personnelLabel','Tous les personnels','sélectionné(s)')">
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.nom }} {{ p.prenom }}</div>
+                <div style="font-size:.7rem;color:var(--text-muted);">{{ p.matricule }}{% if p.fonction %} · {{ p.fonction }}{% endif %}</div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -235,7 +262,7 @@
                    class="projet-option">
               <input type="checkbox" name="projet_ids[]" value="{{ p.id }}"
                      {% if p.id in selected_projet_ids %}checked{% endif %}
-                     onchange="updateProjetLabel()">
+                     onchange="updateLabel('projetDD','projet_ids[]','projetLabel','Tous les projets','projet(s)')">
               <span>{{ p.nom }}</span>
             </label>
             {% endfor %}
@@ -268,7 +295,7 @@
                    class="fonction-option">
               <input type="checkbox" name="fonctions[]" value="{{ f }}"
                      {% if f in selected_fonctions %}checked{% endif %}
-                     onchange="updateFonctionLabel()">
+                     onchange="updateLabel('fonctionDD','fonctions[]','fonctionLabel','Toutes les fonctions','fonction(s)')">
               <span>{{ f }}</span>
             </label>
             {% endfor %}
@@ -526,65 +553,58 @@ fetch('{{ url_for("main.api_hs_stats") }}')
     }
   }).catch(() => {});
 
-// ── Dropdown helpers ──
+// ── Dropdown helpers (shared for all 3 dropdowns) ──
 function toggleDropdown(id) {
-  const el = document.getElementById(id);
+  const el   = document.getElementById(id);
   const open = el.style.display !== 'none';
-  // Close all
-  ['projetDD','fonctionDD'].forEach(d => {
-    document.getElementById(d).style.display = 'none';
-    document.getElementById(d).style.flexDirection = '';
+  ['personnelDD','projetDD','fonctionDD'].forEach(d => {
+    const x = document.getElementById(d);
+    if (x) x.style.display = 'none';
   });
   if (!open) {
     el.style.display = 'flex';
     el.style.flexDirection = 'column';
-    el.querySelector('input').focus();
+    const inp = el.querySelector('input[type="text"]');
+    if (inp) { inp.value = ''; inp.focus(); filterDropdown(el.querySelector('[id$="Items"]')?.id, ''); }
   }
 }
 
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#projetDropdown') && !e.target.closest('#fonctionDropdown')) {
-    ['projetDD','fonctionDD'].forEach(id => {
-      document.getElementById(id).style.display = 'none';
+  if (!e.target.closest('#personnelDropdown') &&
+      !e.target.closest('#projetDropdown') &&
+      !e.target.closest('#fonctionDropdown')) {
+    ['personnelDD','projetDD','fonctionDD'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
     });
   }
 });
 
 function filterDropdown(listId, term) {
-  const items = document.getElementById(listId).querySelectorAll('label');
+  if (!listId) return;
   const t = term.trim().toLowerCase();
-  items.forEach(lbl => {
+  document.getElementById(listId)?.querySelectorAll('label').forEach(lbl => {
     lbl.style.display = (!t || lbl.textContent.toLowerCase().includes(t)) ? '' : 'none';
   });
 }
 
-function updateProjetLabel() {
-  const checked = document.querySelectorAll('input[name="projet_ids[]"]:checked');
-  document.getElementById('projetLabel').textContent =
-    checked.length === 0 ? 'Tous les projets' : `${checked.length} projet(s) sélectionné(s)`;
+function updateLabel(ddId, checkName, labelId, defaultText, unit) {
+  const checked = document.querySelectorAll(`#${ddId} input[name="${checkName}"]:checked`);
+  document.getElementById(labelId).textContent =
+    checked.length === 0 ? defaultText : `${checked.length} ${unit}`;
 }
-
-function updateFonctionLabel() {
-  const checked = document.querySelectorAll('input[name="fonctions[]"]:checked');
-  document.getElementById('fonctionLabel').textContent =
-    checked.length === 0 ? 'Toutes les fonctions' : `${checked.length} fonction(s) sélectionnée(s)`;
-}
-
-// Init labels on page load
-updateProjetLabel();
-updateFonctionLabel();
 
 // ── Export XLSX (via server avec filtres courants) ──
 function exportHsXlsx() {
   const form   = document.getElementById('hsFilterForm');
-  const params = new URLSearchParams(new FormData(form));
-  // Collect checkboxes manually
-  document.querySelectorAll('input[name="projet_ids[]"]:checked').forEach(cb => {
-    params.append('projet_ids[]', cb.value);
-  });
-  document.querySelectorAll('input[name="fonctions[]"]:checked').forEach(cb => {
-    params.append('fonctions[]', cb.value);
-  });
+  const params = new URLSearchParams();
+  const dd = form.querySelector('input[name="date_debut"]');
+  const df = form.querySelector('input[name="date_fin"]');
+  if (dd && dd.value) params.append('date_debut', dd.value);
+  if (df && df.value) params.append('date_fin',   df.value);
+  form.querySelectorAll('input[name="personnel_ids[]"]:checked').forEach(cb => params.append('personnel_ids[]', cb.value));
+  form.querySelectorAll('input[name="projet_ids[]"]:checked').forEach(cb   => params.append('projet_ids[]', cb.value));
+  form.querySelectorAll('input[name="fonctions[]"]:checked').forEach(cb    => params.append('fonctions[]',  cb.value));
   window.location.href = `/heures-supplementaires/export?${params.toString()}`;
 }
 

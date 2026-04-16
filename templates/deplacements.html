@@ -362,22 +362,124 @@
 
 <!-- ── FILTER ── -->
 <div class="filter-card">
-  <form method="GET" class="row g-3 align-items-end" id="filterForm">
-    <div class="col-md-3">
+  <form method="GET" id="filterForm">
+    <div class="row g-3 align-items-end">
+    <div class="col-md-2">
       <label class="form-label">Date début</label>
       <input type="date" class="form-control" name="date_debut"
              value="{{ request.args.get('date_debut', '') }}" style="color-scheme:dark;">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label class="form-label">Date fin</label>
       <input type="date" class="form-control" name="date_fin"
              value="{{ request.args.get('date_fin', '') }}" style="color-scheme:dark;">
     </div>
-    <div class="col-md-3">
-      <label class="form-label">Rechercher personnel</label>
-      <input type="text" class="form-control" name="search" placeholder="Nom, prénom, matricule…"
-             value="{{ search if search else '' }}">
+
+    <!-- Personnel static multi-select -->
+    <div class="col-md-3" style="position:relative;">
+      <label class="form-label">Personnels</label>
+      <div id="depPersonnelWrap">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDep('depPersonnelDD')">
+          <span id="depPersonnelLabel">{% if selected_personnel_ids %}{{ selected_personnel_ids|length }} sélectionné(s){% else %}Tous{% endif %}</span>
+          <i class="fas fa-chevron-down" style="font-size:.62rem;opacity:.5;"></i>
+        </button>
+        <div id="depPersonnelDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1060;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:3px;max-height:300px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.45rem .5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher un personnel…"
+                   style="font-size:.79rem;padding:.38rem .65rem;"
+                   oninput="filterDep('depPersonnelItems',this.value)">
+          </div>
+          <div id="depPersonnelItems" style="overflow-y:auto;max-height:230px;padding:0 .45rem .45rem;">
+            {% for p in all_personnels_dep %}
+            <label style="display:flex;align-items:center;gap:.45rem;padding:.42rem .45rem;border-radius:6px;cursor:pointer;font-size:.81rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
+              <input type="checkbox" name="personnel_ids[]" value="{{ p.id }}"
+                     {% if p.id in selected_personnel_ids %}checked{% endif %}
+                     style="accent-color:#4f8ef7;width:14px;height:14px;cursor:pointer;flex-shrink:0;"
+                     onchange="updateDepLabel('depPersonnelDD','personnel_ids[]','depPersonnelLabel','Tous')">
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.nom }} {{ p.prenom }}</div>
+                <div style="font-size:.69rem;color:var(--text-muted);">{{ p.matricule }}{% if p.fonction %} · {{ p.fonction }}{% endif %}</div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Projet multi-select -->
+    <div class="col-md-2" style="position:relative;">
+      <label class="form-label">Projets</label>
+      <div id="depProjetWrap">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDep('depProjetDD')">
+          <span id="depProjetLabel">{% if selected_projet_ids_dep %}{{ selected_projet_ids_dep|length }} sélectionné(s){% else %}Tous{% endif %}</span>
+          <i class="fas fa-chevron-down" style="font-size:.62rem;opacity:.5;"></i>
+        </button>
+        <div id="depProjetDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1055;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:4px;max-height:280px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher…"
+                   style="font-size:.8rem;padding:.4rem .7rem;"
+                   oninput="filterDep('depProjetItems',this.value)">
+          </div>
+          <div id="depProjetItems" style="overflow-y:auto;max-height:210px;padding:0 .5rem .5rem;">
+            {% for p in all_projets_dep %}
+            <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
+              <input type="checkbox" name="projet_ids[]" value="{{ p.id }}"
+                     {% if p.id in selected_projet_ids_dep %}checked{% endif %}
+                     style="accent-color:#4f8ef7;cursor:pointer;"
+                     onchange="updateDepLabel('depProjetDD','projet_ids[]','depProjetLabel','Tous')">
+              <span>{{ p.nom }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fonction multi-select -->
+    <div class="col-md-2" style="position:relative;">
+      <label class="form-label">Fonctions</label>
+      <div id="depFonctionWrap">
+        <button type="button" class="form-control d-flex justify-content-between align-items-center"
+                style="cursor:pointer;text-align:left;"
+                onclick="toggleDep('depFonctionDD')">
+          <span id="depFonctionLabel">{% if selected_fonctions_dep %}{{ selected_fonctions_dep|length }} sélectionnée(s){% else %}Toutes{% endif %}</span>
+          <i class="fas fa-chevron-down" style="font-size:.62rem;opacity:.5;"></i>
+        </button>
+        <div id="depFonctionDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1055;
+             background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);
+             box-shadow:0 8px 32px rgba(0,0,0,.4);margin-top:4px;max-height:280px;overflow:hidden;flex-direction:column;">
+          <div style="padding:.5rem;">
+            <input type="text" class="form-control" placeholder="Rechercher…"
+                   style="font-size:.8rem;padding:.4rem .7rem;"
+                   oninput="filterDep('depFonctionItems',this.value)">
+          </div>
+          <div id="depFonctionItems" style="overflow-y:auto;max-height:210px;padding:0 .5rem .5rem;">
+            {% for f in all_fonctions_dep %}
+            <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
+              <input type="checkbox" name="fonctions[]" value="{{ f }}"
+                     {% if f in selected_fonctions_dep %}checked{% endif %}
+                     style="accent-color:#9b5cf6;cursor:pointer;"
+                     onchange="updateDepLabel('depFonctionDD','fonctions[]','depFonctionLabel','Toutes')">
+              <span>{{ f }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="col-md-auto d-flex gap-2 flex-wrap">
       <button type="submit" class="btn btn-primary">
         <i class="fas fa-filter"></i>Filtrer
@@ -385,9 +487,10 @@
       <a href="{{ url_for('main.deplacements') }}" class="btn btn-secondary">
         <i class="fas fa-undo"></i>Reset
       </a>
-      <button type="button" class="btn btn-success" id="exportDepBtn" onclick="exportDeplacementsXlsx()">
-        <i class="fas fa-file-excel me-1"></i>Export XLSX
+      <button type="button" class="btn btn-success" onclick="exportDeplacementsXlsx()">
+        <i class="fas fa-file-excel me-1"></i>Export
       </button>
+    </div>
     </div>
   </form>
 </div>
@@ -1462,5 +1565,52 @@ document.getElementById('quickDateFin')?.addEventListener('change', triggerQuick
 $('#quickAddModal').on('show.bs.modal', function() {
   document.getElementById('quickConflictAlert')?.classList.remove('visible');
 });
+</script>
+
+<script>
+/* ══════════════════════════════════════════
+   FILTER DROPDOWNS — DÉPLACEMENTS (static)
+══════════════════════════════════════════ */
+const _DEP_DDS = ['depPersonnelDD','depProjetDD','depFonctionDD'];
+
+function toggleDep(id) {
+  const el   = document.getElementById(id);
+  const open = el.style.display !== 'none';
+  _DEP_DDS.forEach(d => {
+    const x = document.getElementById(d);
+    if (x) x.style.display = 'none';
+  });
+  if (!open) {
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+    const inp = el.querySelector('input[type="text"]');
+    if (inp) { inp.value = ''; inp.focus(); filterDep(el.querySelector('[id$="Items"]')?.id, ''); }
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#depPersonnelWrap') &&
+      !e.target.closest('#depProjetWrap') &&
+      !e.target.closest('#depFonctionWrap')) {
+    _DEP_DDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+});
+
+function filterDep(listId, term) {
+  if (!listId) return;
+  const t = term.trim().toLowerCase();
+  document.getElementById(listId)?.querySelectorAll('label').forEach(lbl => {
+    lbl.style.display = (!t || lbl.textContent.toLowerCase().includes(t)) ? '' : 'none';
+  });
+}
+
+function updateDepLabel(ddId, checkName, labelId, defaultText) {
+  const checked = document.querySelectorAll(`#${ddId} input[name="${checkName}"]:checked`);
+  document.getElementById(labelId).textContent =
+    checked.length === 0 ? defaultText : `${checked.length} sélectionné(s)`;
+}
 </script>
 {% endblock %}

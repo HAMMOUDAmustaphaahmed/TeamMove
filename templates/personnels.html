@@ -136,6 +136,21 @@
   .table tbody tr:hover td { background: rgba(255,255,255,.025); }
   .table tbody tr:last-child td { border-bottom: none; }
 
+  /* ── ETAT FILTER TABS ── */
+  .region-btn {
+    padding: .35rem .9rem;
+    border: 1px solid var(--border-md);
+    background: var(--bg-overlay);
+    color: var(--text-muted);
+    border-radius: var(--r-full);
+    cursor: pointer; transition: var(--t-fast);
+    font-size: .78rem; font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  .region-btn:hover { background: rgba(79,142,247,.1); border-color: rgba(79,142,247,.3); color: var(--accent-blue); }
+  .region-btn.active { background: linear-gradient(135deg,rgba(79,142,247,.25),rgba(155,92,246,.25)); border-color: rgba(79,142,247,.45); color: var(--accent-blue); }
+
   /* ── BADGES ── */
   .badge-matricule {
     font-family:var(--font-mono,monospace); font-size:.72rem; font-weight:700;
@@ -251,6 +266,11 @@
     <div class="lbl">Total actifs</div>
     <i class="fas fa-users ico"></i>
   </div>
+  <div class="stat-mini" style="cursor:pointer;" onclick="setEtatFilter('inactive')" title="Voir les inactifs">
+    <div class="num" style="color:#ff6b6b;">{{ count_inactive }}</div>
+    <div class="lbl" style="color:#ff6b6b;">Inactifs</div>
+    <i class="fas fa-user-slash ico" style="color:#ff6b6b;opacity:.12;"></i>
+  </div>
   <div class="stat-mini s2">
     <div class="num" id="statVisible">—</div>
     <div class="lbl">Affichés</div>
@@ -266,6 +286,28 @@
     <div class="lbl">Horaire</div>
     <i class="fas fa-clock ico"></i>
   </div>
+</div>
+
+<!-- ── ETAT FILTER TABS ── -->
+<div style="display:flex;gap:.4rem;margin-bottom:.75rem;flex-wrap:wrap;">
+  <a href="{{ url_for('main.personnels', etat_filter='active', search=search) }}"
+     class="region-btn {% if etat_filter == 'active' %}active{% endif %}"
+     style="{% if etat_filter == 'active' %}background:linear-gradient(135deg,rgba(6,214,160,.2),rgba(79,142,247,.2));border-color:rgba(6,214,160,.4);color:#06d6a0;{% endif %}text-decoration:none;">
+    <i class="fas fa-circle" style="font-size:.4rem;vertical-align:middle;margin-right:.3rem;color:#06d6a0;"></i>Actifs
+    <span style="background:rgba(6,214,160,.15);color:#06d6a0;border-radius:20px;padding:.05em .5em;font-size:.72rem;margin-left:.3rem;">{{ count_active }}</span>
+  </a>
+  <a href="{{ url_for('main.personnels', etat_filter='inactive', search=search) }}"
+     class="region-btn {% if etat_filter == 'inactive' %}active{% endif %}"
+     style="{% if etat_filter == 'inactive' %}background:linear-gradient(135deg,rgba(255,107,107,.2),rgba(220,38,38,.15));border-color:rgba(255,107,107,.4);color:#ff6b6b;{% endif %}text-decoration:none;">
+    <i class="fas fa-user-slash" style="font-size:.65rem;margin-right:.3rem;color:#ff6b6b;"></i>Inactifs
+    <span style="background:rgba(255,107,107,.15);color:#ff6b6b;border-radius:20px;padding:.05em .5em;font-size:.72rem;margin-left:.3rem;">{{ count_inactive }}</span>
+  </a>
+  <a href="{{ url_for('main.personnels', etat_filter='all', search=search) }}"
+     class="region-btn {% if etat_filter == 'all' %}active{% endif %}"
+     style="{% if etat_filter == 'all' %}background:rgba(79,142,247,.15);border-color:rgba(79,142,247,.4);color:#4f8ef7;{% endif %}text-decoration:none;">
+    <i class="fas fa-users" style="font-size:.65rem;margin-right:.3rem;"></i>Tous
+    <span style="background:rgba(79,142,247,.1);color:#4f8ef7;border-radius:20px;padding:.05em .5em;font-size:.72rem;margin-left:.3rem;">{{ count_active + count_inactive }}</span>
+  </a>
 </div>
 
 <!-- ── TOOLBAR ── -->
@@ -460,7 +502,7 @@
               <label class="form-label">Société *</label>
               <input type="text" class="form-control" name="societe" id="editSociete" required>
             </div>
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
               <div class="col-md-6">
                 <label class="form-label">Salaire *</label>
                 <div class="input-group">
@@ -474,6 +516,29 @@
                   <option value="mensuel">Mensuel</option>
                   <option value="horaire">Horaire</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- ── État (actif / inactif) ── -->
+            <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:.25rem;">
+              <label class="form-label">État du personnel</label>
+              <div id="editActiveStatus" style="display:flex;align-items:center;justify-content:space-between;
+                   background:rgba(255,255,255,.03);border:1px solid var(--border);
+                   border-radius:var(--r-md);padding:.75rem 1rem;">
+                <div>
+                  <div id="editActiveLabel" style="font-weight:700;font-size:.88rem;"></div>
+                  <div style="font-size:.72rem;color:var(--text-muted);margin-top:.1rem;">
+                    Cliquez pour basculer l'état — la page se rechargera
+                  </div>
+                </div>
+                <!-- form="toggleActiveForm" links this button to the EXTERNAL form below (outside editForm) -->
+                <button type="submit" form="toggleActiveForm" id="toggleActiveBtn"
+                        style="padding:.45rem 1rem;border-radius:var(--r-md);
+                               font-size:.8rem;font-weight:700;border:1px solid;
+                               cursor:pointer;transition:all .2s;">
+                  <i class="fas me-1" id="toggleActiveIcon"></i>
+                  <span id="toggleActiveTxt"></span>
+                </button>
               </div>
             </div>
           </div>
@@ -520,6 +585,11 @@
     </div>
   </div>
 </div>
+
+<!-- ════ EXTERNAL TOGGLE-ACTIVE FORM (outside all modals — fixes nested-form browser bug) ════ -->
+<form id="toggleActiveForm" method="POST" action="" style="display:none;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
 
 {% endblock %}
 
@@ -646,23 +716,20 @@ function renderTable() {
 
   tbody.innerHTML = slice.map(p => {
     const sal = parseFloat(p.salaire).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const isInactive = p.active === false;
 
     const fonctionCell = p.fonction
       ? `<span class="badge-fonction"><i class="fas fa-briefcase me-1" style="font-size:.6rem;"></i>${esc(p.fonction)}</span>`
       : `<span style="color:var(--text-disabled);font-size:.75rem;">—</span>`;
 
+    const nameCell = isInactive
+      ? `<div style="font-weight:700;color:var(--text-muted);text-decoration:line-through;">${esc(p.nom)} ${esc(p.prenom)}</div>
+         <span style="font-size:.65rem;background:rgba(255,107,107,.12);color:#ff6b6b;border:1px solid rgba(255,107,107,.2);border-radius:20px;padding:.1em .5em;font-weight:700;">Inactif</span>`
+      : `<div style="font-weight:700;color:var(--text-primary);">${esc(p.nom)} ${esc(p.prenom)}</div>`;
+
     const actions = IS_ADMIN
       ? `<button class="btn-action edit" title="Modifier" onclick="editPersonnel(${p.id})">
            <i class="fas fa-edit"></i>
-         </button>
-         <button class="btn-action" title="${p.active !== false ? 'Désactiver' : 'Activer'}"
-                 style="background:${p.active !== false ? 'rgba(247,201,72,.12)' : 'rgba(6,214,160,.12)'};
-                        color:${p.active !== false ? '#f7c948' : '#06d6a0'};
-                        border:1px solid ${p.active !== false ? 'rgba(247,201,72,.25)' : 'rgba(6,214,160,.25)'};
-                        border-radius:8px;width:30px;height:30px;display:flex;align-items:center;
-                        justify-content:center;cursor:pointer;transition:var(--t-fast);"
-                 onclick="toggleActive(${p.id}, this)">
-           <i class="fas fa-${p.active !== false ? 'toggle-on' : 'toggle-off'}"></i>
          </button>
          <button class="btn-action del" title="Supprimer"
                  onclick="confirmDeletePersonnel(${p.id}, '${escQ(p.nom)} ${escQ(p.prenom)}')">
@@ -671,9 +738,9 @@ function renderTable() {
       : `<span style="font-size:.72rem;color:var(--text-disabled);">—</span>`;
 
     return `
-      <tr data-id="${p.id}">
+      <tr data-id="${p.id}" style="${isInactive ? 'opacity:.6;' : ''}">
         <td><span class="badge-matricule">${esc(p.matricule)}</span></td>
-        <td><div style="font-weight:700;color:var(--text-primary);">${esc(p.nom)} ${esc(p.prenom)}</div></td>
+        <td>${nameCell}</td>
         <td>${fonctionCell}</td>
         <td>${esc(p.societe)}</td>
         <td style="font-family:var(--font-mono,monospace);font-size:.82rem;">
@@ -935,6 +1002,27 @@ function editPersonnel(id) {
       document.getElementById('editSociete').value     = d.societe      || '';
       document.getElementById('editSalaire').value     = d.salaire      ?? '';
       document.getElementById('editTypeSalaire').value = d.type_salaire || 'mensuel';
+
+      // ── Toggle active state ──
+      const isActive = d.active !== false; // true by default
+      const lbl  = document.getElementById('editActiveLabel');
+      const btn  = document.getElementById('toggleActiveBtn');
+      const icon = document.getElementById('toggleActiveIcon');
+      const txt  = document.getElementById('toggleActiveTxt');
+      document.getElementById('toggleActiveForm').action = `/personnels/toggle-active/${id}`;
+
+      if (isActive) {
+        lbl.innerHTML  = '<span style="color:#06d6a0;"><i class="fas fa-circle" style="font-size:.5rem;vertical-align:middle;margin-right:.35rem;"></i>Personnel actif</span>';
+        btn.style.cssText = 'padding:.45rem 1rem;border-radius:var(--r-md);font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;background:rgba(247,201,72,.1);color:#f7c948;border:1px solid rgba(247,201,72,.3);';
+        icon.className = 'fas fa-toggle-off me-1';
+        txt.textContent = 'Désactiver';
+      } else {
+        lbl.innerHTML  = '<span style="color:var(--text-muted);"><i class="fas fa-circle" style="font-size:.5rem;vertical-align:middle;margin-right:.35rem;opacity:.4;"></i>Personnel inactif</span>';
+        btn.style.cssText = 'padding:.45rem 1rem;border-radius:var(--r-md);font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;background:rgba(6,214,160,.1);color:#06d6a0;border:1px solid rgba(6,214,160,.3);';
+        icon.className = 'fas fa-toggle-on me-1';
+        txt.textContent = 'Activer';
+      }
+
       document.getElementById('editSkeleton').style.display = 'none';
       document.getElementById('editFields').style.display   = '';
       document.getElementById('editSubmitBtn').disabled     = false;
@@ -949,39 +1037,13 @@ function editPersonnel(id) {
 }
 
 // ─────────────────────────────────────────────────────────
-// Toggle actif/inactif
+// Navigation par état (stat card click)
 // ─────────────────────────────────────────────────────────
-function toggleActive(id, btn) {
-  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  const csrf = csrfMeta ? csrfMeta.content : '';
-  fetch(`/personnels/toggle-active/${id}`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: `csrf_token=${encodeURIComponent(csrf)}`
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      const icon = btn.querySelector('i');
-      if (data.active) {
-        btn.style.background = 'rgba(247,201,72,.12)';
-        btn.style.color = '#f7c948';
-        btn.style.borderColor = 'rgba(247,201,72,.25)';
-        btn.title = 'Désactiver';
-        icon.className = 'fas fa-toggle-on';
-      } else {
-        btn.style.background = 'rgba(6,214,160,.12)';
-        btn.style.color = '#06d6a0';
-        btn.style.borderColor = 'rgba(6,214,160,.25)';
-        btn.title = 'Activer';
-        icon.className = 'fas fa-toggle-off';
-      }
-      // Update local data so stats reflect change
-      const p = ALL_DATA.find(x => x.id === id);
-      if (p) p.active = data.active;
-    }
-  })
-  .catch(() => alert('Erreur lors du changement d\'état.'));
+function setEtatFilter(etat) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('etat_filter', etat);
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
 }
 
 // ─────────────────────────────────────────────────────────

@@ -231,10 +231,17 @@ def dashboard():
 @main.route('/personnels')
 @login_required
 def personnels():
-    page   = request.args.get('page', 1, type=int)
-    search = sanitize_input(request.args.get('search', ''))
+    page         = request.args.get('page', 1, type=int)
+    search       = sanitize_input(request.args.get('search', ''))
+    etat_filter  = request.args.get('etat_filter', 'active')  # active | inactive | all
 
-    query = Personnel.query.filter_by(active=True)
+    query = Personnel.query
+    if etat_filter == 'active':
+        query = query.filter_by(active=True)
+    elif etat_filter == 'inactive':
+        query = query.filter_by(active=False)
+    # else: all — no filter
+
     if search:
         query = query.filter(or_(
             Personnel.nom.ilike(f'%{search}%'),
@@ -243,14 +250,23 @@ def personnels():
             Personnel.fonction.ilike(f'%{search}%'),
         ))
     personnels_page = query.order_by(Personnel.nom).paginate(page=page, per_page=10)
-    return render_template('personnels.html', personnels=personnels_page, search=search)
+
+    count_active   = Personnel.query.filter_by(active=True).count()
+    count_inactive = Personnel.query.filter_by(active=False).count()
+
+    return render_template('personnels.html',
+                           personnels=personnels_page,
+                           search=search,
+                           etat_filter=etat_filter,
+                           count_active=count_active,
+                           count_inactive=count_inactive)
 
 
 @main.route('/api/personnels/all')
 @login_required
 def api_personnels_all():
-    """Retourne TOUS les personnels actifs en JSON pour les filtres et l'export XLSX côté client."""
-    rows = Personnel.query.filter_by(active=True)        .order_by(Personnel.nom, Personnel.prenom).all()
+    """Retourne TOUS les personnels (actifs ET inactifs) en JSON."""
+    rows = Personnel.query.order_by(Personnel.nom, Personnel.prenom).all()
     return jsonify([{
         'id':           p.id,
         'matricule':    p.matricule,
@@ -260,6 +276,7 @@ def api_personnels_all():
         'societe':      p.societe,
         'salaire':      float(p.salaire),
         'type_salaire': p.type_salaire,
+        'active':       bool(p.active),
     } for p in rows])
 
 
@@ -274,6 +291,7 @@ def api_personnel(id):
         'societe': p.societe,
         'salaire': float(p.salaire),
         'type_salaire': p.type_salaire,
+        'active': p.active,
     })
 
 
@@ -352,11 +370,19 @@ def toggle_personnel_active(id):
         personnel.active = not personnel.active
         db.session.commit()
         etat = 'activé' if personnel.active else 'désactivé'
-        return jsonify({'success': True, 'active': personnel.active,
-                        'message': f'Personnel {etat}.'})
+        # Support both AJAX (JSON) and form POST (redirect)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+           request.accept_mimetypes.best == 'application/json':
+            return jsonify({'success': True, 'active': personnel.active,
+                            'message': f'Personnel {etat}.'})
+        flash(f'Personnel {etat} avec succès.', 'success')
+        return redirect(url_for('main.personnels'))
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': str(e)}), 500
+        flash(f'Erreur : {str(e)}', 'danger')
+        return redirect(url_for('main.personnels'))
 
 
 # ═══════════════════════════════════════════════════════
@@ -366,7 +392,6 @@ def toggle_personnel_active(id):
 @main.route('/projets')
 @login_required
 def projets():
-    # Requête unique avec count pour éviter le N+1
     from sqlalchemy import case
     rows = db.session.query(
         Projet,
@@ -383,7 +408,7 @@ def projets():
         projet.nb_deplacements = nb
         projets_list.append(projet)
 
-    # Injecte les coordonnées via SQL brut (compatible avec ancien models.py)
+    # Coordinates
     try:
         coords_rows = db.session.execute(
             db.text('SELECT id, coordinates FROM projets WHERE active = 1')
@@ -394,10 +419,33 @@ def projets():
     for p in projets_list:
         p._coordinates = coords_map.get(p.id, '')
 
+    # Last deployment date per project
+    from sqlalchemy import func as _f
+    last_dep_rows = db.session.query(
+        Deplacement.projet_id,
+        _f.max(Deplacement.date_fin).label('last_date')
+    ).filter(Deplacement.statut.in_(['valide', 'approuve']))\
+     .group_by(Deplacement.projet_id).all()
+    last_dep_map = {r.projet_id: r.last_date for r in last_dep_rows}
+
+    today = date.today()
+    for p in projets_list:
+        last = last_dep_map.get(p.id)
+        p._last_deplacement = last
+        p._jours_depuis = (today - last).days if last else None
+
     total_deplacements = sum(p.nb_deplacements for p in projets_list)
+
+    count_en_cours = sum(1 for p in projets_list if p.etat == 'en_cours')
+    count_planifie = sum(1 for p in projets_list if p.etat == 'planifie')
+    count_termine  = sum(1 for p in projets_list if p.etat == 'termine')
+
     return render_template('projets.html',
                            projets=projets_list,
-                           total_deplacements=total_deplacements)
+                           total_deplacements=total_deplacements,
+                           count_en_cours=count_en_cours,
+                           count_planifie=count_planifie,
+                           count_termine=count_termine)
 
 
 @main.route('/projets/add', methods=['POST'])
@@ -563,11 +611,14 @@ def api_projet_stats(id):
 @main.route('/deplacements')
 @login_required
 def deplacements():
-    date_debut  = sanitize_input(request.args.get('date_debut', ''))
-    date_fin    = sanitize_input(request.args.get('date_fin', ''))
-    search      = sanitize_input(request.args.get('search', ''))
+    date_debut      = sanitize_input(request.args.get('date_debut', ''))
+    date_fin        = sanitize_input(request.args.get('date_fin', ''))
+    search          = sanitize_input(request.args.get('search', ''))
+    personnel_ids   = request.args.getlist('personnel_ids[]')
+    projet_ids_dep  = request.args.getlist('projet_ids[]')
+    fonctions_dep   = request.args.getlist('fonctions[]')
 
-    filtre_actif = bool(date_debut or date_fin)
+    filtre_actif = bool(date_debut or date_fin or personnel_ids or projet_ids_dep or fonctions_dep)
 
     # Conditions sur les déplacements
     dep_conditions = [Deplacement.statut.in_(['valide', 'approuve'])]
@@ -575,10 +626,15 @@ def deplacements():
         dep_conditions.append(Deplacement.date_fin   >= date_debut)
     if date_fin:
         dep_conditions.append(Deplacement.date_debut <= date_fin)
+    if projet_ids_dep:
+        try:
+            pid_ints = [int(x) for x in projet_ids_dep if x]
+            if pid_ints:
+                dep_conditions.append(Deplacement.projet_id.in_(pid_ints))
+        except ValueError:
+            pass
 
     if filtre_actif:
-        # INNER JOIN : retourne SEULEMENT les personnels ayant un déplacement
-        # dans l'intervalle de filtre
         query = db.session.query(
             Personnel,
             func.group_concat(Projet.nom.distinct()).label('projets_list'),
@@ -588,7 +644,6 @@ def deplacements():
             *dep_conditions
         )).outerjoin(Projet, Deplacement.projet_id == Projet.id)
     else:
-        # Pas de filtre : afficher tous les personnels actifs (OUTER JOIN)
         query = db.session.query(
             Personnel,
             func.group_concat(Projet.nom.distinct()).label('projets_list'),
@@ -605,8 +660,29 @@ def deplacements():
             Personnel.matricule.ilike(f'%{search}%')
         ))
 
+    # Multi-select personnel filter
+    if personnel_ids:
+        try:
+            pid_ints = [int(x) for x in personnel_ids if x]
+            if pid_ints:
+                query = query.filter(Personnel.id.in_(pid_ints))
+        except ValueError:
+            pass
+
+    # Fonction filter
+    if fonctions_dep:
+        filt = [f for f in fonctions_dep if f]
+        if filt:
+            query = query.filter(Personnel.fonction.in_(filt))
+
     personnels_data = query.filter(Personnel.active == True).group_by(Personnel.id).all()
     projets         = Projet.query.filter_by(active=True).all()
+
+    # Lists for filter dropdowns
+    all_projets_dep  = Projet.query.filter_by(active=True).order_by(Projet.nom).all()
+    all_fonctions_dep = [r[0] for r in db.session.query(Personnel.fonction.distinct())
+                         .filter(Personnel.active == True, Personnel.fonction != None,
+                                 Personnel.fonction != '').order_by(Personnel.fonction).all()]
 
     total_personnels_actifs = Personnel.query.filter_by(active=True).count()
 
@@ -624,6 +700,8 @@ def deplacements():
 
     total_projets_actifs = Projet.query.filter_by(active=True).count()
 
+    all_personnels_dep = Personnel.query.filter_by(active=True).order_by(Personnel.nom, Personnel.prenom).all()
+
     first_day_month = date.today().replace(day=1)
     total_deplacements_mois = Deplacement.query.filter(
         Deplacement.created_at >= first_day_month,
@@ -636,6 +714,12 @@ def deplacements():
                            date_debut=date_debut,
                            date_fin=date_fin,
                            search=search,
+                           all_personnels_dep=all_personnels_dep,
+                           all_projets_dep=all_projets_dep,
+                           all_fonctions_dep=all_fonctions_dep,
+                           selected_personnel_ids=[int(x) for x in personnel_ids if x],
+                           selected_projet_ids_dep=[int(x) for x in projet_ids_dep if x],
+                           selected_fonctions_dep=fonctions_dep,
                            total_personnels_actifs=total_personnels_actifs,
                            total_en_deplacement=total_en_deplacement,
                            total_projets_actifs=total_projets_actifs,
@@ -1718,6 +1802,7 @@ def heures_supplementaires():
     date_debut    = parse_date_opt(request.args.get('date_debut', ''))
     date_fin      = parse_date_opt(request.args.get('date_fin', ''))
     search        = sanitize_input(request.args.get('search', ''))
+    personnel_ids_hs = request.args.getlist('personnel_ids[]')
     projet_ids    = request.args.getlist('projet_ids[]')
     fonctions     = request.args.getlist('fonctions[]')
 
@@ -1737,7 +1822,7 @@ def heures_supplementaires():
     if date_fin:
         query = query.filter(Deplacement.date_debut <= date_fin)
 
-    # ── Filtre recherche (nom / prénom / matricule) ──
+    # ── Filtre recherche texte (nom / prénom / matricule) ──
     if search:
         like = f'%{search}%'
         query = query.filter(or_(
@@ -1745,6 +1830,15 @@ def heures_supplementaires():
             Personnel.prenom.ilike(like),
             Personnel.matricule.ilike(like),
         ))
+
+    # ── Filtre par personnel(s) ──
+    if personnel_ids_hs:
+        try:
+            pid_ints = [int(x) for x in personnel_ids_hs if x]
+            if pid_ints:
+                query = query.filter(Personnel.id.in_(pid_ints))
+        except ValueError:
+            pass
 
     # ── Filtre par projet(s) ──
     if projet_ids:
@@ -1768,10 +1862,11 @@ def heures_supplementaires():
                                   .order_by(WorkSchedule.heure_debut).all()
 
     # ── Listes pour les filtres ──
-    all_projets = Projet.query.filter_by(active=True).order_by(Projet.nom).all()
-    all_fonctions = [r[0] for r in db.session.query(Personnel.fonction.distinct())
-                     .filter(Personnel.active == True, Personnel.fonction != None,
-                             Personnel.fonction != '').order_by(Personnel.fonction).all()]
+    all_projets    = Projet.query.filter_by(active=True).order_by(Projet.nom).all()
+    all_personnels = Personnel.query.filter_by(active=True).order_by(Personnel.nom, Personnel.prenom).all()
+    all_fonctions  = [r[0] for r in db.session.query(Personnel.fonction.distinct())
+                      .filter(Personnel.active == True, Personnel.fonction != None,
+                              Personnel.fonction != '').order_by(Personnel.fonction).all()]
 
     return render_template(
         'heures_supplementaires.html',
@@ -1781,7 +1876,9 @@ def heures_supplementaires():
         date_debut=date_debut,
         date_fin=date_fin,
         all_projets=all_projets,
+        all_personnels=all_personnels,
         all_fonctions=all_fonctions,
+        selected_personnel_ids_hs=[int(x) for x in personnel_ids_hs if x],
         selected_projet_ids=[int(x) for x in projet_ids if x],
         selected_fonctions=fonctions,
     )
@@ -1862,6 +1959,7 @@ def export_heures_supplementaires():
     search        = sanitize_input(request.args.get('search', ''))
     projet_ids    = request.args.getlist('projet_ids[]')
     fonctions     = request.args.getlist('fonctions[]')
+    personnel_ids_exp = request.args.getlist('personnel_ids[]')
 
     query = db.session.query(
         Deplacement, Personnel, HeureSupplementaire
@@ -1884,6 +1982,13 @@ def export_heures_supplementaires():
             Personnel.prenom.ilike(like),
             Personnel.matricule.ilike(like),
         ))
+    if personnel_ids_exp:
+        try:
+            pid_ints = [int(x) for x in personnel_ids_exp if x]
+            if pid_ints:
+                query = query.filter(Personnel.id.in_(pid_ints))
+        except ValueError:
+            pass
     if projet_ids:
         try:
             pid_ints = [int(x) for x in projet_ids if x]
