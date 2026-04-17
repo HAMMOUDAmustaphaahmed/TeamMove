@@ -170,13 +170,15 @@ def dashboard():
 
     total_personnels   = Personnel.query.filter_by(active=True).count()
     total_projets      = Projet.query.filter_by(active=True).count()
-    total_deplacements = Deplacement.query.filter(
-        Deplacement.statut.in_(['valide', 'approuve'])).count()
+    total_deplacements_raw = Deplacement.query.filter(
+        Deplacement.statut.in_(['valide', 'approuve'])).all()
+    total_deplacements = sum(d.nb_deplacements_reels for d in total_deplacements_raw)
 
-    total_deplacements_mois = Deplacement.query.filter(
+    total_deplacements_mois_raw = Deplacement.query.filter(
         Deplacement.created_at >= first_day_month,
         Deplacement.statut.in_(['valide', 'approuve'])
-    ).count()
+    ).all()
+    total_deplacements_mois = sum(d.nb_deplacements_reels for d in total_deplacements_mois_raw)
 
     all_deps = db.session.query(
         Personnel.nom, Personnel.prenom,
@@ -703,10 +705,11 @@ def deplacements():
     all_personnels_dep = Personnel.query.filter_by(active=True).order_by(Personnel.nom, Personnel.prenom).all()
 
     first_day_month = date.today().replace(day=1)
-    total_deplacements_mois = Deplacement.query.filter(
+    deps_mois_raw = Deplacement.query.filter(
         Deplacement.created_at >= first_day_month,
         Deplacement.statut.in_(['valide', 'approuve'])
-    ).count()
+    ).all()
+    total_deplacements_mois = sum(d.nb_deplacements_reels for d in deps_mois_raw)
 
     return render_template('deplacements.html',
                            personnels=personnels_data,
@@ -787,6 +790,7 @@ def api_deplacement(id):
 @write_required
 def add_deplacement():
     try:
+        import json as _json
         personnel_ids = request.form.getlist('personnel_ids[]')
         if not personnel_ids:
             flash('Veuillez sélectionner au moins un personnel.', 'warning')
@@ -802,6 +806,17 @@ def add_deplacement():
             flash('La date de fin ne peut pas être antérieure à la date de début.', 'warning')
             return redirect(url_for('main.deplacements'))
 
+        # ── Nuitées : une décision par nuit (date_fin - date_debut nuits) ──
+        nb_nuits = (date_fin - date_debut).days
+        nuitees_json = None
+        if nb_nuits > 0:
+            # Le formulaire envoie nuitee_0, nuitee_1, … = 'reste' ou 'retourne'
+            nuitees = []
+            for i in range(nb_nuits):
+                val_nuit = request.form.get(f'nuitee_{i}', 'reste')
+                nuitees.append(val_nuit == 'reste')
+            nuitees_json = _json.dumps(nuitees)
+
         statut = 'valide' if current_user.is_admin else 'en_attente'
 
         for pid in personnel_ids:
@@ -812,6 +827,7 @@ def add_deplacement():
                 heure_debut=heure_debut,
                 date_fin=date_fin,
                 heure_fin=heure_fin,
+                nuitees=nuitees_json,
                 created_by=current_user.id,
                 statut=statut
             )

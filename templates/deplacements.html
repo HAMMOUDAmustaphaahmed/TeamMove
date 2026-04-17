@@ -705,6 +705,30 @@
             </div>
           </div>
 
+          <!-- ── Nuitées (visible uniquement si date_fin > date_debut) ── -->
+          <div id="nuiteesSection" class="mt-3" style="display:none;">
+            <div style="
+              background: rgba(155,92,246,.07);
+              border: 1px solid rgba(155,92,246,.25);
+              border-radius: var(--r-lg);
+              padding: 1rem 1.1rem;
+            ">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem;">
+                <i class="fas fa-moon" style="color:#9b5cf6;font-size:.9rem;"></i>
+                <span style="font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;">
+                  Nuitées — Retour à l'usine ?
+                </span>
+              </div>
+              <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.85rem;line-height:1.5;">
+                Pour chaque nuit, indiquez si l'équipe <strong style="color:var(--text-secondary);">reste sur site</strong>
+                (compté comme 1 seul déplacement) ou <strong style="color:var(--text-secondary);">rentre à l'usine</strong>
+                (compté comme un nouveau déplacement dans les indicateurs).
+              </p>
+              <div id="nuiteesRows"></div>
+              <div id="nuiteesResume" style="margin-top:.75rem;font-size:.75rem;color:rgba(155,92,246,.8);font-weight:700;"></div>
+            </div>
+          </div>
+
         </div>
 
         <div class="modal-footer">
@@ -1118,7 +1142,7 @@ document.getElementById('addDeplacementModal')
 
 
 /* ════════════════════════════════════════════════════════
-   DURATION PREVIEW
+   DURATION PREVIEW + NUITÉES
    ════════════════════════════════════════════════════════ */
 function calcDuration(startId, endId, previewId, textId) {
   const start = document.getElementById(startId)?.value;
@@ -1133,6 +1157,77 @@ function calcDuration(startId, endId, previewId, textId) {
   const diff = Math.round((d2 - d1) / 86400000) + 1;
   txt.textContent  = diff + (diff > 1 ? ' jours' : ' jour');
   prev.style.display = '';
+
+  // Build nuitées section only for add modal (not quick add)
+  if (startId === 'dateDebut') buildNuiteesRows(start, end);
+}
+
+function buildNuiteesRows(dateDebut, dateFin) {
+  const section = document.getElementById('nuiteesSection');
+  const rows    = document.getElementById('nuiteesRows');
+  const resume  = document.getElementById('nuiteesResume');
+  if (!section || !rows) return;
+
+  const d1 = new Date(dateDebut);
+  const d2 = new Date(dateFin);
+  const nbNuits = Math.round((d2 - d1) / 86400000); // nb transitions nuit
+
+  if (nbNuits <= 0) {
+    section.style.display = 'none';
+    rows.innerHTML = '';
+    return;
+  }
+
+  section.style.display = '';
+
+  const fmtDate = d => {
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  };
+
+  let html = '';
+  for (let i = 0; i < nbNuits; i++) {
+    const nightStart = new Date(d1); nightStart.setDate(d1.getDate() + i);
+    const nightEnd   = new Date(d1); nightEnd.setDate(d1.getDate() + i + 1);
+    const label = `Nuit du ${fmtDate(nightStart)} au ${fmtDate(nightEnd)}`;
+    html += `
+      <div style="display:flex;align-items:center;justify-content:space-between;
+           padding:.6rem .75rem;border-radius:var(--r-md);margin-bottom:.4rem;
+           background:rgba(255,255,255,.03);border:1px solid rgba(155,92,246,.15);">
+        <span style="font-size:.8rem;color:var(--text-secondary);">
+          <i class="fas fa-moon" style="color:#9b5cf6;margin-right:.4rem;font-size:.65rem;"></i>
+          ${label}
+        </span>
+        <div style="display:flex;gap:.5rem;">
+          <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text-muted);">
+            <input type="radio" name="nuitee_${i}" value="reste" checked
+                   style="accent-color:#06d6a0;" onchange="updateNuiteesResume(${nbNuits})">
+            <span style="color:#06d6a0;"><i class="fas fa-campground" style="font-size:.65rem;"></i> Reste</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text-muted);">
+            <input type="radio" name="nuitee_${i}" value="retourne"
+                   style="accent-color:#f7c948;" onchange="updateNuiteesResume(${nbNuits})">
+            <span style="color:#f7c948;"><i class="fas fa-undo" style="font-size:.65rem;"></i> Rentre</span>
+          </label>
+        </div>
+      </div>`;
+  }
+  rows.innerHTML = html;
+  updateNuiteesResume(nbNuits);
+}
+
+function updateNuiteesResume(nbNuits) {
+  const resume = document.getElementById('nuiteesResume');
+  if (!resume) return;
+  let retours = 0;
+  for (let i = 0; i < nbNuits; i++) {
+    const sel = document.querySelector(`input[name="nuitee_${i}"]:checked`);
+    if (sel && sel.value === 'retourne') retours++;
+  }
+  const nbDeps = 1 + retours;
+  resume.innerHTML = `<i class="fas fa-chart-bar" style="margin-right:.35rem;"></i>` +
+    `Ce déplacement comptera comme <strong style="color:#9b5cf6;">${nbDeps} déplacement${nbDeps > 1 ? 's' : ''} réel${nbDeps > 1 ? 's' : ''}</strong> dans les indicateurs.`;
 }
 
 document.getElementById('dateDebut')?.addEventListener('change', () =>

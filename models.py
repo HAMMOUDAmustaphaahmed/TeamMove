@@ -105,7 +105,36 @@ class Deplacement(db.Model):
         db.Enum('valide', 'en_attente', 'approuve', 'rejete'),
         nullable=False, default='valide')
 
+    # JSON list of booleans, one per "nuit" between date_debut and date_fin.
+    # nuitees[i] = True  → l'équipe reste sur site (nuit i+1 comptée dans le même déplacement)
+    # nuitees[i] = False → l'équipe rentre et repart (nuit i+1 = nouveau déplacement réel)
+    # Ex: déplacement 01/04→03/04 : 2 nuits → nuitees = [True, False]
+    # None / [] → déplacement d'1 seul jour, pas de question posée
+    nuitees       = db.Column(db.Text, nullable=True)  # JSON
+
     creator       = db.relationship('User', backref='deplacements_crees')
+
+    @property
+    def nuitees_list(self):
+        """Retourne la liste Python des nuitées (liste de booléens)."""
+        import json
+        if self.nuitees:
+            try:
+                return json.loads(self.nuitees)
+            except Exception:
+                pass
+        return []
+
+    @property
+    def nb_deplacements_reels(self):
+        """Nombre de déplacements réels selon les nuitées.
+        Si nuitees non défini → 1.
+        Sinon : 1 + nombre de nuits où l'équipe est rentrée (False).
+        """
+        nl = self.nuitees_list
+        if not nl:
+            return 1
+        return 1 + sum(1 for n in nl if not n)
 
 
 class DeplacementValidation(db.Model):

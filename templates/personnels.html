@@ -612,6 +612,9 @@ let sortAsc     = true;
 let currentPage = 1;
 const PER_PAGE  = 10;
 
+// Lire le filtre d'état depuis l'URL (active | inactive | all)
+const ETAT_FILTER = new URLSearchParams(window.location.search).get('etat_filter') || 'active';
+
 // ─────────────────────────────────────────────────────────
 // Chargement initial
 // ─────────────────────────────────────────────────────────
@@ -619,10 +622,16 @@ fetch('/api/personnels/all')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(data => {
     ALL_DATA = data;
-    FILTERED = [...data];
-    updateStats(ALL_DATA);
+    // Filtrer par état actif/inactif selon l'onglet sélectionné
+    const baseData = ETAT_FILTER === 'active'   ? data.filter(p => p.active !== false)
+                   : ETAT_FILTER === 'inactive' ? data.filter(p => p.active === false)
+                   : data;
+    FILTERED = [...baseData];
+    updateStats(baseData);
+    const nb = baseData.length;
+    const label = ETAT_FILTER === 'inactive' ? 'inactif' : 'actif';
     document.getElementById('pageSubCount').textContent =
-      `${data.length} personnel${data.length > 1 ? 's' : ''} actif${data.length > 1 ? 's' : ''}`;
+      `${nb} personnel${nb > 1 ? 's' : ''} ${label}${nb > 1 ? 's' : ''}`;
     applyFilters();          // premier rendu
   })
   .catch(err => {
@@ -646,7 +655,12 @@ function applyFilters() {
   const fType   = document.getElementById('f-type').value;
   const fGlobal = val('globalSearch');
 
-  FILTERED = ALL_DATA.filter(p => {
+  // Base = données filtrées par état (actifs / inactifs / tous)
+  const BASE = ETAT_FILTER === 'active'   ? ALL_DATA.filter(p => p.active !== false)
+             : ETAT_FILTER === 'inactive' ? ALL_DATA.filter(p => p.active === false)
+             : ALL_DATA;
+
+  FILTERED = BASE.filter(p => {
     const mat  = (p.matricule || '').toLowerCase();
     const nom  = (p.nom + ' ' + p.prenom).toLowerCase();
     const fonc = (p.fonction  || '').toLowerCase();
@@ -810,7 +824,7 @@ function renderPagination() {
       <i class="fas fa-info-circle me-1"></i>
       Page <strong>${currentPage}</strong> sur ${totalPages}
       &nbsp;·&nbsp;
-      <strong style="color:#4f8ef7;">${FILTERED.length}</strong> résultat(s) sur ${ALL_DATA.length} au total
+      <strong style="color:#4f8ef7;">${FILTERED.length}</strong> résultat(s) sur ${(ETAT_FILTER === 'active' ? ALL_DATA.filter(p => p.active !== false) : ETAT_FILTER === 'inactive' ? ALL_DATA.filter(p => p.active === false) : ALL_DATA).length} au total
     </p>`;
 }
 
@@ -829,7 +843,7 @@ function goToPage(page) {
 function updateStats(data) {
   let men = 0, hor = 0;
   data.forEach(p => { p.type_salaire === 'mensuel' ? men++ : hor++; });
-  document.getElementById('statTotal').textContent   = ALL_DATA.length;
+  document.getElementById('statTotal').textContent   = data.length;
   document.getElementById('statMensuel').textContent = men;
   document.getElementById('statHoraire').textContent = hor;
 }

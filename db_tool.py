@@ -171,7 +171,8 @@ def cmd_inspect():
 #   (type, table, colonne_ou_None)
 MIGRATION_CHECKS = [
     # Tables existantes à compléter
-    ('column', 'projets',  'etat'),
+    ('column', 'projets',      'etat'),
+    ('column', 'deplacements', 'nuitees'),   # v3 — nuitées multi-jours
     # Nouvelles tables
     ('table',  'payroll_config',   None),
     # Tables déjà présentes (vérification)
@@ -247,7 +248,21 @@ def build_migration_steps(cur, db_name):
     else:
         steps.append(("SKIP   projets.etat (déjà présent)", None))
 
-    # ── 2. Table payroll_config ──────────────────────────────
+    # ── 2. Colonne deplacements.nuitees (v3) ─────────────────
+    if not column_exists(cur, db_name, 'deplacements', 'nuitees'):
+        steps.append((
+            "ADD COLUMN deplacements.nuitees",
+            """
+            ALTER TABLE `deplacements`
+            ADD COLUMN `nuitees` TEXT NULL
+                COMMENT 'JSON list of booleans: true=reste sur site, false=rentre (v3)'
+                AFTER `statut`
+            """
+        ))
+    else:
+        steps.append(("SKIP   deplacements.nuitees (déjà présent)", None))
+
+    # ── 3. Table payroll_config ──────────────────────────────
     if not table_exists(cur, db_name, 'payroll_config'):
         steps.append((
             "CREATE TABLE payroll_config",
@@ -271,7 +286,7 @@ def build_migration_steps(cur, db_name):
     else:
         steps.append(("SKIP   payroll_config (déjà présente)", None))
 
-    # ── 3. Table work_schedules (déjà existante, vérification) ──
+    # ── 4. Table work_schedules (déjà existante, vérification) ──
     if not table_exists(cur, db_name, 'work_schedules'):
         steps.append((
             "CREATE TABLE work_schedules",
@@ -290,7 +305,7 @@ def build_migration_steps(cur, db_name):
     else:
         steps.append(("SKIP   work_schedules (déjà présente)", None))
 
-    # ── 4. Table heures_supplementaires (déjà existante, vérification) ──
+    # ── 5. Table heures_supplementaires (déjà existante, vérification) ──
     if not table_exists(cur, db_name, 'heures_supplementaires'):
         steps.append((
             "CREATE TABLE heures_supplementaires",
@@ -383,7 +398,7 @@ def cmd_migrate():
                 print("\n  ⚠️   Migration terminée avec des erreurs. Vérifiez ci-dessus.\n")
 
             # ── Afficher la structure finale des tables touchées ──
-            TABLES_TO_SHOW = ['projets', 'payroll_config', 'work_schedules', 'heures_supplementaires']
+            TABLES_TO_SHOW = ['projets', 'deplacements', 'payroll_config', 'work_schedules', 'heures_supplementaires']
             print("  Structure finale des tables migrées :\n")
             for tname in TABLES_TO_SHOW:
                 if not table_exists(cur, db_name, tname):
