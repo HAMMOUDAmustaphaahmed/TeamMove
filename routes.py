@@ -1812,7 +1812,7 @@ def api_dash_top_jours_homme():
 @main.route('/heures-supplementaires')
 @login_required
 def heures_supplementaires():
-    """Page principale : tableau filtrable des HS par déplacement."""
+    """Page principale : tableau filtrable des HS par déplacement (total agrégé)."""
 
     # ── Paramètres de filtre ──
     date_debut    = parse_date_opt(request.args.get('date_debut', ''))
@@ -1822,23 +1822,29 @@ def heures_supplementaires():
     projet_ids    = request.args.getlist('projet_ids[]')
     fonctions     = request.args.getlist('fonctions[]')
 
-    # ── Requête de base : jointure Deplacement ↔ Personnel ↔ Projet ──
+    # ── Sous-requête : total HS agrégé par déplacement ──
+    hs_agg = db.session.query(
+        HeureSupplementaire.deplacement_id,
+        func.sum(HeureSupplementaire.heures).label('total_hs'),
+        func.count(HeureSupplementaire.id).label('nb_jours_hs'),
+    ).group_by(HeureSupplementaire.deplacement_id).subquery('hs_agg')
+
+    # ── Requête principale : une ligne par déplacement ──
     query = db.session.query(
-        Deplacement, Personnel, HeureSupplementaire
+        Deplacement, Personnel, hs_agg.c.total_hs, hs_agg.c.nb_jours_hs
     ).join(Personnel, Deplacement.personnel_id == Personnel.id)\
      .join(Projet, Deplacement.projet_id == Projet.id)\
-     .outerjoin(HeureSupplementaire,
-                HeureSupplementaire.deplacement_id == Deplacement.id)\
+     .outerjoin(hs_agg, hs_agg.c.deplacement_id == Deplacement.id)\
      .filter(Personnel.active == True,
              Deplacement.statut.in_(['valide', 'approuve']))
 
-    # ── Filtres date (sur la période du déplacement) ──
+    # ── Filtres date ──
     if date_debut:
         query = query.filter(Deplacement.date_fin >= date_debut)
     if date_fin:
         query = query.filter(Deplacement.date_debut <= date_fin)
 
-    # ── Filtre recherche texte (nom / prénom / matricule) ──
+    # ── Filtre recherche texte ──
     if search:
         like = f'%{search}%'
         query = query.filter(or_(
@@ -1871,6 +1877,7 @@ def heures_supplementaires():
         if filt:
             query = query.filter(Personnel.fonction.in_(filt))
 
+    # rows : [(Deplacement, Personnel, total_hs_or_None, nb_jours_hs_or_None), …]
     rows = query.order_by(Deplacement.date_debut.desc()).all()
 
     # ── Séances de travail configurées ──
@@ -1904,19 +1911,39 @@ def heures_supplementaires():
 @login_required
 @admin_required
 def add_heure_supplementaire():
-    """Ajoute ou met à jour les HS d'un déplacement."""
+    """Ajoute ou met à jour les HS d'un déplacement pour un jour précis."""
     from models import HeureSupplementaire
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     try:
         dep_id      = int(request.form['deplacement_id'])
         heures      = float(request.form['heures'])
         commentaire = sanitize_input(request.form.get('commentaire', ''))
+        date_hs_str = request.form.get('date_hs', '').strip()
 
         if heures < 0:
-            flash('Le nombre d\'heures ne peut pas être négatif.', 'danger')
+            msg = 'Le nombre d\'heures ne peut pas être négatif.'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
             return redirect(url_for('main.heures_supplementaires'))
 
-        # Upsert : une seule entrée HS par déplacement
-        hs = HeureSupplementaire.query.filter_by(deplacement_id=dep_id).first()
+        # Résoudre la date HS
+        date_hs = None
+        if date_hs_str:
+            try:
+                date_hs = datetime.strptime(date_hs_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        # Upsert : une entrée par (deplacement_id, date)
+        if date_hs:
+            hs = HeureSupplementaire.query.filter_by(
+                deplacement_id=dep_id, date=date_hs).first()
+        else:
+            # Legacy : pas de date précisée, on prend le premier sans date
+            hs = HeureSupplementaire.query.filter_by(
+                deplacement_id=dep_id, date=None).first()
+
         if hs:
             hs.heures      = heures
             hs.commentaire = commentaire
@@ -1925,6 +1952,7 @@ def add_heure_supplementaire():
         else:
             hs = HeureSupplementaire(
                 deplacement_id = dep_id,
+                date           = date_hs,
                 heures         = heures,
                 commentaire    = commentaire,
                 created_by     = current_user.id,
@@ -1932,9 +1960,14 @@ def add_heure_supplementaire():
             db.session.add(hs)
 
         db.session.commit()
+
+        if is_ajax:
+            return jsonify({'success': True})
         flash('Heures supplémentaires enregistrées.', 'success')
     except Exception as e:
         db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 400
         flash(f'Erreur : {str(e)}', 'danger')
 
     return redirect(request.referrer or url_for('main.heures_supplementaires'))
@@ -1945,21 +1978,188 @@ def add_heure_supplementaire():
 @admin_required
 def delete_heure_supplementaire(id):
     from models import HeureSupplementaire
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     hs = db.get_or_404(HeureSupplementaire, id)
     try:
         db.session.delete(hs)
         db.session.commit()
+        if is_ajax:
+            return jsonify({'success': True})
         flash('Heures supplémentaires supprimées.', 'success')
     except Exception as e:
         db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 400
         flash(f'Erreur : {str(e)}', 'danger')
     return redirect(request.referrer or url_for('main.heures_supplementaires'))
+
+
+# ─────────────────────────────────────────────────────────
+# API : détail par jour d'un déplacement (pour modal AJAX)
+# ─────────────────────────────────────────────────────────
+
+@main.route('/api/deplacement/<int:dep_id>/detail')
+@login_required
+def api_deplacement_detail(dep_id):
+    """Retourne le détail jour-par-jour d'un déplacement avec ses HS."""
+    from datetime import timedelta
+    dep   = db.get_or_404(Deplacement, dep_id)
+    pers  = dep.personnel
+    proj  = dep.projet
+
+    # Générer tous les jours de la période
+    days = []
+    cur  = dep.date_debut
+    while cur <= dep.date_fin:
+        days.append(cur)
+        cur += timedelta(days=1)
+
+    # Récupérer toutes les HS du déplacement, indexées par date
+    hs_records = HeureSupplementaire.query.filter_by(deplacement_id=dep_id).all()
+    hs_by_date = {hs.date: hs for hs in hs_records if hs.date}
+    # Compat. enregistrements sans date : on les ignore dans la vue par jour
+    # (ils resteront visibles dans le total agrégé)
+
+    result = {
+        'deplacement': {
+            'id':          dep.id,
+            'date_debut':  dep.date_debut.strftime('%d/%m/%Y'),
+            'heure_debut': dep.heure_debut.strftime('%H:%M'),
+            'date_fin':    dep.date_fin.strftime('%d/%m/%Y'),
+            'heure_fin':   dep.heure_fin.strftime('%H:%M'),
+        },
+        'personnel': {
+            'nom':       pers.nom,
+            'prenom':    pers.prenom,
+            'matricule': pers.matricule,
+            'fonction':  pers.fonction or '',
+            'societe':   pers.societe,
+        },
+        'projet': {
+            'nom':         proj.nom,
+            'gouvernorat': proj.gouvernorat,
+            'region':      proj.region,
+        },
+        'jours': [],
+    }
+
+    for day in days:
+        hs = hs_by_date.get(day)
+        result['jours'].append({
+            'date':        day.strftime('%d/%m/%Y'),
+            'date_iso':    day.isoformat(),
+            'heures':      float(hs.heures) if hs else None,
+            'commentaire': hs.commentaire   if hs else None,
+            'hs_id':       hs.id            if hs else None,
+        })
+
+    return jsonify(result)
+
+
+# ─────────────────────────────────────────────────────────
+# Export XLSX : détail jour-par-jour d'un déplacement
+# ─────────────────────────────────────────────────────────
+
+@main.route('/heures-supplementaires/<int:dep_id>/export-detail')
+@login_required
+def export_deplacement_detail(dep_id):
+    """Exporte en XLSX le détail des HS par jour pour un déplacement donné."""
+    import io
+    from datetime import timedelta
+    from flask import send_file
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        flash('openpyxl est requis pour l\'export. pip install openpyxl', 'danger')
+        return redirect(url_for('main.heures_supplementaires'))
+
+    dep  = db.get_or_404(Deplacement, dep_id)
+    pers = dep.personnel
+    proj = dep.projet
+
+    days = []
+    cur  = dep.date_debut
+    while cur <= dep.date_fin:
+        days.append(cur)
+        cur += timedelta(days=1)
+
+    hs_records = HeureSupplementaire.query.filter_by(deplacement_id=dep_id).all()
+    hs_by_date = {hs.date: hs for hs in hs_records if hs.date}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "HS Détail"
+
+    hdr_fill   = PatternFill("solid", fgColor="1E3A5F")
+    hdr_font   = Font(bold=True, color="FFFFFF", size=11)
+    center     = Alignment(horizontal="center", vertical="center")
+    thin_brd   = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'),  bottom=Side(style='thin'))
+    alt_fill   = PatternFill("solid", fgColor="EBF5FB")
+
+    headers = [
+        "Jour", "Nom", "Prénom", "Fonction", "Société", "Projet",
+        "Région", "Gouvernorat",
+        "Date début dép.", "Heure début",
+        "Date fin dép.",   "Heure fin",
+        "Heures Supp.", "Commentaire",
+    ]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = center
+        cell.border    = thin_brd
+
+    for i, day in enumerate(days, start=2):
+        hs = hs_by_date.get(day)
+        ws.append([
+            day.strftime('%d/%m/%Y'),
+            pers.nom,
+            pers.prenom,
+            pers.fonction or '',
+            pers.societe,
+            proj.nom,
+            proj.region,
+            proj.gouvernorat,
+            dep.date_debut.strftime('%d/%m/%Y'),
+            dep.heure_debut.strftime('%H:%M'),
+            dep.date_fin.strftime('%d/%m/%Y'),
+            dep.heure_fin.strftime('%H:%M'),
+            float(hs.heures) if hs else '',
+            hs.commentaire   if hs else '',
+        ])
+        if i % 2 == 0:
+            for cell in ws[i]:
+                cell.fill = alt_fill
+        for cell in ws[i]:
+            cell.border    = thin_brd
+            cell.alignment = Alignment(vertical="center")
+
+    col_widths = [14, 16, 16, 20, 20, 30, 16, 18, 16, 12, 16, 12, 14, 35]
+    for col_idx, width in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+    ws.row_dimensions[1].height = 25
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"HS_{pers.nom}_{pers.prenom}_{dep.date_debut.strftime('%Y%m%d')}_detail.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
 @main.route('/heures-supplementaires/export')
 @login_required
 def export_heures_supplementaires():
-    """Export XLSX des HS filtrées (openpyxl)."""
+    """Export XLSX des HS filtrées — une ligne par enregistrement HS (par jour)."""
     import io
     try:
         import openpyxl
@@ -1970,22 +2170,21 @@ def export_heures_supplementaires():
 
     from flask import send_file
 
-    date_debut    = parse_date_opt(request.args.get('date_debut', ''))
-    date_fin      = parse_date_opt(request.args.get('date_fin', ''))
-    search        = sanitize_input(request.args.get('search', ''))
-    projet_ids    = request.args.getlist('projet_ids[]')
-    fonctions     = request.args.getlist('fonctions[]')
+    date_debut        = parse_date_opt(request.args.get('date_debut', ''))
+    date_fin          = parse_date_opt(request.args.get('date_fin', ''))
+    search            = sanitize_input(request.args.get('search', ''))
+    projet_ids        = request.args.getlist('projet_ids[]')
+    fonctions         = request.args.getlist('fonctions[]')
     personnel_ids_exp = request.args.getlist('personnel_ids[]')
 
     query = db.session.query(
         Deplacement, Personnel, HeureSupplementaire
     ).join(Personnel, Deplacement.personnel_id == Personnel.id)\
      .join(Projet, Deplacement.projet_id == Projet.id)\
-     .outerjoin(HeureSupplementaire,
-                HeureSupplementaire.deplacement_id == Deplacement.id)\
+     .join(HeureSupplementaire,
+           HeureSupplementaire.deplacement_id == Deplacement.id)\
      .filter(Personnel.active == True,
-             Deplacement.statut.in_(['valide', 'approuve']),
-             HeureSupplementaire.id != None)
+             Deplacement.statut.in_(['valide', 'approuve']))
 
     if date_debut:
         query = query.filter(Deplacement.date_fin >= date_debut)
@@ -2017,7 +2216,7 @@ def export_heures_supplementaires():
         if filt:
             query = query.filter(Personnel.fonction.in_(filt))
 
-    rows = query.order_by(Deplacement.date_debut.desc()).all()
+    rows = query.order_by(Deplacement.date_debut.desc(), HeureSupplementaire.date).all()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -2034,6 +2233,7 @@ def export_heures_supplementaires():
     headers = [
         "Matricule", "Nom", "Prénom", "Fonction", "Société",
         "Projet", "Région", "Gouvernorat",
+        "Jour HS",
         "Début déplacement", "Fin déplacement",
         "Heures Supp.", "Commentaire"
     ]
@@ -2055,6 +2255,7 @@ def export_heures_supplementaires():
             dep.projet.nom,
             dep.projet.region,
             dep.projet.gouvernorat,
+            hs.date.strftime('%d/%m/%Y') if hs.date else '—',
             f"{dep.date_debut.strftime('%d/%m/%Y')} {dep.heure_debut.strftime('%H:%M')}",
             f"{dep.date_fin.strftime('%d/%m/%Y')} {dep.heure_fin.strftime('%H:%M')}",
             float(hs.heures),
@@ -2067,7 +2268,7 @@ def export_heures_supplementaires():
             cell.border    = thin_border
             cell.alignment = Alignment(vertical="center")
 
-    col_widths = [14, 18, 18, 20, 20, 30, 16, 18, 22, 22, 14, 30]
+    col_widths = [14, 18, 18, 20, 20, 30, 16, 18, 14, 22, 22, 14, 30]
     for col_idx, width in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
     ws.row_dimensions[1].height = 25

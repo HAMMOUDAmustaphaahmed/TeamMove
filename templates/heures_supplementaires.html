@@ -8,126 +8,115 @@
   .page-sub   { font-size:.82rem; color:rgba(240,244,255,.35); margin-top:.25rem; }
 
   .filter-bar {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-    display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
   }
-
   .filter-bar .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
-
   .filter-bar .form-control, .filter-bar .form-select {
-    background: rgba(255,255,255,.05);
-    border: 1px solid var(--border-md);
-    border-radius: var(--r-md);
-    color: var(--text-primary);
-    font-size: .84rem;
-    padding: .5rem .85rem;
+    background: rgba(255,255,255,.05); border: 1px solid var(--border-md);
+    border-radius: var(--r-md); color: var(--text-primary); font-size: .84rem; padding: .5rem .85rem;
   }
   .filter-bar .form-control:focus, .filter-bar .form-select:focus {
-    background: rgba(255,255,255,.08);
-    border-color: rgba(79,142,247,.55);
-    box-shadow: 0 0 0 3px rgba(79,142,247,.12);
-    color: var(--text-primary);
+    background: rgba(255,255,255,.08); border-color: rgba(79,142,247,.55);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary);
   }
   .filter-bar .form-control::placeholder { color: var(--text-disabled); }
 
-  /* ── Table ── */
+  /* ── Main Table ── */
   .hs-table-wrap {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-xl);
-    overflow: hidden;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--r-xl); overflow: hidden;
   }
-
   .hs-table { width:100%; border-collapse: collapse; font-size:.82rem; }
-
   .hs-table thead th {
-    padding: .75rem 1rem;
-    font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
-    color: var(--text-muted);
-    background: rgba(255,255,255,.025);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
+    padding: .75rem 1rem; font-size:.7rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.07em; color: var(--text-muted); background: rgba(255,255,255,.025);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
   }
-
   .hs-table tbody tr {
-    border-bottom: 1px solid rgba(255,255,255,.04);
-    transition: background .15s;
+    border-bottom: 1px solid rgba(255,255,255,.04); transition: background .15s;
   }
-  .hs-table tbody tr:hover { background: rgba(255,255,255,.03); }
+  .hs-table tbody tr:hover { background: rgba(79,142,247,.04); }
   .hs-table tbody tr:last-child { border-bottom: none; }
-
   .hs-table td { padding: .75rem 1rem; vertical-align: middle; color: var(--text-secondary); }
 
   .badge-hs {
     font-size:.75rem; font-weight:800;
     background: rgba(251,146,60,.15); color:#fb923c;
-    border: 1px solid rgba(251,146,60,.3);
-    border-radius: 8px; padding: .25em .65em;
-    display: inline-flex; align-items: center; gap: .3rem;
+    border: 1px solid rgba(251,146,60,.3); border-radius: 8px;
+    padding: .25em .65em; display: inline-flex; align-items: center; gap: .3rem;
   }
-
   .badge-no-hs {
     font-size:.72rem; font-weight:600;
     background: rgba(255,255,255,.04); color: var(--text-disabled);
-    border: 1px solid var(--border);
-    border-radius: 8px; padding: .25em .65em;
+    border: 1px solid var(--border); border-radius: 8px; padding: .25em .65em;
   }
 
-  /* ── Modal ── */
+  /* ── Modals ── */
   .modal-content {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--r-xl) !important;
-    color: var(--text-primary) !important;
+    background: var(--bg-card) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--r-xl) !important; color: var(--text-primary) !important;
   }
-  .modal-header { border-bottom: 1px solid var(--border) !important; }
+  .modal-header { border-bottom: 1px solid var(--border) !important; padding: 1rem 1.5rem !important; }
   .modal-footer { border-top: 1px solid var(--border) !important; }
   .modal-title  { font-weight:800; font-size:.95rem; }
 
-  .modal .form-label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
-  .modal .form-control {
+  /* ── Detail modal table ── */
+  .detail-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .detail-table thead th {
+    padding: .65rem 1rem; font-size:.68rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.07em; color: var(--text-muted); background: rgba(255,255,255,.025);
+    border-bottom: 1px solid var(--border); white-space:nowrap;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .detail-table tbody tr { border-bottom: 1px solid rgba(255,255,255,.04); transition: background .12s; }
+  .detail-table tbody tr:hover { background: rgba(255,255,255,.03); }
+  .detail-table tbody tr:last-child { border-bottom: none; }
+  .detail-table td { padding: .7rem 1rem; vertical-align: middle; color: var(--text-secondary); }
+
+  /* ── Form inside modal ── */
+  .hs-form-view { padding: 1.5rem; }
+  .form-label-sm { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
+  .form-ctrl-dark {
     background: rgba(255,255,255,.05); border:1px solid var(--border-md);
     border-radius: var(--r-md); color: var(--text-primary); font-size:.85rem;
+    padding: .55rem .85rem; transition: var(--t-fast); width:100%;
   }
-  .modal .form-control:focus {
+  .form-ctrl-dark:focus {
     background: rgba(255,255,255,.08); border-color: rgba(79,142,247,.55);
-    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12); color: var(--text-primary); outline:none;
   }
-  .modal .form-text { color: var(--text-disabled) !important; font-size:.72rem; }
+  .form-ctrl-dark::placeholder { color: var(--text-disabled); }
+  .form-ctrl-dark:disabled { opacity:.5; cursor:not-allowed; }
 
-  /* ── Séances info ── */
+  /* ── Séances pills ── */
   .schedule-pill {
     display: inline-flex; align-items: center; gap: .4rem;
-    font-size: .72rem; font-weight:700;
-    background: rgba(79,142,247,.1); color: #4f8ef7;
-    border: 1px solid rgba(79,142,247,.2);
-    border-radius: 999px; padding: .2em .7em;
+    font-size: .72rem; font-weight:700; background: rgba(79,142,247,.1); color: #4f8ef7;
+    border: 1px solid rgba(79,142,247,.2); border-radius: 999px; padding: .2em .7em;
   }
-
-  /* ── Empty state ── */
-  .empty-state { text-align:center; padding: 4rem 2rem; color: var(--text-disabled); }
-  .empty-state i { font-size:3rem; margin-bottom:1rem; display:block; opacity:.3; }
 
   /* ── Stats bar ── */
-  .hs-stats-bar {
-    display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
-  }
+  .hs-stats-bar { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .hs-stat-card {
     background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 1rem 1.4rem;
-    flex: 1; min-width: 160px;
+    border-radius: var(--r-lg); padding: 1rem 1.4rem; flex: 1; min-width: 160px;
   }
   .hs-stat-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:.3rem; }
   .hs-stat-value { font-size:1.6rem; font-weight:900; color:var(--text-primary); }
   .hs-stat-unit  { font-size:.72rem; color:var(--text-muted); margin-left:.2rem; }
+
+  .empty-state { text-align:center; padding: 4rem 2rem; color: var(--text-disabled); }
+  .empty-state i { font-size:3rem; margin-bottom:1rem; display:block; opacity:.3; }
+  .detail-loading { text-align:center; padding:3.5rem 2rem; color:var(--text-muted); }
 </style>
 {% endblock %}
 
 {% block content %}
+
+{# CSRF token accessible au JS via meta tag #}
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 <!-- ── PAGE HEADER ── -->
 <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
@@ -145,7 +134,7 @@
       <i class="fas fa-cog me-1"></i>Configuration de mois
     </a>
     {% endif %}
-    <button type="button" class="btn btn-sm" id="exportHsBtn"
+    <button type="button" class="btn btn-sm"
        style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.25);font-size:.82rem;"
        onclick="exportHsXlsx()">
       <i class="fas fa-file-excel me-1"></i>Export XLSX
@@ -154,7 +143,7 @@
 </div>
 
 <!-- ── STATS BAR ── -->
-<div class="hs-stats-bar" id="hsStatsBar">
+<div class="hs-stats-bar">
   <div class="hs-stat-card">
     <div class="hs-stat-label"><i class="fas fa-calendar-week me-1"></i>Cette semaine</div>
     <div><span class="hs-stat-value" id="statSemaine">—</span><span class="hs-stat-unit">h</span></div>
@@ -189,7 +178,6 @@
 <form method="GET" action="{{ url_for('main.heures_supplementaires') }}" id="hsFilterForm">
   <div class="filter-bar" style="flex-wrap:wrap;gap:.75rem;">
 
-    <!-- Dates -->
     <div style="flex:1;min-width:140px;">
       <label class="form-label">Date début</label>
       <input type="date" class="form-control" name="date_debut"
@@ -201,13 +189,12 @@
              value="{{ date_fin.strftime('%Y-%m-%d') if date_fin else '' }}">
     </div>
 
-    <!-- Filtre Personnel (static multi-select dropdown) -->
+    <!-- Filtre Personnel -->
     <div style="flex:2;min-width:210px;position:relative;">
       <label class="form-label">Personnels</label>
       <div id="personnelDropdown">
         <button type="button" class="form-control d-flex justify-content-between align-items-center"
-                style="cursor:pointer;text-align:left;"
-                onclick="toggleDropdown('personnelDD')">
+                style="cursor:pointer;text-align:left;" onclick="toggleDropdown('personnelDD')">
           <span id="personnelLabel">{% if selected_personnel_ids_hs %}{{ selected_personnel_ids_hs|length }} sélectionné(s){% else %}Tous les personnels{% endif %}</span>
           <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
         </button>
@@ -243,9 +230,8 @@
       <label class="form-label">Projets</label>
       <div class="dropdown" id="projetDropdown">
         <button type="button" class="form-control d-flex justify-content-between align-items-center"
-                style="cursor:pointer;text-align:left;"
-                onclick="toggleDropdown('projetDD')">
-          <span id="projetLabel">Tous les projets</span>
+                style="cursor:pointer;text-align:left;" onclick="toggleDropdown('projetDD')">
+          <span id="projetLabel">{% if selected_projet_ids %}{{ selected_projet_ids|length }} projet(s){% else %}Tous les projets{% endif %}</span>
           <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
         </button>
         <div id="projetDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;
@@ -258,8 +244,7 @@
           <div id="projetItems" style="overflow-y:auto;max-height:200px;padding:0 .5rem .5rem;">
             {% for p in all_projets %}
             <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
-                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''"
-                   class="projet-option">
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
               <input type="checkbox" name="projet_ids[]" value="{{ p.id }}"
                      {% if p.id in selected_projet_ids %}checked{% endif %}
                      onchange="updateLabel('projetDD','projet_ids[]','projetLabel','Tous les projets','projet(s)')">
@@ -276,9 +261,8 @@
       <label class="form-label">Fonctions</label>
       <div class="dropdown" id="fonctionDropdown">
         <button type="button" class="form-control d-flex justify-content-between align-items-center"
-                style="cursor:pointer;text-align:left;"
-                onclick="toggleDropdown('fonctionDD')">
-          <span id="fonctionLabel">Toutes les fonctions</span>
+                style="cursor:pointer;text-align:left;" onclick="toggleDropdown('fonctionDD')">
+          <span id="fonctionLabel">{% if selected_fonctions %}{{ selected_fonctions|length }} fonction(s){% else %}Toutes les fonctions{% endif %}</span>
           <i class="fas fa-chevron-down" style="font-size:.65rem;opacity:.5;"></i>
         </button>
         <div id="fonctionDD" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;
@@ -291,8 +275,7 @@
           <div id="fonctionItems" style="overflow-y:auto;max-height:200px;padding:0 .5rem .5rem;">
             {% for f in all_fonctions %}
             <label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:6px;cursor:pointer;font-size:.82rem;transition:background .12s;"
-                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''"
-                   class="fonction-option">
+                   onmouseover="this.style.background='rgba(79,142,247,.08)'" onmouseout="this.style.background=''">
               <input type="checkbox" name="fonctions[]" value="{{ f }}"
                      {% if f in selected_fonctions %}checked{% endif %}
                      onchange="updateLabel('fonctionDD','fonctions[]','fonctionLabel','Toutes les fonctions','fonction(s)')">
@@ -304,7 +287,6 @@
       </div>
     </div>
 
-    <!-- Boutons -->
     <div class="d-flex gap-2 align-items-end">
       <button type="submit" class="btn btn-primary" style="font-size:.84rem;padding:.5rem 1.1rem;">
         <i class="fas fa-filter me-1"></i>Filtrer
@@ -317,7 +299,7 @@
   </div>
 </form>
 
-<!-- ── TABLE ── -->
+<!-- ── MAIN TABLE ── -->
 <div class="hs-table-wrap">
   {% if rows %}
   <div style="overflow-x:auto;">
@@ -330,13 +312,12 @@
           <th>Projet</th>
           <th>Début déplacement</th>
           <th>Fin déplacement</th>
-          <th>Heures Supp.</th>
-          <th>Commentaire</th>
-          {% if current_user.is_admin %}<th style="text-align:center;">Actions</th>{% endif %}
+          <th>Total HS</th>
+          <th style="text-align:center;">Actions</th>
         </tr>
       </thead>
       <tbody>
-        {% for dep, pers, hs in rows %}
+        {% for dep, pers, total_hs, nb_jours_hs in rows %}
         <tr>
           <td>
             <span style="font-family:'JetBrains Mono',monospace;font-size:.78rem;background:rgba(255,255,255,.06);padding:.2em .55em;border-radius:6px;color:var(--text-primary);">
@@ -371,42 +352,26 @@
             <div style="font-size:.72rem;color:var(--text-muted);">{{ dep.heure_fin.strftime('%H:%M') }}</div>
           </td>
           <td>
-            {% if hs %}
+            {% if total_hs %}
               <span class="badge-hs">
                 <i class="fas fa-plus-circle" style="font-size:.65rem;"></i>
-                {{ "%.2f"|format(hs.heures|float) }} h
+                {{ "%.2f"|format(total_hs|float) }} h
+                {% if nb_jours_hs and nb_jours_hs > 1 %}
+                  <span style="font-size:.65rem;opacity:.7;margin-left:.15rem;">· {{ nb_jours_hs }} j</span>
+                {% endif %}
               </span>
             {% else %}
               <span class="badge-no-hs">—</span>
             {% endif %}
           </td>
-          <td style="color:var(--text-muted);font-size:.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ hs.commentaire if hs else '' }}">
-            {{ hs.commentaire if hs and hs.commentaire else '—' }}
-          </td>
-          {% if current_user.is_admin %}
-          <td style="text-align:center;white-space:nowrap;">
-            <!-- Bouton Ajouter/Modifier HS -->
-            <button class="btn btn-sm btn-hs-add"
-              style="background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3);font-size:.75rem;padding:.3rem .7rem;"
+          <td style="text-align:center;">
+            <button class="btn btn-sm btn-dep-detail"
+              style="background:rgba(79,142,247,.15);color:#4f8ef7;border:1px solid rgba(79,142,247,.3);font-size:.75rem;padding:.35rem .85rem;"
               data-dep-id="{{ dep.id }}"
-              data-nom="{{ pers.nom }} {{ pers.prenom }}"
-              data-heures="{{ '%.2f'|format(hs.heures|float) if hs else '' }}"
-              data-comment="{{ hs.commentaire if hs and hs.commentaire else '' }}"
-              data-hs-id="{{ hs.id if hs else '' }}">
-              <i class="fas fa-{{ 'edit' if hs else 'plus' }} me-1"></i>{{ 'Modifier' if hs else 'Ajouter' }}
+              data-nom="{{ pers.nom }} {{ pers.prenom }}">
+              <i class="fas fa-calendar-alt me-1"></i>Détail jours
             </button>
-            {% if hs %}
-            <form method="POST" action="{{ url_for('main.delete_heure_supplementaire', id=hs.id) }}"
-                  style="display:inline-block;" onsubmit="return confirm('Supprimer ces HS ?')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm"
-                style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25);font-size:.75rem;padding:.3rem .7rem;">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </form>
-            {% endif %}
           </td>
-          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -422,7 +387,7 @@
       Total HS affiché :
       <strong style="color:#fb923c;">
         {% set total = namespace(v=0) %}
-        {% for dep, pers, hs in rows %}{% if hs %}{% set total.v = total.v + hs.heures|float %}{% endif %}{% endfor %}
+        {% for dep, pers, total_hs, nb in rows %}{% if total_hs %}{% set total.v = total.v + total_hs|float %}{% endif %}{% endfor %}
         {{ "%.2f"|format(total.v) }} h
       </strong>
     </span>
@@ -437,149 +402,206 @@
   {% endif %}
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- MODAL AJOUTER / MODIFIER HS                            -->
-<!-- ═══════════════════════════════════════════════════════ -->
-{% if current_user.is_admin %}
-<div class="modal fade" id="modalHS" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODAL — DÉTAIL HS PAR JOUR                                     -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalDepDetail" tabindex="-1" aria-modal="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
+
+      <!-- Header -->
       <div class="modal-header">
         <h5 class="modal-title">
-          <i class="fas fa-clock me-2" style="color:#fb923c;"></i>
-          <span id="modalHSTitle">Heures Supplémentaires</span>
+          <i class="fas fa-calendar-alt me-2" style="color:#4f8ef7;"></i>
+          <span id="detailModalTitle">Détail HS par jour</span>
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                style="filter:invert(1) opacity(.5);"></button>
-      </div>
-      <form method="POST" action="{{ url_for('main.add_heure_supplementaire') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="deplacement_id" id="modalDepId">
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Personnel</label>
-            <input type="text" class="form-control" id="modalPersonnel" disabled
-                   style="opacity:.6;cursor:not-allowed;">
-          </div>
-
-          <!-- Séances (référence) -->
-          {% if schedules %}
-          <div class="mb-3">
-            <label class="form-label">Séances de référence</label>
-            <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
-              {% for s in schedules %}
-              <button type="button" class="btn btn-sm schedule-ref-btn"
-                style="background:rgba(79,142,247,.1);color:#4f8ef7;border:1px solid rgba(79,142,247,.2);font-size:.75rem;"
-                data-heures="{{ s.duree_heures }}">
-                <i class="fas fa-clock me-1"></i>{{ s.nom }} ({{ s.duree_heures }}h)
-              </button>
-              {% endfor %}
-            </div>
-            <div class="form-text mt-1">Cliquez sur une séance pour pré-remplir les heures</div>
-          </div>
-          {% endif %}
-
-          <div class="mb-3">
-            <label class="form-label">Nombre d'heures supplémentaires *</label>
-            <div class="input-group">
-              <span class="input-group-text" style="background:rgba(255,255,255,.04);border-color:var(--border-md);color:var(--text-muted);">
-                <i class="fas fa-hourglass-half" style="font-size:.8rem;"></i>
-              </span>
-              <input type="number" class="form-control" name="heures" id="modalHeures"
-                     step="0.25" min="0.25" max="24" required
-                     placeholder="ex: 1.5">
-            </div>
-            <div class="form-text">Utilisez des quarts d'heure (0.25, 0.5, 0.75, 1.0…)</div>
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">Commentaire (optionnel)</label>
-            <textarea class="form-control" name="commentaire" id="modalComment"
-                      rows="2" maxlength="255"
-                      placeholder="Raison des heures supplémentaires…"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm"
-                  style="background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.84rem;"
-                  data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-sm"
-                  style="background:linear-gradient(135deg,#fb923c,#f59e0b);color:#000;font-weight:700;font-size:.84rem;border:none;">
-            <i class="fas fa-save me-1"></i>Enregistrer
+        <div class="d-flex align-items-center gap-2">
+          <button id="btnExportDetail" class="btn btn-sm"
+            style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.25);font-size:.78rem;">
+            <i class="fas fa-file-excel me-1"></i>Export XLSX
           </button>
+          <button id="btnBackToTable" class="btn btn-sm" style="display:none;
+            background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.78rem;"
+            onclick="showTableView()">
+            <i class="fas fa-arrow-left me-1"></i>Retour
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"
+                  style="filter:invert(1) opacity(.5);"></button>
         </div>
-      </form>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body p-0" style="min-height:320px;">
+
+        <!-- VUE 1 : tableau des jours -->
+        <div id="detailTableView">
+          <div id="detailLoading" class="detail-loading">
+            <div class="spinner-border" style="color:#4f8ef7;width:2rem;height:2rem;" role="status"></div>
+            <div style="margin-top:.75rem;font-size:.82rem;">Chargement des jours…</div>
+          </div>
+          <div id="detailTableWrap" style="display:none;overflow-x:auto;">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>Jour</th>
+                  <th>Nom &amp; Prénom</th>
+                  <th>Fonction</th>
+                  <th>Projet</th>
+                  <th>Début dép.</th>
+                  <th>Fin dép.</th>
+                  <th>Heures Supp</th>
+                  <th>Commentaire</th>
+                  {% if current_user.is_admin %}<th style="text-align:center;">Actions</th>{% endif %}
+                </tr>
+              </thead>
+              <tbody id="detailTableBody"></tbody>
+            </table>
+            <div id="detailSummary"
+                 style="padding:.65rem 1rem;border-top:1px solid var(--border);
+                        display:flex;justify-content:space-between;align-items:center;
+                        font-size:.75rem;color:var(--text-muted);background:rgba(255,255,255,.015);">
+            </div>
+          </div>
+        </div>
+
+        <!-- VUE 2 : formulaire ajout / modification HS pour un jour précis -->
+        <div id="detailFormView" class="hs-form-view" style="display:none;">
+          <div style="margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+            <div style="font-size:.9rem;font-weight:800;color:var(--text-primary);" id="hsFormTitle">Ajouter des HS</div>
+            <div style="font-size:.76rem;color:var(--text-muted);margin-top:.2rem;" id="hsFormSubtitle"></div>
+          </div>
+
+          <form id="formHSDay" autocomplete="off">
+            <input type="hidden" name="csrf_token"    value="{{ csrf_token() }}">
+            <input type="hidden" name="deplacement_id" id="hsDayDepId">
+            <input type="hidden" name="date_hs"        id="hsDayDate">
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label-sm">Personnel</label>
+                <input type="text" class="form-ctrl-dark" id="hsDayPersonnel" disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-sm">Jour concerné</label>
+                <input type="text" class="form-ctrl-dark" id="hsDayDateDisplay" disabled>
+              </div>
+
+              {% if schedules %}
+              <div class="col-12">
+                <label class="form-label-sm">Séances de référence</label>
+                <div style="display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.25rem;">
+                  {% for s in schedules %}
+                  <button type="button" class="btn btn-sm schedule-ref-btn-day"
+                    style="background:rgba(79,142,247,.1);color:#4f8ef7;border:1px solid rgba(79,142,247,.2);font-size:.74rem;"
+                    data-heures="{{ s.duree_heures }}">
+                    <i class="fas fa-clock me-1"></i>{{ s.nom }} ({{ s.duree_heures }}h)
+                  </button>
+                  {% endfor %}
+                </div>
+                <div style="font-size:.7rem;color:var(--text-disabled);margin-top:.3rem;">Cliquez pour pré-remplir les heures</div>
+              </div>
+              {% endif %}
+
+              <div class="col-md-6">
+                <label class="form-label-sm">Heures supplémentaires *</label>
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                  <span style="background:rgba(255,255,255,.04);border:1px solid var(--border-md);border-radius:var(--r-md);padding:.55rem .75rem;color:var(--text-muted);">
+                    <i class="fas fa-hourglass-half" style="font-size:.8rem;"></i>
+                  </span>
+                  <input type="number" class="form-ctrl-dark" name="heures" id="hsDayHeures"
+                         step="0.25" min="0.25" max="24" required placeholder="ex : 1.5" style="flex:1;">
+                </div>
+                <div style="font-size:.7rem;color:var(--text-disabled);margin-top:.3rem;">Utilisez des quarts d'heure (0.25, 0.5…)</div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label-sm">Commentaire (optionnel)</label>
+                <textarea class="form-ctrl-dark" name="commentaire" id="hsDayComment"
+                          rows="2" maxlength="255"
+                          placeholder="Raison des heures supplémentaires…"></textarea>
+              </div>
+            </div>
+
+            <div id="hsDayFeedback" style="display:none;margin-top:1rem;padding:.65rem .9rem;border-radius:var(--r-md);font-size:.82rem;"></div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+              <button type="button" class="btn btn-sm"
+                style="background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border);font-size:.84rem;"
+                onclick="showTableView()">Annuler</button>
+              <button type="submit" id="hsDaySubmitBtn" class="btn btn-sm"
+                style="background:linear-gradient(135deg,#fb923c,#f59e0b);color:#000;font-weight:700;font-size:.84rem;border:none;padding:.5rem 1.4rem;">
+                <i class="fas fa-save me-1"></i><span id="hsDaySubmitLabel">Enregistrer</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div><!-- /modal-body -->
     </div>
   </div>
 </div>
-{% endif %}
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// ── Charger stats KPI ──
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const IS_ADMIN   = {{ 'true' if current_user.is_admin else 'false' }};
+
+// ── KPI Stats ──
 fetch('{{ url_for("main.api_hs_stats") }}')
   .then(r => r.json())
   .then(d => {
     document.getElementById('statSemaine').textContent = d.hs_semaine.toFixed(2);
     document.getElementById('statMois').textContent    = d.hs_mois.toFixed(2);
-    if (d.debut_mois_sal) {
-      document.getElementById('moisLabel').textContent = `depuis le ${d.debut_mois_sal}`;
-    }
-
+    if (d.debut_mois_sal) document.getElementById('moisLabel').textContent = `depuis le ${d.debut_mois_sal}`;
     const top5el = document.getElementById('statTop5');
-    if (d.top5.length === 0) {
+    if (!d.top5.length) {
       top5el.innerHTML = '<span style="color:var(--text-disabled);">Aucune donnée</span>';
     } else {
       const maxH = d.top5[0].total_hs;
+      const colors = ['#fb923c','#f59e0b','#4f8ef7','#06d6a0','#9b5cf6'];
       top5el.innerHTML = d.top5.map((p, i) => {
         const pct = maxH > 0 ? (p.total_hs / maxH * 100).toFixed(0) : 0;
-        const colors = ['#fb923c','#f59e0b','#4f8ef7','#06d6a0','#9b5cf6'];
-        return `
-          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;">
-            <span style="font-size:.68rem;font-weight:900;color:${colors[i]};min-width:16px;">#${i+1}</span>
-            <div style="flex:1;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:.2rem;">
-                <span style="font-weight:700;color:var(--text-primary);">${p.nom} ${p.prenom}</span>
-                <span style="font-weight:800;color:${colors[i]};">${p.total_hs.toFixed(2)}h</span>
-              </div>
-              <div style="height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;">
-                <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:99px;transition:width .6s;"></div>
-              </div>
+        return `<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;">
+          <span style="font-size:.68rem;font-weight:900;color:${colors[i]};min-width:16px;">#${i+1}</span>
+          <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.2rem;">
+              <span style="font-weight:700;color:var(--text-primary);">${p.nom} ${p.prenom}</span>
+              <span style="font-weight:800;color:${colors[i]};">${p.total_hs.toFixed(2)}h</span>
             </div>
-          </div>`;
+            <div style="height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:99px;"></div>
+            </div>
+          </div>
+        </div>`;
       }).join('');
     }
   }).catch(() => {});
 
-// ── Dropdown helpers (shared for all 3 dropdowns) ──
+// ── Dropdown helpers ──
 function toggleDropdown(id) {
   const el   = document.getElementById(id);
   const open = el.style.display !== 'none';
   ['personnelDD','projetDD','fonctionDD'].forEach(d => {
-    const x = document.getElementById(d);
-    if (x) x.style.display = 'none';
+    const x = document.getElementById(d); if (x) x.style.display = 'none';
   });
   if (!open) {
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
+    el.style.display = 'flex'; el.style.flexDirection = 'column';
     const inp = el.querySelector('input[type="text"]');
     if (inp) { inp.value = ''; inp.focus(); filterDropdown(el.querySelector('[id$="Items"]')?.id, ''); }
   }
 }
-
 document.addEventListener('click', function(e) {
   if (!e.target.closest('#personnelDropdown') &&
       !e.target.closest('#projetDropdown') &&
       !e.target.closest('#fonctionDropdown')) {
     ['personnelDD','projetDD','fonctionDD'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+      const el = document.getElementById(id); if (el) el.style.display = 'none';
     });
   }
 });
-
 function filterDropdown(listId, term) {
   if (!listId) return;
   const t = term.trim().toLowerCase();
@@ -587,14 +609,13 @@ function filterDropdown(listId, term) {
     lbl.style.display = (!t || lbl.textContent.toLowerCase().includes(t)) ? '' : 'none';
   });
 }
-
 function updateLabel(ddId, checkName, labelId, defaultText, unit) {
   const checked = document.querySelectorAll(`#${ddId} input[name="${checkName}"]:checked`);
   document.getElementById(labelId).textContent =
     checked.length === 0 ? defaultText : `${checked.length} ${unit}`;
 }
 
-// ── Export XLSX (via server avec filtres courants) ──
+// ── Export XLSX global (toute la liste filtrée) ──
 function exportHsXlsx() {
   const form   = document.getElementById('hsFilterForm');
   const params = new URLSearchParams();
@@ -608,32 +629,251 @@ function exportHsXlsx() {
   window.location.href = `/heures-supplementaires/export?${params.toString()}`;
 }
 
-{% if current_user.is_admin %}
-// ── Ouvrir modal HS ──
-document.querySelectorAll('.btn-hs-add').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const depId   = this.dataset.depId;
-    const nom     = this.dataset.nom;
-    const heures  = this.dataset.heures;
-    const comment = this.dataset.comment;
+// ═══════════════════════════════════════════════════════
+// MODAL DÉTAIL PAR JOUR
+// ═══════════════════════════════════════════════════════
+let _detailDepId = null;
+let _detailModal = null;
 
-    document.getElementById('modalDepId').value      = depId;
-    document.getElementById('modalPersonnel').value  = nom;
-    document.getElementById('modalHeures').value     = heures || '';
-    document.getElementById('modalComment').value    = comment || '';
-    document.getElementById('modalHSTitle').textContent =
-      heures ? `Modifier HS — ${nom}` : `Ajouter HS — ${nom}`;
-
-    new bootstrap.Modal(document.getElementById('modalHS')).show();
+// Ouvrir le modal au clic sur "Détail jours"
+document.querySelectorAll('.btn-dep-detail').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    _detailDepId = this.dataset.depId;
+    const nom    = this.dataset.nom;
+    openDetailModal(_detailDepId, nom);
   });
 });
+
+function openDetailModal(depId, nom) {
+  _detailDepId = depId;
+  document.getElementById('detailModalTitle').textContent  = `Détail HS — ${nom}`;
+  document.getElementById('detailLoading').style.display   = 'block';
+  document.getElementById('detailTableWrap').style.display = 'none';
+  showTableView();
+
+  if (!_detailModal) {
+    _detailModal = new bootstrap.Modal(document.getElementById('modalDepDetail'));
+  }
+  _detailModal.show();
+
+  // Bouton export XLSX du détail
+  document.getElementById('btnExportDetail').onclick = () => {
+    window.location.href = `/heures-supplementaires/${depId}/export-detail`;
+  };
+
+  // Charger les données via l'API
+  fetch(`/api/deplacement/${depId}/detail`)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      renderDetailTable(data);
+      document.getElementById('detailLoading').style.display   = 'none';
+      document.getElementById('detailTableWrap').style.display = 'block';
+    })
+    .catch(err => {
+      document.getElementById('detailLoading').innerHTML =
+        `<div style="color:#ef4444;"><i class="fas fa-exclamation-circle me-2"></i>Erreur : ${err.message}</div>`;
+    });
+}
+
+// ── Construire le tableau par jour ──
+function renderDetailTable(data) {
+  const tbody = document.getElementById('detailTableBody');
+  tbody.innerHTML = '';
+  let totalHS   = 0;
+  let nbJoursHS = 0;
+
+  data.jours.forEach(jour => {
+    if (jour.heures != null) { totalHS += jour.heures; nbJoursHS++; }
+
+    const hsHtml = jour.heures != null
+      ? `<span style="font-weight:800;color:#fb923c;font-size:.82rem;">
+           <i class="fas fa-plus-circle" style="font-size:.63rem;margin-right:.25rem;"></i>${jour.heures.toFixed(2)} h
+         </span>`
+      : `<span style="color:var(--text-disabled);font-size:.75rem;">—</span>`;
+
+    const fonctionHtml = data.personnel.fonction
+      ? `<span style="font-size:.72rem;background:rgba(155,92,246,.1);color:#9b5cf6;
+                      border:1px solid rgba(155,92,246,.2);border-radius:6px;padding:.2em .5em;font-weight:700;">${escHtml(data.personnel.fonction)}</span>`
+      : `<span style="color:var(--text-disabled);font-size:.75rem;">—</span>`;
+
+    const commentHtml = jour.commentaire
+      ? `<span title="${escHtml(jour.commentaire)}" style="font-size:.78rem;color:var(--text-muted);
+                max-width:160px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+           ${escHtml(jour.commentaire)}</span>`
+      : `<span style="color:var(--text-disabled);font-size:.75rem;">—</span>`;
+
+    let actionsHtml = '';
+    if (IS_ADMIN) {
+      const isEdit     = jour.heures != null;
+      const btnLabel   = isEdit ? 'Modifier' : 'Ajouter';
+      const btnIcon    = isEdit ? 'edit' : 'plus';
+      const btnStyle   = isEdit
+        ? 'background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.3);'
+        : 'background:rgba(6,214,160,.12);color:#06d6a0;border:1px solid rgba(6,214,160,.25);';
+      const safeComment = (jour.commentaire || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const safeNom     = (data.personnel.nom + ' ' + data.personnel.prenom).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const safeDate    = jour.date.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+      actionsHtml = `
+        <button class="btn btn-sm" style="${btnStyle}font-size:.72rem;padding:.3rem .65rem;"
+          onclick="showHsForm(${data.deplacement.id},'${jour.date_iso}','${safeDate}','${safeNom}',${jour.heures != null ? jour.heures : 'null'},'${safeComment}')">
+          <i class="fas fa-${btnIcon} me-1"></i>${btnLabel}
+        </button>`;
+
+      if (jour.hs_id) {
+        actionsHtml += `
+        <button class="btn btn-sm ms-1"
+          style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);font-size:.72rem;padding:.3rem .6rem;"
+          onclick="deleteHsDay(${jour.hs_id})">
+          <i class="fas fa-trash-alt"></i>
+        </button>`;
+      }
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="font-weight:800;color:var(--text-primary);font-size:.85rem;">${escHtml(jour.date)}</span></td>
+      <td>
+        <div style="font-weight:700;color:var(--text-primary);">${escHtml(data.personnel.nom)} ${escHtml(data.personnel.prenom)}</div>
+        <div style="font-size:.7rem;color:var(--text-muted);">${escHtml(data.personnel.matricule)}</div>
+      </td>
+      <td>${fonctionHtml}</td>
+      <td>
+        <div style="font-weight:600;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(data.projet.nom)}">${escHtml(data.projet.nom)}</div>
+        <div style="font-size:.7rem;color:var(--text-muted);">${escHtml(data.projet.gouvernorat)}</div>
+      </td>
+      <td>
+        <div style="color:var(--text-primary);">${escHtml(data.deplacement.date_debut)}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);">${escHtml(data.deplacement.heure_debut)}</div>
+      </td>
+      <td>
+        <div style="color:var(--text-primary);">${escHtml(data.deplacement.date_fin)}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);">${escHtml(data.deplacement.heure_fin)}</div>
+      </td>
+      <td>${hsHtml}</td>
+      <td>${commentHtml}</td>
+      ${IS_ADMIN ? `<td style="text-align:center;white-space:nowrap;">${actionsHtml}</td>` : ''}
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('detailSummary').innerHTML =
+    `<span><strong style="color:var(--text-secondary);">${data.jours.length}</strong> jour(s) de déplacement</span>
+     <span>Total HS : <strong style="color:#fb923c;">${totalHS.toFixed(2)} h</strong>
+       ${nbJoursHS > 0 ? `<span style="opacity:.6;font-size:.7rem;"> · ${nbJoursHS} jour(s) avec HS</span>` : ''}
+     </span>`;
+}
+
+// ── Basculer entre les deux vues du modal ──
+function showTableView() {
+  document.getElementById('detailTableView').style.display = 'block';
+  document.getElementById('detailFormView').style.display  = 'none';
+  document.getElementById('btnExportDetail').style.display = '';
+  document.getElementById('btnBackToTable').style.display  = 'none';
+}
+function showFormView() {
+  document.getElementById('detailTableView').style.display = 'none';
+  document.getElementById('detailFormView').style.display  = 'block';
+  document.getElementById('btnExportDetail').style.display = 'none';
+  document.getElementById('btnBackToTable').style.display  = '';
+}
+
+// ── Ouvrir le formulaire pour un jour précis ──
+function showHsForm(depId, dateIso, dateDisplay, nomPrenom, heures, commentaire) {
+  document.getElementById('hsDayDepId').value       = depId;
+  document.getElementById('hsDayDate').value        = dateIso;
+  document.getElementById('hsDayDateDisplay').value = dateDisplay;
+  document.getElementById('hsDayPersonnel').value   = nomPrenom;
+  document.getElementById('hsDayHeures').value      = heures != null ? heures : '';
+  document.getElementById('hsDayComment').value     = commentaire || '';
+  document.getElementById('hsDayFeedback').style.display = 'none';
+
+  const isEdit = heures != null;
+  document.getElementById('hsFormTitle').textContent     = isEdit ? `Modifier les HS — ${dateDisplay}` : `Ajouter des HS — ${dateDisplay}`;
+  document.getElementById('hsFormSubtitle').textContent  = nomPrenom;
+  document.getElementById('hsDaySubmitLabel').textContent = isEdit ? 'Mettre à jour' : 'Enregistrer';
+  showFormView();
+}
 
 // ── Séances de référence → pré-remplir heures ──
-document.querySelectorAll('.schedule-ref-btn').forEach(btn => {
+document.querySelectorAll('.schedule-ref-btn-day').forEach(btn => {
   btn.addEventListener('click', function() {
-    document.getElementById('modalHeures').value = this.dataset.heures;
+    document.getElementById('hsDayHeures').value = this.dataset.heures;
   });
 });
-{% endif %}
+
+// ── Soumettre le formulaire via AJAX ──
+document.getElementById('formHSDay').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn      = document.getElementById('hsDaySubmitBtn');
+  const feedback = document.getElementById('hsDayFeedback');
+  btn.disabled   = true;
+  btn.innerHTML  = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement…';
+  feedback.style.display = 'none';
+
+  fetch('{{ url_for("main.add_heure_supplementaire") }}', {
+    method:  'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    body:    new FormData(this),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showTableView();
+      reloadDetailTable();
+    } else {
+      showFeedbackError(feedback, data.error || 'Erreur lors de l\'enregistrement.');
+    }
+  })
+  .catch(() => showFeedbackError(feedback, 'Erreur réseau. Veuillez réessayer.'))
+  .finally(() => {
+    btn.disabled  = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i><span id="hsDaySubmitLabel">Enregistrer</span>';
+  });
+});
+
+// ── Supprimer les HS d'un jour ──
+function deleteHsDay(hsId) {
+  if (!confirm('Supprimer les heures supplémentaires de ce jour ?')) return;
+  fetch(`/heures-supplementaires/delete/${hsId}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+    body:    `csrf_token=${encodeURIComponent(CSRF_TOKEN)}`,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) { reloadDetailTable(); }
+    else { alert(data.error || 'Erreur lors de la suppression.'); }
+  })
+  .catch(() => alert('Erreur réseau.'));
+}
+
+// ── Recharger le tableau de détail ──
+function reloadDetailTable() {
+  document.getElementById('detailLoading').style.display   = 'block';
+  document.getElementById('detailTableWrap').style.display = 'none';
+  fetch(`/api/deplacement/${_detailDepId}/detail`)
+    .then(r => r.json())
+    .then(data => {
+      renderDetailTable(data);
+      document.getElementById('detailLoading').style.display   = 'none';
+      document.getElementById('detailTableWrap').style.display = 'block';
+    })
+    .catch(err => {
+      document.getElementById('detailLoading').innerHTML =
+        `<div style="color:#ef4444;padding:2rem;text-align:center;"><i class="fas fa-exclamation-circle me-2"></i>${err.message}</div>`;
+    });
+}
+
+// ── Utilitaires ──
+function showFeedbackError(el, msg) {
+  el.style.cssText = 'display:block;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#ef4444;padding:.65rem .9rem;border-radius:8px;font-size:.82rem;margin-top:1rem;';
+  el.innerHTML     = `<i class="fas fa-exclamation-circle me-1"></i>${escHtml(msg)}`;
+}
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
 {% endblock %}

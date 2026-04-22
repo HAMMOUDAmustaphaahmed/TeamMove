@@ -1,3 +1,4 @@
 .env
 _pycache
 db_tool._pycache
+venv/

@@ -75,6 +75,15 @@ def column_exists(cur, db_name, table_name, col_name):
     return cur.fetchone()['cnt'] > 0
 
 
+def index_exists(cur, db_name, table_name, index_name):
+    cur.execute("""
+        SELECT COUNT(*) as cnt
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s
+    """, (db_name, table_name, index_name))
+    return cur.fetchone()['cnt'] > 0
+
+
 def get_columns(cur, table_name):
     cur.execute(f"DESCRIBE `{table_name}`")
     return cur.fetchall()
@@ -171,13 +180,14 @@ def cmd_inspect():
 #   (type, table, colonne_ou_None)
 MIGRATION_CHECKS = [
     # Tables existantes à compléter
-    ('column', 'projets',      'etat'),
-    ('column', 'deplacements', 'nuitees'),   # v3 — nuitées multi-jours
+    ('column', 'projets',                  'etat'),
+    ('column', 'deplacements',             'nuitees'),        # v3 — nuitées multi-jours
+    ('column', 'heures_supplementaires',   'date'),           # v4 — granularité par jour
     # Nouvelles tables
-    ('table',  'payroll_config',   None),
+    ('table',  'payroll_config',           None),
     # Tables déjà présentes (vérification)
-    ('table',  'work_schedules',         None),
-    ('table',  'heures_supplementaires', None),
+    ('table',  'work_schedules',           None),
+    ('table',  'heures_supplementaires',   None),
 ]
 
 
@@ -286,7 +296,7 @@ def build_migration_steps(cur, db_name):
     else:
         steps.append(("SKIP   payroll_config (déjà présente)", None))
 
-    # ── 4. Table work_schedules (déjà existante, vérification) ──
+    # ── 4. Table work_schedules ──────────────────────────────
     if not table_exists(cur, db_name, 'work_schedules'):
         steps.append((
             "CREATE TABLE work_schedules",
@@ -305,7 +315,7 @@ def build_migration_steps(cur, db_name):
     else:
         steps.append(("SKIP   work_schedules (déjà présente)", None))
 
-    # ── 5. Table heures_supplementaires (déjà existante, vérification) ──
+    # ── 5. Table heures_supplementaires ─────────────────────
     if not table_exists(cur, db_name, 'heures_supplementaires'):
         steps.append((
             "CREATE TABLE heures_supplementaires",
@@ -313,12 +323,14 @@ def build_migration_steps(cur, db_name):
             CREATE TABLE `heures_supplementaires` (
                 `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
                 `deplacement_id` INT UNSIGNED  NOT NULL,
+                `date`           DATE          NULL,
                 `heures`         DECIMAL(6,2)  NOT NULL,
                 `commentaire`    TEXT,
                 `created_by`     INT UNSIGNED  NULL,
                 `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `uq_hs_deplacement` (`deplacement_id`),
+                INDEX `ix_hs_date` (`date`),
+                INDEX `ix_hs_deplacement` (`deplacement_id`),
                 INDEX `ix_hs_created_by` (`created_by`),
                 CONSTRAINT `fk_hs_deplacement`
                     FOREIGN KEY (`deplacement_id`)
@@ -333,6 +345,30 @@ def build_migration_steps(cur, db_name):
         ))
     else:
         steps.append(("SKIP   heures_supplementaires (déjà présente)", None))
+
+    # ── 6. Colonne heures_supplementaires.date (v4) ──────────
+    # Pour les bases existantes où la table existe déjà sans cette colonne.
+    if (table_exists(cur, db_name, 'heures_supplementaires')
+            and not column_exists(cur, db_name, 'heures_supplementaires', 'date')):
+        steps.append((
+            "ADD COLUMN heures_supplementaires.date + INDEX",
+            """
+            ALTER TABLE `heures_supplementaires`
+            ADD COLUMN `date` DATE NULL
+                COMMENT 'Jour précis concerné par les HS (v4)'
+                AFTER `deplacement_id`,
+            ADD INDEX `ix_hs_date` (`date`)
+            """
+        ))
+    elif table_exists(cur, db_name, 'heures_supplementaires'):
+        # Colonne présente — vérifier quand même que l'index existe
+        if not index_exists(cur, db_name, 'heures_supplementaires', 'ix_hs_date'):
+            steps.append((
+                "ADD INDEX ix_hs_date sur heures_supplementaires.date",
+                "ALTER TABLE `heures_supplementaires` ADD INDEX `ix_hs_date` (`date`)"
+            ))
+        else:
+            steps.append(("SKIP   heures_supplementaires.date (déjà présente + indexée)", None))
 
     return steps
 
@@ -372,7 +408,6 @@ def cmd_migrate():
                     skipped += 1
                     continue
                 try:
-                    # Nettoyer les espaces superflus
                     clean_sql = re.sub(r'\s+', ' ', sql).strip()
                     cur.execute(clean_sql)
                     conn.commit()
@@ -398,16 +433,19 @@ def cmd_migrate():
                 print("\n  ⚠️   Migration terminée avec des erreurs. Vérifiez ci-dessus.\n")
 
             # ── Afficher la structure finale des tables touchées ──
-            TABLES_TO_SHOW = ['projets', 'deplacements', 'payroll_config', 'work_schedules', 'heures_supplementaires']
+            TABLES_TO_SHOW = [
+                'projets', 'deplacements', 'payroll_config',
+                'work_schedules', 'heures_supplementaires',
+            ]
             print("  Structure finale des tables migrées :\n")
             for tname in TABLES_TO_SHOW:
                 if not table_exists(cur, db_name, tname):
                     continue
                 print(f"  📋  {tname.upper()} :")
                 for c in get_columns(cur, tname):
-                    key_flag  = f" [{c['Key']}]"  if c['Key']  else ''
-                    null_flag = ''                 if c['Null'] == 'NO' else ' (nullable)'
-                    dft_flag  = f" = {c['Default']}" if c['Default'] is not None else ''
+                    key_flag  = f" [{c['Key']}]"      if c['Key']              else ''
+                    null_flag = ''                     if c['Null'] == 'NO'     else ' (nullable)'
+                    dft_flag  = f" = {c['Default']}"  if c['Default'] is not None else ''
                     print(f"    • {c['Field']:22s} {str(c['Type']):28s}{key_flag}{null_flag}{dft_flag}")
                 print()
 
