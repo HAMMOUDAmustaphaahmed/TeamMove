@@ -179,19 +179,21 @@ class WorkSchedule(db.Model):
 
 
 class HeureSupplementaire(db.Model):
-    """Heures supplémentaires rattachées à un déplacement."""
+    """Heures supplémentaires rattachées à un déplacement, par jour."""
     __tablename__ = 'heures_supplementaires'
 
     id             = db.Column(db.Integer, primary_key=True)
     deplacement_id = db.Column(db.Integer, db.ForeignKey('deplacements.id'),
                                nullable=False, index=True)
+    # Jour précis concerné par les HS (nullable pour compatibilité anciens enregistrements)
+    date           = db.Column(db.Date, nullable=True, index=True)
     heures         = db.Column(db.Numeric(6, 2), nullable=False)    # ex: 1.5
     commentaire    = db.Column(db.Text, nullable=True)
     created_by     = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
 
     deplacement    = db.relationship('Deplacement',
-                                     backref=db.backref('heures_sup', uselist=False))
+                                     backref=db.backref('heures_sup', lazy='dynamic'))
     creator        = db.relationship('User', backref='hs_creees')
 
 class PayrollConfig(db.Model):
