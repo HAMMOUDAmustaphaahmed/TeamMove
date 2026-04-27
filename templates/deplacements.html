@@ -519,14 +519,15 @@
         <tr>
           <th>Matricule</th>
           <th>Personnel</th>
+          <th>Fonction</th>
           <th>Société</th>
-          <th>Projets actifs</th>
+          <th style="text-align:center;">Projets actifs</th>
           <th style="text-align:center;">Nb déplacements</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        {% for personnel, projets_list, nb_deplacements in personnels %}
+        {% for personnel, projets_list, nb_deplacements, nb_projets in personnels %}
         <tr>
           <td>
             <span class="badge bg-secondary" style="font-family:var(--font-mono);">
@@ -542,17 +543,26 @@
               </div>
             </div>
           </td>
-          <td style="font-size:.85rem;">{{ personnel.societe }}</td>
           <td>
-            {% if projets_list %}
-              {% for projet in projets_list.split(',') %}
-                <span class="proj-chip">
-                  <i class="fas fa-map-pin" style="font-size:.65rem;"></i>{{ projet }}
-                </span>
-              {% endfor %}
+            {% if personnel.fonction %}
+              <span style="font-size:.75rem;background:rgba(155,92,246,.1);color:#9b5cf6;
+                           border:1px solid rgba(155,92,246,.2);border-radius:6px;
+                           padding:.2em .55em;font-weight:700;">{{ personnel.fonction }}</span>
+            {% else %}
+              <span style="font-size:.75rem;color:var(--text-disabled);">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ personnel.societe }}</td>
+          <td style="text-align:center;">
+            {% if nb_projets and nb_projets > 0 %}
+              <button class="nb-badge" style="border:none;cursor:pointer;background:rgba(56,189,248,.12);color:#38bdf8;border:1px solid rgba(56,189,248,.2);"
+                onclick="viewProjetsActifs({{ personnel.id }}, '{{ personnel.nom }} {{ personnel.prenom }}')">
+                <i class="fas fa-map-pin" style="font-size:.62rem;"></i>
+                {{ nb_projets }}
+              </button>
             {% else %}
               <span style="font-size:.78rem; color:var(--text-muted);">
-                <i class="fas fa-minus me-1" style="font-size:.6rem;"></i>Aucun
+                <i class="fas fa-minus me-1" style="font-size:.6rem;"></i>0
               </span>
             {% endif %}
           </td>
@@ -577,7 +587,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="6">
+          <td colspan="7">
             <div class="empty-state">
               <i class="fas fa-route"></i>
               <h5>Aucun personnel trouvé</h5>
@@ -855,6 +865,31 @@
 <!-- ════════════════════════════════════════════════
      MODAL — ÉDITER UN DÉPLACEMENT
      ════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════
+     MODAL — PROJETS ACTIFS D'UN PERSONNEL
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="projetsActifsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#38bdf8,#4f8ef7);">
+        <h5 class="modal-title">
+          <i class="fas fa-map-pin me-2"></i>Projets actifs — <span id="projetsActifsName"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="projetsActifsContent">
+        <div style="text-align:center;padding:2rem;">
+          <div class="spinner-border" style="color:#38bdf8;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — MODIFIER DÉPLACEMENT
+     ════════════════════════════════════════════════ -->
 <div class="modal fade" id="editDeplacementModal" tabindex="-1" aria-labelledby="editDeplacementLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -897,11 +932,32 @@
               <input type="time" class="form-control" name="heure_fin" id="editHeureFin" required>
             </div>
           </div>
+
+          <!-- Alerte date invalide -->
+          <div id="editDateError" style="display:none;margin-top:.75rem;padding:.55rem .85rem;
+               background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+               border-radius:8px;font-size:.82rem;color:#ef4444;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            La date de fin ne peut pas être antérieure à la date de début.
+          </div>
+
+          <!-- Nuitées (visible si date_fin > date_debut) -->
+          <div id="editNuiteesSection" class="mt-3" style="display:none;">
+            <div style="background:rgba(155,92,246,.06);border:1px solid rgba(155,92,246,.18);
+                 border-radius:var(--r-lg);padding:1rem;">
+              <div style="font-size:.75rem;font-weight:700;color:#9b5cf6;text-transform:uppercase;
+                   letter-spacing:.06em;margin-bottom:.75rem;">
+                <i class="fas fa-moon me-1"></i>Nuitées sur chantier
+              </div>
+              <div id="editNuiteesRows"></div>
+              <div id="editNuiteesResume" style="margin-top:.75rem;font-size:.75rem;color:rgba(155,92,246,.8);font-weight:700;"></div>
+            </div>
+          </div>
         </div>
 
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-warning">
+          <button type="submit" id="editSubmitBtn" class="btn btn-warning">
             <i class="fas fa-save"></i>Enregistrer les modifications
           </button>
         </div>
@@ -1265,6 +1321,8 @@ function quickAddDeplacement(id, name) {
    VOIR LES DÉPLACEMENTS D'UN PERSONNEL
    ════════════════════════════════════════════════════════ */
 function viewDeplacements(personnelId, name) {
+  _lastViewedPersonnelId   = personnelId;
+  _lastViewedPersonnelName = name;
   document.getElementById('viewPersonnelName').textContent = name;
   document.getElementById('viewDeplacementsContent').innerHTML = `
     <div style="text-align:center; padding:3rem;">
@@ -1273,7 +1331,16 @@ function viewDeplacements(personnelId, name) {
     </div>`;
   new bootstrap.Modal(document.getElementById('viewDeplacementsModal')).show();
 
-  fetch(`/api/personnel/${personnelId}/deplacements`)
+  // Forward active filters (projet, dates) so modal only shows relevant deplacements
+  const _qs = new URLSearchParams(window.location.search);
+  const _apiParams = new URLSearchParams();
+  _qs.getAll('projet_ids[]').forEach(v => _apiParams.append('projet_ids[]', v));
+  if (_qs.get('date_debut')) _apiParams.set('date_debut', _qs.get('date_debut'));
+  if (_qs.get('date_fin'))   _apiParams.set('date_fin',   _qs.get('date_fin'));
+  const _paramStr = _apiParams.toString();
+  const _apiUrl = `/api/personnel/${personnelId}/deplacements` + (_paramStr ? '?' + _paramStr : '');
+
+  fetch(_apiUrl)
     .then(r => r.json())
     .then(data => {
       if (!data.length) {
@@ -1285,12 +1352,34 @@ function viewDeplacements(personnelId, name) {
         return;
       }
 
-      const rows = data.map(d => `
+      // Compute total real deployments (sum of nb_deplacements_reels across all rows)
+      const totalReels  = data.reduce((s, d) => s + (d.nb_deplacements_reels || 1), 0);
+      const totalJours  = data.reduce((s, d) => s + d.jours, 0);
+
+      const rows = data.map(d => {
+        const reels     = d.nb_deplacements_reels || 1;
+        const nuitLabel = (d.nuitees && d.nuitees.length)
+          ? d.nuitees.map((n,i) => `<span style="font-size:.65rem;padding:.1em .35em;border-radius:4px;margin-right:2px;`
+              + (n ? 'background:rgba(6,214,160,.15);color:#06d6a0;' : 'background:rgba(247,201,72,.15);color:#f7c948;') + `">`
+              + `N${i+1}:${n ? 'R' : 'Re'}</span>`).join('')
+          : '';
+        const reelsBadge = reels > 1
+          ? `<span class="dur-badge" style="background:rgba(251,146,60,.12);border-color:rgba(251,146,60,.3);color:#fb923c;margin-left:.3rem;">
+               <i class="fas fa-route"></i>${reels} dép.
+             </span>`
+          : '';
+        return `
         <tr>
           <td><span class="badge bg-info">${d.projet}</span></td>
           <td><span class="date-cell">${d.date_debut}<br><span class="time-dim">${d.heure_debut}</span></span></td>
           <td><span class="date-cell">${d.date_fin}<br><span class="time-dim">${d.heure_fin}</span></span></td>
-          <td><span class="dur-badge"><i class="fas fa-clock"></i>${d.jours}j</span></td>
+          <td>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:.2rem;">
+              <span class="dur-badge"><i class="fas fa-calendar"></i>${d.jours}j</span>
+              ${reelsBadge}
+            </div>
+            <div style="margin-top:.25rem;">${nuitLabel}</div>
+          </td>
           <td>
             <div class="d-flex gap-1">
               <button class="action-btn edit" onclick="editDeplacement(${d.id})" title="Modifier">
@@ -1305,13 +1394,24 @@ function viewDeplacements(personnelId, name) {
               </button>
             </div>
           </td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
 
       document.getElementById('viewDeplacementsContent').innerHTML = `
         <div class="p-3">
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
+            <span style="font-size:.75rem;background:rgba(79,142,247,.1);color:#4f8ef7;
+              border:1px solid rgba(79,142,247,.2);border-radius:20px;padding:.2em .75em;">
+              <i class="fas fa-calendar me-1"></i>${totalJours} jours calendaires
+            </span>
+            <span style="font-size:.75rem;background:rgba(251,146,60,.1);color:#fb923c;
+              border:1px solid rgba(251,146,60,.2);border-radius:20px;padding:.2em .75em;">
+              <i class="fas fa-route me-1"></i>${totalReels} déplacement(s) réel(s)
+            </span>
+          </div>
           <table class="table">
             <thead>
-              <tr><th>Projet</th><th>Début</th><th>Fin</th><th>Durée</th><th>Actions</th></tr>
+              <tr><th>Projet</th><th>Début</th><th>Fin</th><th>Durée / Nuitées</th><th>Actions</th></tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
@@ -1327,7 +1427,62 @@ function viewDeplacements(personnelId, name) {
 
 
 /* ════════════════════════════════════════════════════════
-   ÉDITER UN DÉPLACEMENT
+   PROJETS ACTIFS D'UN PERSONNEL
+   ════════════════════════════════════════════════════════ */
+function viewProjetsActifs(personnelId, name) {
+  document.getElementById('projetsActifsName').textContent = name;
+  document.getElementById('projetsActifsContent').innerHTML = `
+    <div style="text-align:center;padding:2rem;">
+      <div class="spinner-border" style="color:#38bdf8;"></div>
+    </div>`;
+  new bootstrap.Modal(document.getElementById('projetsActifsModal')).show();
+
+  fetch(`/api/personnel/${personnelId}/projets`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.length) {
+        document.getElementById('projetsActifsContent').innerHTML =
+          `<div style="text-align:center;padding:2rem;color:var(--text-muted);">
+             <i class="fas fa-map-marker-slash fa-2x d-block mb-2 opacity-25"></i>Aucun projet.
+           </div>`;
+        return;
+      }
+      const etatBadge = etat => {
+        const map = {
+          en_cours:  ['#06d6a0', 'En cours'],
+          planifie:  ['#4f8ef7', 'Planifié'],
+          termine:   ['#9b5cf6', 'Terminé'],
+        };
+        const [color, label] = map[etat] || ['#888', etat];
+        return `<span style="font-size:.65rem;background:rgba(128,128,128,.1);color:${color};
+                 border:1px solid ${color}44;border-radius:20px;padding:.15em .55em;font-weight:700;">${label}</span>`;
+      };
+      document.getElementById('projetsActifsContent').innerHTML = `
+        <div style="padding:.5rem 0;">
+          ${data.map(p => `
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                 padding:.65rem 1rem;border-bottom:1px solid rgba(255,255,255,.05);">
+              <div>
+                <div style="font-weight:700;font-size:.88rem;color:var(--text-primary);">${p.nom}</div>
+                <div style="font-size:.72rem;color:var(--text-muted);margin-top:.1rem;">
+                  <i class="fas fa-map-marker-alt me-1" style="font-size:.65rem;"></i>${p.gouvernorat}
+                </div>
+              </div>
+              ${etatBadge(p.etat)}
+            </div>`).join('')}
+        </div>`;
+    })
+    .catch(() => {
+      document.getElementById('projetsActifsContent').innerHTML =
+        `<div style="text-align:center;padding:2rem;color:#ef4444;">
+           <i class="fas fa-exclamation-circle fa-2x d-block mb-2"></i>Erreur de chargement.
+         </div>`;
+    });
+}
+
+
+/* ════════════════════════════════════════════════════════
+   ÉDITER UN DÉPLACEMENT (avec validation dates + nuitées)
    ════════════════════════════════════════════════════════ */
 function editDeplacement(id) {
   fetch(`/api/deplacement/${id}`)
@@ -1339,6 +1494,10 @@ function editDeplacement(id) {
       document.getElementById('editHeureDebut').value = d.heure_debut;
       document.getElementById('editDateFin').value    = d.date_fin;
       document.getElementById('editHeureFin').value   = d.heure_fin;
+      document.getElementById('editDateError').style.display = 'none';
+      document.getElementById('editSubmitBtn').disabled = false;
+
+      buildEditNuiteesRows(d.date_debut, d.date_fin, d.nuitees || []);
 
       bootstrap.Modal.getInstance(document.getElementById('viewDeplacementsModal'))?.hide();
       setTimeout(() => {
@@ -1346,6 +1505,162 @@ function editDeplacement(id) {
       }, 300);
     })
     .catch(() => alert('Erreur lors du chargement des données.'));
+}
+
+function validateEditDates() {
+  const d1 = document.getElementById('editDateDebut').value;
+  const d2 = document.getElementById('editDateFin').value;
+  const err = document.getElementById('editDateError');
+  const btn = document.getElementById('editSubmitBtn');
+  if (d1 && d2 && d2 < d1) {
+    err.style.display = 'block';
+    btn.disabled = true;
+    document.getElementById('editNuiteesSection').style.display = 'none';
+    return false;
+  }
+  err.style.display = 'none';
+  btn.disabled = false;
+  if (d1 && d2) {
+    // Preserve whatever the user already checked; only re-render structure
+    // if the number of nights actually changes
+    const currentNuits = document.querySelectorAll('[name^="nuitee_edit_"]').length / 2;
+    const newNuits = Math.round((new Date(d2) - new Date(d1)) / 86400000);
+    if (currentNuits !== newNuits) {
+      buildEditNuiteesRows(d1, d2, []);
+    }
+  }
+  return true;
+}
+
+document.getElementById('editDateDebut')?.addEventListener('change', validateEditDates);
+document.getElementById('editDateFin')?.addEventListener('change', validateEditDates);
+
+document.getElementById('editDeplacementForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!validateEditDates()) return;
+
+  const btn  = document.getElementById('editSubmitBtn');
+  const form = document.getElementById('editDeplacementForm');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement…';
+
+  const fd = new FormData(form);
+  fetch(form.action, {
+    method: 'POST',
+    body: fd,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    redirect: 'manual',
+  })
+  .then(r => {
+    // Flask returns a redirect (3xx) or 200; either way we treat as success
+    // if no network error occurred
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Enregistrer les modifications';
+
+    // Close edit modal, re-open view modal to refresh list
+    const editModal = bootstrap.Modal.getInstance(document.getElementById('editDeplacementModal'));
+    if (editModal) editModal.hide();
+
+    // Show success toast
+    showEditToast('Déplacement modifié avec succès.', 'success');
+
+    // Refresh the view-deplacements list if it was open
+    if (_lastViewedPersonnelId) {
+      setTimeout(() => viewDeplacements(_lastViewedPersonnelId, _lastViewedPersonnelName), 350);
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Enregistrer les modifications';
+    showEditToast('Erreur réseau lors de la sauvegarde.', 'danger');
+  });
+});
+
+// Track last-viewed personnel for post-edit refresh
+let _lastViewedPersonnelId   = null;
+let _lastViewedPersonnelName = '';
+
+function showEditToast(msg, type) {
+  const colors = { success: '#06d6a0', danger: '#ef4444' };
+  const color  = colors[type] || '#4f8ef7';
+  const toast  = document.createElement('div');
+  toast.style.cssText = [
+    'position:fixed','bottom:1.5rem','right:1.5rem','z-index:9999',
+    'background:var(--bg-card)','border:1px solid ' + color + '55',
+    'border-left:3px solid ' + color,'border-radius:var(--r-lg)',
+    'padding:.75rem 1.2rem','font-size:.84rem','color:' + color,
+    'box-shadow:0 8px 24px rgba(0,0,0,.35)',
+    'display:flex','align-items:center','gap:.6rem'
+  ].join(';');
+  const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+  toast.innerHTML = '<i class="fas fa-' + icon + '"></i>' + msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+function buildEditNuiteesRows(dateDebut, dateFin, existingNuitees) {
+  // existingNuitees : tableau de booléens depuis l'API
+  // true  = reste sur site, false = rentre (retourne)
+  const nuitees = existingNuitees || [];
+  const section = document.getElementById('editNuiteesSection');
+  const rows    = document.getElementById('editNuiteesRows');
+  if (!section || !rows) return;
+
+  const d1 = new Date(dateDebut);
+  const d2 = new Date(dateFin);
+  const nbNuits = Math.round((d2 - d1) / 86400000);
+
+  if (nbNuits <= 0) { section.style.display = 'none'; rows.innerHTML = ''; return; }
+
+  section.style.display = '';
+  const fmtDate = d => {
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  };
+  let html = '';
+  for (let i = 0; i < nbNuits; i++) {
+    const ns = new Date(d1); ns.setDate(d1.getDate() + i);
+    const ne = new Date(d1); ne.setDate(d1.getDate() + i + 1);
+    // nuitees[i] === true → reste, false/undefined → retourne (default reste si pas défini)
+    const resteChecked    = (nuitees.length > i) ? (nuitees[i] === true  ? 'checked' : '') : 'checked';
+    const retourneChecked = (nuitees.length > i) ? (nuitees[i] === false ? 'checked' : '') : '';
+    html += `
+      <div style="display:flex;align-items:center;justify-content:space-between;
+           padding:.6rem .75rem;border-radius:var(--r-md);margin-bottom:.4rem;
+           background:rgba(255,255,255,.03);border:1px solid rgba(155,92,246,.15);">
+        <span style="font-size:.8rem;color:var(--text-secondary);">
+          <i class="fas fa-moon" style="color:#9b5cf6;margin-right:.4rem;font-size:.65rem;"></i>
+          Nuit du ${fmtDate(ns)} au ${fmtDate(ne)}
+        </span>
+        <div style="display:flex;gap:.5rem;">
+          <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.78rem;font-weight:600;">
+            <input type="radio" name="nuitee_edit_${i}" value="reste" ${resteChecked}
+                   style="accent-color:#06d6a0;" onchange="updateEditNuiteesResume(${nbNuits})">
+            <span style="color:#06d6a0;"><i class="fas fa-campground" style="font-size:.65rem;"></i> Reste</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.78rem;font-weight:600;">
+            <input type="radio" name="nuitee_edit_${i}" value="retourne" ${retourneChecked}
+                   style="accent-color:#f7c948;" onchange="updateEditNuiteesResume(${nbNuits})">
+            <span style="color:#f7c948;"><i class="fas fa-undo" style="font-size:.65rem;"></i> Rentre</span>
+          </label>
+        </div>
+      </div>`;
+  }
+  rows.innerHTML = html;
+  updateEditNuiteesResume(nbNuits);
+}
+
+function updateEditNuiteesResume(nbNuits) {
+  const resume = document.getElementById('editNuiteesResume');
+  if (!resume) return;
+  let retours = 0;
+  for (let i = 0; i < nbNuits; i++) {
+    const sel = document.querySelector(`input[name="nuitee_edit_${i}"]:checked`);
+    if (sel && sel.value === 'retourne') retours++;
+  }
+  const nbDeps = 1 + retours;
+  resume.innerHTML = `<i class="fas fa-chart-bar" style="margin-right:.35rem;"></i>` +
+    `Comptera comme <strong style="color:#9b5cf6;">${nbDeps} déplacement${nbDeps > 1 ? 's' : ''} réel${nbDeps > 1 ? 's' : ''}</strong>.`;
 }
 
 
@@ -1364,57 +1679,195 @@ function confirmDelete(id) {
 /* ════════════════════════════════════════════════════════
    EXPORT XLSX
    ════════════════════════════════════════════════════════ */
-function exportDeplacementsXlsx() {
-  const rows = [];
-  document.querySelectorAll('#deplacementsTableBody tr[data-dep-id], #mainTable tbody tr').forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    if (cells.length < 3) return;
-    rows.push(Array.from(cells).map(td => td.innerText.trim().replace(/\n+/g, ' ')));
-  });
-
-  if (!rows.length) {
-    document.querySelectorAll('table tbody tr').forEach(tr => {
-      const cells = tr.querySelectorAll('td');
-      if (cells.length > 2) {
-        rows.push(Array.from(cells).map(td => td.innerText.trim().replace(/\n+/g, ' ')));
-      }
-    });
-  }
-
+async function exportDeplacementsXlsx() {
   const params  = new URLSearchParams(window.location.search);
   const d1      = params.get('date_debut') || '';
-  const d2      = params.get('date_fin') || '';
-  const periode = (d1 || d2) ? `${d1 || '...'} → ${d2 || '...'}` : 'Tous';
+  const d2      = params.get('date_fin')   || '';
+  const periode = (d1 || d2) ? `${d1} → ${d2}` : 'Toute la période';
 
-  const header = ['Personnel', 'Projet(s)', 'Date Début', 'Heure Début', 'Date Fin', 'Heure Fin', 'Jours', 'Actions'];
-  const wsData = [
-    ['TeamMove — Export Déplacements'],
-    ['Période', periode],
-    ['Exporté le', new Date().toLocaleDateString('fr-FR')],
-    [],
-    header,
-    ...rows
-  ];
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:24},{wch:28},{wch:14},{wch:12},{wch:14},{wch:12},{wch:8},{wch:10}];
-
-  ['A','B','C','D','E','F','G','H'].forEach(col => {
-    const cell = ws[col + '5'];
-    if (cell) {
-      cell.s = {
-        font: { bold: true, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '1A3A6B' } },
-        alignment: { horizontal: 'center' }
-      };
+  // ── Collect all personnel rows visible in the table ──
+  const personnelRows = [];
+  document.querySelectorAll('#deplTable tbody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length < 6) return;
+    const matricule = tds[0].innerText.trim();
+    const nomPrenom = tds[1].innerText.trim().replace(/\n.*/,'').trim();
+    const fonction  = tds[2].innerText.trim();
+    const societe   = tds[3].innerText.trim();
+    const nbDeps    = tds[5].innerText.trim();
+    // Extract personnelId from the edit button onclick
+    const editBtn = tr.querySelector('.action-btn.edit');
+    const addBtn  = tr.querySelector('.action-btn[onclick*="quickAdd"]');
+    let pid = null;
+    if (editBtn) {
+      const m = (editBtn.getAttribute('onclick')||'').match(/viewDeplacements\((\d+)/);
+      if (m) pid = parseInt(m[1]);
     }
+    if (!pid && addBtn) {
+      const m = (addBtn.getAttribute('onclick')||'').match(/quickAddDeplacement\((\d+)/);
+      if (m) pid = parseInt(m[1]);
+    }
+    if (pid) personnelRows.push({ pid, matricule, nomPrenom, fonction, societe, nbDeps });
   });
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Déplacements');
+  if (!personnelRows.length) {
+    alert('Aucun personnel à exporter.');
+    return;
+  }
 
-  const fname = `deplacements_${(d1 || 'debut')}_${(d2 || 'fin')}.xlsx`;
+  // Show progress
+  const btn = document.querySelector('[onclick="exportDeplacementsXlsx()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Export en cours…'; }
+
+  // ── Fetch deplacements for each personnel ──
+  const allData = [];
+  for (const p of personnelRows) {
+    try {
+      const r    = await fetch(`/api/personnel/${p.pid}/deplacements`);
+      const deps = await r.json();
+      // Also fetch HS for each deplacement
+      const depsWithHS = await Promise.all(deps.map(async dep => {
+        try {
+          const r2   = await fetch(`/api/deplacement/${dep.id}/detail`);
+          const det  = await r2.json();
+          const totalHS = det.jours.reduce((s,j) => s + (j.heures||0), 0);
+          return { ...dep, totalHS, jourDetails: det.jours };
+        } catch { return { ...dep, totalHS: 0, jourDetails: [] }; }
+      }));
+      allData.push({ ...p, deps: depsWithHS });
+    } catch { allData.push({ ...p, deps: [] }); }
+  }
+
+  // ── Build workbook ──
+  const wb = XLSX.utils.book_new();
+
+  // ═══ Sheet 1 : RÉSUMÉ ═══
+  const summaryData = [
+    ['TeamMove — Export Déplacements'],
+    ['Période :', periode],
+    ['Exporté le :', new Date().toLocaleDateString('fr-FR')],
+    [],
+    ['Matricule','Nom & Prénom','Fonction','Société','Nb Déplacements','Projets','Total Jours','Total Heures Supp.'],
+  ];
+  for (const p of allData) {
+    const projetsUniq = [...new Set(p.deps.map(d => d.projet))].join(', ');
+    const totalJours  = p.deps.reduce((s,d) => s + d.jours, 0);
+    const totalHS     = p.deps.reduce((s,d) => s + (d.totalHS||0), 0);
+    summaryData.push([
+      p.matricule, p.nomPrenom, p.fonction, p.societe,
+      p.deps.length, projetsUniq, totalJours,
+      totalHS > 0 ? parseFloat(totalHS.toFixed(2)) : 0
+    ]);
+  }
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{wch:12},{wch:28},{wch:20},{wch:14},{wch:16},{wch:40},{wch:12},{wch:18}];
+  styleHeaderRow(wsSummary, 5, 8, '0F2A5C');
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Résumé');
+
+  // ═══ Sheet 2 : DÉTAIL PAR PERSONNEL ═══
+  const detailData = [
+    ['TeamMove — Détail des Déplacements par Personnel'],
+    ['Période :', periode],
+    [],
+  ];
+
+  for (const p of allData) {
+    if (!p.deps.length) continue;
+
+    // ── Personnel header row ──
+    detailData.push([]);
+    detailData.push([
+      '▶ ' + p.matricule,
+      p.nomPrenom,
+      p.fonction,
+      p.societe,
+      `${p.deps.length} déplacement(s)`,
+      '', '', '', '', ''
+    ]);
+    detailData.push([
+      'Projet','Date Début','H. Début','Date Fin','H. Fin','Durée (j)',
+      'Date HS','Heures Supp.','Commentaire',''
+    ]);
+
+    for (const dep of p.deps) {
+      // First row = deplacement summary
+      const hsTotal = dep.totalHS > 0 ? dep.totalHS.toFixed(2) + ' h' : '—';
+      const firstJourHS = dep.jourDetails.find(j => j.heures != null);
+      detailData.push([
+        dep.projet,
+        dep.date_debut, dep.heure_debut,
+        dep.date_fin,   dep.heure_fin,
+        dep.jours,
+        firstJourHS ? firstJourHS.date     : '—',
+        firstJourHS ? firstJourHS.heures   : '—',
+        firstJourHS ? (firstJourHS.commentaire || '') : '',
+        ''
+      ]);
+    }
+
+    // ── Personnel totals ──
+    const totalJours = p.deps.reduce((s,d) => s + d.jours, 0);
+    const totalHS    = p.deps.reduce((s,d) => s + (d.totalHS||0), 0);
+    detailData.push([
+      '', 'TOTAL', '', '', '', totalJours,
+      '', totalHS > 0 ? parseFloat(totalHS.toFixed(2)) : 0, '', ''
+    ]);
+  }
+
+  const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+  wsDetail['!cols'] = [{wch:32},{wch:12},{wch:10},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:30},{wch:4}];
+  XLSX.utils.book_append_sheet(wb, wsDetail, 'Détail');
+
+  // ═══ Sheet 3 : PAR PROJET ═══
+  const byProjet = {};
+  for (const p of allData) {
+    for (const dep of p.deps) {
+      if (!byProjet[dep.projet]) byProjet[dep.projet] = [];
+      byProjet[dep.projet].push({ ...dep, personnel: p.nomPrenom, matricule: p.matricule, fonction: p.fonction });
+    }
+  }
+  const projData = [
+    ['TeamMove — Déplacements par Projet'],
+    ['Période :', periode],
+    [],
+  ];
+  for (const [proj, deps] of Object.entries(byProjet)) {
+    projData.push([]);
+    projData.push(['▶ Projet : ' + proj, '', '', '', '', '', '', '']);
+    projData.push(['Matricule','Nom & Prénom','Fonction','Date Début','H. Début','Date Fin','H. Fin','Jours','HS (h)']);
+    for (const d of deps) {
+      projData.push([
+        d.matricule, d.personnel, d.fonction,
+        d.date_debut, d.heure_debut, d.date_fin, d.heure_fin,
+        d.jours, d.totalHS > 0 ? parseFloat(d.totalHS.toFixed(2)) : 0
+      ]);
+    }
+    const totalJours = deps.reduce((s,d) => s + d.jours, 0);
+    const totalHS    = deps.reduce((s,d) => s + (d.totalHS||0), 0);
+    projData.push(['','TOTAL','','','','','',totalJours, totalHS > 0 ? parseFloat(totalHS.toFixed(2)) : 0]);
+  }
+  const wsProjet = XLSX.utils.aoa_to_sheet(projData);
+  wsProjet['!cols'] = [{wch:12},{wch:28},{wch:20},{wch:12},{wch:10},{wch:12},{wch:10},{wch:8},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsProjet, 'Par Projet');
+
+  // ── Write file ──
+  const fname = `deplacements_${(d1||'debut').replace(/-/g,'')}_${(d2||'fin').replace(/-/g,'')}.xlsx`;
   XLSX.writeFile(wb, fname);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-excel me-1"></i>Export'; }
+}
+
+function styleHeaderRow(ws, rowNum, nCols, colorHex) {
+  const cols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(0, nCols);
+  cols.forEach(col => {
+    const ref = col + rowNum;
+    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+    ws[ref].s = {
+      font:      { bold: true, color: { rgb: 'FFFFFF' } },
+      fill:      { fgColor: { rgb: colorHex } },
+      alignment: { horizontal: 'center', wrapText: true },
+    };
+  });
 }
 
 
