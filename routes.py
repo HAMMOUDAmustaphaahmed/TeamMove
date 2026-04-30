@@ -720,7 +720,10 @@ def api_projet_stats(id):
 @main.route('/projets/export-global')
 @login_required
 def export_projets_global():
-    """XLSX — une ligne par projet avec : nb personnels, jours réels, total HS."""
+    """XLSX — une ligne par projet avec : nb personnels, jours réels, total HS.
+    Filtres : date_debut, date_fin, etat (en_cours|planifie|termine).
+    Ligne de TOTAL en bas du tableau.
+    """
     import io
     from datetime import timedelta as _td
     try:
@@ -733,21 +736,29 @@ def export_projets_global():
 
     date_debut_f = parse_date_opt(request.args.get('date_debut', ''))
     date_fin_f   = parse_date_opt(request.args.get('date_fin',   ''))
+    etat_f       = request.args.get('etat', '').strip()
 
-    all_projets = Projet.query.filter_by(active=True).order_by(Projet.nom).all()
+    q_proj = Projet.query.filter_by(active=True)
+    if etat_f in ('en_cours', 'planifie', 'termine'):
+        q_proj = q_proj.filter_by(etat=etat_f)
+    all_projets = q_proj.order_by(Projet.nom).all()
 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Résumé Projets'
 
-    hdr_fill = PatternFill('solid', fgColor='1E3A5F')
-    hdr_font = Font(bold=True, color='FFFFFF', size=11)
-    center   = Alignment(horizontal='center', vertical='center')
-    thin     = Border(left=Side(style='thin'), right=Side(style='thin'),
-                      top=Side(style='thin'),  bottom=Side(style='thin'))
-    alt_fill = PatternFill('solid', fgColor='EBF5FB')
+    hdr_fill  = PatternFill('solid', fgColor='1E3A5F')
+    hdr_font  = Font(bold=True, color='FFFFFF', size=11)
+    tot_fill  = PatternFill('solid', fgColor='0D2137')
+    tot_font  = Font(bold=True, color='06D6A0', size=11)
+    center    = Alignment(horizontal='center', vertical='center')
+    left      = Alignment(horizontal='left',   vertical='center')
+    thin      = Border(left=Side(style='thin'), right=Side(style='thin'),
+                       top=Side(style='thin'),  bottom=Side(style='thin'))
+    alt_fill  = PatternFill('solid', fgColor='EBF5FB')
 
     hdrs = ['Nom du projet', 'Gouvernorat', 'Région',
+            'État',
             'Nb personnels sur chantier',
             'Nb jours réels sur chantier',
             'Total heures supplémentaires (h)']
@@ -755,6 +766,11 @@ def export_projets_global():
     for cell in ws[1]:
         cell.font = hdr_font; cell.fill = hdr_fill
         cell.alignment = center; cell.border = thin
+    ws.row_dimensions[1].height = 28
+
+    total_pers_set = set()
+    total_jours    = 0
+    total_hs       = 0.0
 
     for row_i, proj in enumerate(all_projets, start=2):
         q = db.session.query(Deplacement)\
@@ -774,23 +790,44 @@ def export_projets_global():
                 days.add(cur); cur += _td(days=1)
         nb_jours_reel = len(days)
 
-        hs_total = 0
+        hs_total = 0.0
         if deps:
             hs_rows = db.session.query(func.sum(HeureSupplementaire.heures))\
                 .filter(HeureSupplementaire.deplacement_id.in_([d.id for d in deps]))\
                 .scalar()
-            hs_total = float(hs_rows) if hs_rows else 0
+            hs_total = float(hs_rows) if hs_rows else 0.0
 
+        # Accumulate grand totals
+        total_pers_set.update(d.personnel_id for d in deps)
+        total_jours += nb_jours_reel
+        total_hs    += hs_total
+
+        etat_labels = {'en_cours': 'En cours', 'planifie': 'Planifié', 'termine': 'Terminé'}
         ws.append([proj.nom, proj.gouvernorat, proj.region,
+                   etat_labels.get(proj.etat, proj.etat),
                    nb_pers, nb_jours_reel, hs_total])
         if row_i % 2 == 0:
             for c in ws[row_i]: c.fill = alt_fill
-        for c in ws[row_i]:
-            c.border = thin; c.alignment = Alignment(vertical='center')
+        for ci, c in enumerate(ws[row_i]):
+            c.border = thin
+            c.alignment = center if ci >= 4 else left
 
-    for col_i, w in enumerate([40, 18, 18, 26, 28, 34], 1):
+    # ── Ligne TOTAL ──
+    total_row = ws.max_row + 1
+    ws.cell(total_row, 1, 'TOTAL')
+    ws.merge_cells(start_row=total_row, start_column=1,
+                   end_row=total_row, end_column=4)
+    ws.cell(total_row, 5, len(total_pers_set))
+    ws.cell(total_row, 6, total_jours)
+    ws.cell(total_row, 7, round(total_hs, 2))
+    for c in ws[total_row]:
+        c.font = tot_font; c.fill = tot_fill
+        c.border = thin; c.alignment = center
+    ws.cell(total_row, 1).alignment = Alignment(horizontal='left', vertical='center')
+    ws.row_dimensions[total_row].height = 24
+
+    for col_i, w in enumerate([40, 18, 18, 14, 26, 28, 34], 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_i)].width = w
-    ws.row_dimensions[1].height = 28
 
     out = io.BytesIO(); wb.save(out); out.seek(0)
     from datetime import date as _d
@@ -806,7 +843,10 @@ def export_projets_global():
 @main.route('/projets/export-par-projet')
 @login_required
 def export_projets_par_projet():
-    """XLSX — un bloc par projet (filtre sur projet_ids[]), détail par personnel."""
+    """XLSX — un bloc par projet (filtre sur projet_ids[]), détail par personnel.
+    Filtres : date_debut, date_fin.
+    Ligne TOTAL (HS + jours réels) à la fin de chaque sous-tableau de projet.
+    """
     import io
     from datetime import timedelta as _td
     try:
@@ -823,8 +863,10 @@ def export_projets_par_projet():
     except ValueError:
         projet_ids = []
 
+    date_debut_f = parse_date_opt(request.args.get('date_debut', ''))
+    date_fin_f   = parse_date_opt(request.args.get('date_fin',   ''))
+
     if not projet_ids:
-        # Exporter tous les projets actifs si aucun sélectionné
         projet_ids = [p.id for p in Projet.query.filter_by(active=True).all()]
 
     projets = Projet.query.filter(Projet.id.in_(projet_ids)).order_by(Projet.nom).all()
@@ -833,14 +875,17 @@ def export_projets_par_projet():
     ws = wb.active
     ws.title = 'Détail par projet'
 
-    thin     = Border(left=Side(style='thin'), right=Side(style='thin'),
-                      top=Side(style='thin'),  bottom=Side(style='thin'))
-    hdr_font = Font(bold=True, color='FFFFFF', size=11)
-    col_fill = PatternFill('solid', fgColor='1E3A5F')
-    sep_fill = PatternFill('solid', fgColor='2563EB')
-    sep_font = Font(bold=True, color='FFFFFF', size=12)
-    alt_fill = PatternFill('solid', fgColor='EBF5FB')
-    center   = Alignment(horizontal='center', vertical='center')
+    thin      = Border(left=Side(style='thin'), right=Side(style='thin'),
+                       top=Side(style='thin'),  bottom=Side(style='thin'))
+    hdr_font  = Font(bold=True, color='FFFFFF', size=11)
+    col_fill  = PatternFill('solid', fgColor='1E3A5F')
+    sep_fill  = PatternFill('solid', fgColor='2563EB')
+    sep_font  = Font(bold=True, color='FFFFFF', size=12)
+    alt_fill  = PatternFill('solid', fgColor='EBF5FB')
+    tot_fill  = PatternFill('solid', fgColor='0D2137')
+    tot_font  = Font(bold=True, color='06D6A0', size=11)
+    center    = Alignment(horizontal='center', vertical='center')
+    left      = Alignment(horizontal='left',   vertical='center')
 
     col_hdrs = ['Nom & Prénom', 'Nb jours réels sur chantier', 'Fonction', 'Heures supplémentaires (h)']
 
@@ -852,8 +897,7 @@ def export_projets_par_projet():
                        end_row=current_row, end_column=4)
         for c in ws[current_row]:
             c.fill = sep_fill; c.font = sep_font
-            c.alignment = Alignment(horizontal='left', vertical='center')
-            c.border = thin
+            c.alignment = left; c.border = thin
         ws.row_dimensions[current_row].height = 24
         current_row += 1
 
@@ -866,11 +910,15 @@ def export_projets_par_projet():
         current_row += 1
 
         # ── Données personnels ──
-        deps = db.session.query(Deplacement, Personnel)\
+        q_deps = db.session.query(Deplacement, Personnel)\
             .join(Personnel, Deplacement.personnel_id == Personnel.id)\
             .filter(Deplacement.projet_id == proj.id,
-                    Deplacement.statut.in_(['valide', 'approuve']))\
-            .order_by(Personnel.nom, Personnel.prenom).all()
+                    Deplacement.statut.in_(['valide', 'approuve']))
+        if date_debut_f:
+            q_deps = q_deps.filter(Deplacement.date_fin   >= date_debut_f)
+        if date_fin_f:
+            q_deps = q_deps.filter(Deplacement.date_debut <= date_fin_f)
+        deps = q_deps.order_by(Personnel.nom, Personnel.prenom).all()
 
         from collections import defaultdict
         pers_deps = defaultdict(list)
@@ -880,10 +928,11 @@ def export_projets_par_projet():
             pers_obj[pers.id] = pers
 
         if not pers_deps:
-            ws.cell(current_row, 1, 'Aucun personnel sur ce projet')
+            ws.cell(current_row, 1, 'Aucun personnel sur ce projet pour cette période')
             ws.merge_cells(start_row=current_row, start_column=1,
                            end_row=current_row, end_column=4)
             ws.cell(current_row, 1).alignment = center
+            ws.cell(current_row, 1).border = thin
             current_row += 1
         else:
             hs_by_dep = {}
@@ -896,6 +945,9 @@ def export_projets_par_projet():
                  .group_by(HeureSupplementaire.deplacement_id).all()
                 hs_by_dep = {r.deplacement_id: float(r.total) for r in hs_rows2}
 
+            proj_total_jours = 0
+            proj_total_hs    = 0.0
+
             for ri, (pid, pdeps) in enumerate(pers_deps.items()):
                 pers = pers_obj[pid]
                 p_days = set()
@@ -904,15 +956,44 @@ def export_projets_par_projet():
                     while cur <= d.date_fin:
                         p_days.add(cur); cur += _td(days=1)
                 total_hs = sum(hs_by_dep.get(d.id, 0) for d in pdeps)
+                nb_jours = len(p_days)
+
+                proj_total_jours += nb_jours
+                proj_total_hs    += total_hs
+
                 nom_prenom = f'{pers.nom} {pers.prenom}'
-                data = [nom_prenom, len(p_days), pers.fonction or '', total_hs]
+                data = [nom_prenom, nb_jours, pers.fonction or '', round(total_hs, 2)]
                 for ci, val in enumerate(data, 1):
                     cell = ws.cell(current_row, ci, val)
                     cell.border = thin
-                    cell.alignment = Alignment(vertical='center')
+                    cell.alignment = center if ci > 1 else left
                     if ri % 2 == 1:
                         cell.fill = alt_fill
                 current_row += 1
+
+            # ── Ligne TOTAL du projet ──
+            ws.cell(current_row, 1, 'Total projet')
+            ws.merge_cells(start_row=current_row, start_column=1,
+                           end_row=current_row, end_column=2)
+            ws.cell(current_row, 2, proj_total_jours)  # overwritten by merge but set for clarity
+            ws.cell(current_row, 3, '')
+            ws.cell(current_row, 4, round(proj_total_hs, 2))
+            # Re-set after merge: cell (row,2) is the "Nb jours réels" total
+            # We display it as: col1-2 merged = label + jours, col4 = HS
+            # Better: unmerge and use individual cells
+            ws.unmerge_cells(start_row=current_row, start_column=1,
+                             end_row=current_row, end_column=2)
+            ws.cell(current_row, 1, f'TOTAL — {proj.nom}')
+            ws.cell(current_row, 2, proj_total_jours)
+            ws.cell(current_row, 3, '')
+            ws.cell(current_row, 4, round(proj_total_hs, 2))
+            for ci in range(1, 5):
+                c = ws.cell(current_row, ci)
+                c.font = tot_font; c.fill = tot_fill
+                c.border = thin; c.alignment = center
+            ws.cell(current_row, 1).alignment = left
+            ws.row_dimensions[current_row].height = 22
+            current_row += 1
 
         current_row += 1  # ligne vide entre projets
 
