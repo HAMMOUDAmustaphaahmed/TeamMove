@@ -971,18 +971,7 @@ def export_projets_par_projet():
                         cell.fill = alt_fill
                 current_row += 1
 
-            # ── Ligne TOTAL du projet ──
-            ws.cell(current_row, 1, 'Total projet')
-            ws.merge_cells(start_row=current_row, start_column=1,
-                           end_row=current_row, end_column=2)
-            ws.cell(current_row, 2, proj_total_jours)  # overwritten by merge but set for clarity
-            ws.cell(current_row, 3, '')
-            ws.cell(current_row, 4, round(proj_total_hs, 2))
-            # Re-set after merge: cell (row,2) is the "Nb jours réels" total
-            # We display it as: col1-2 merged = label + jours, col4 = HS
-            # Better: unmerge and use individual cells
-            ws.unmerge_cells(start_row=current_row, start_column=1,
-                             end_row=current_row, end_column=2)
+            # ── Ligne TOTAL du projet — écriture AVANT toute fusion ──
             ws.cell(current_row, 1, f'TOTAL — {proj.nom}')
             ws.cell(current_row, 2, proj_total_jours)
             ws.cell(current_row, 3, '')
