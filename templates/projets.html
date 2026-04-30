@@ -366,12 +366,12 @@
   </span>
   <button type="button" class="btn btn-sm"
     style="background:rgba(6,214,160,.12);color:#06d6a0;border:1px solid rgba(6,214,160,.3);"
-    onclick="exportGlobalXlsx()">
+    data-bs-toggle="modal" data-bs-target="#exportGlobalModal">
     <i class="fas fa-file-excel me-1"></i>Résumé tous projets
   </button>
   <button type="button" class="btn btn-sm"
     style="background:rgba(79,142,247,.12);color:#4f8ef7;border:1px solid rgba(79,142,247,.3);"
-    onclick="openExportParProjetModal()">
+    data-bs-toggle="modal" data-bs-target="#exportParProjetModal">
     <i class="fas fa-layer-group me-1"></i>Export par projet(s)
   </button>
 </div>
@@ -890,34 +890,160 @@
 
 
 <!-- ════════════════════════════════════════════════
-     MODAL — SÉLECTION PROJETS POUR EXPORT PAR PROJET
+     MODAL — EXPORT GLOBAL (TOUS PROJETS)
+     ════════════════════════════════════════════════ -->
+<div class="modal fade" id="exportGlobalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#06d6a0,#0ea5e9);">
+        <h5 class="modal-title" style="font-size:.95rem;font-weight:800;color:#fff;">
+          <i class="fas fa-file-excel me-2"></i>Exporter — Résumé tous projets
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.5rem;">
+
+        <!-- Filtre dates déplacements -->
+        <div class="date-section-title" style="border-top:none;padding-top:0;margin-top:0;">
+          <i class="fas fa-calendar-alt"></i>Période des déplacements
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">Date début</label>
+            <input type="date" class="form-control" id="globalExportDateDebut" style="color-scheme:dark;">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Date fin</label>
+            <input type="date" class="form-control" id="globalExportDateFin" style="color-scheme:dark;">
+          </div>
+        </div>
+
+        <!-- Filtre état projet -->
+        <div class="date-section-title">
+          <i class="fas fa-flag"></i>État du projet
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.83rem;font-weight:600;
+                 padding:.35rem .8rem;border-radius:var(--r-full);border:1px solid var(--border-md);
+                 background:var(--bg-overlay);color:var(--text-muted);transition:var(--t-fast);"
+                 class="etat-radio-label">
+            <input type="radio" name="globalExportEtat" value="" checked style="accent-color:#4f8ef7;"> Tous
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.83rem;font-weight:600;
+                 padding:.35rem .8rem;border-radius:var(--r-full);border:1px solid rgba(6,214,160,.25);
+                 background:rgba(6,214,160,.06);color:#06d6a0;transition:var(--t-fast);"
+                 class="etat-radio-label">
+            <input type="radio" name="globalExportEtat" value="en_cours" style="accent-color:#06d6a0;">
+            <i class="fas fa-circle" style="font-size:.4rem;"></i>En cours
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.83rem;font-weight:600;
+                 padding:.35rem .8rem;border-radius:var(--r-full);border:1px solid rgba(79,142,247,.25);
+                 background:rgba(79,142,247,.06);color:#4f8ef7;transition:var(--t-fast);"
+                 class="etat-radio-label">
+            <input type="radio" name="globalExportEtat" value="planifie" style="accent-color:#4f8ef7;">
+            <i class="fas fa-clock" style="font-size:.65rem;"></i>Planifié
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.83rem;font-weight:600;
+                 padding:.35rem .8rem;border-radius:var(--r-full);border:1px solid var(--border-md);
+                 background:var(--bg-overlay);color:var(--text-muted);transition:var(--t-fast);"
+                 class="etat-radio-label">
+            <input type="radio" name="globalExportEtat" value="termine" style="accent-color:#888;">
+            <i class="fas fa-check" style="font-size:.65rem;"></i>Terminé
+          </label>
+        </div>
+
+        <div style="margin-top:1.25rem;font-size:.75rem;color:var(--text-disabled);
+             background:rgba(6,214,160,.05);border:1px solid rgba(6,214,160,.15);
+             border-radius:var(--r-md);padding:.65rem .9rem;">
+          <i class="fas fa-info-circle me-1" style="color:#06d6a0;"></i>
+          L'export contiendra une ligne par projet avec le nombre de personnels, jours réels et heures supplémentaires totaux,
+          ainsi qu'une ligne de <strong>Total</strong> en bas.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-sm" onclick="doExportGlobal()"
+                style="background:rgba(6,214,160,.15);color:#06d6a0;border:1px solid rgba(6,214,160,.4);font-weight:700;">
+          <i class="fas fa-download me-1"></i>Télécharger XLSX
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     MODAL — EXPORT PAR PROJET(S)
      ════════════════════════════════════════════════ -->
 <div class="modal fade" id="exportParProjetModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" style="font-size:.95rem;font-weight:800;">
-          <i class="fas fa-layer-group me-2" style="color:#4f8ef7;"></i>Exporter par projet(s)
+      <div class="modal-header" style="background:linear-gradient(135deg,#4f8ef7,#9b5cf6);">
+        <h5 class="modal-title" style="font-size:.95rem;font-weight:800;color:#fff;">
+          <i class="fas fa-layer-group me-2"></i>Exporter par projet(s)
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                style="filter:invert(1) opacity(.5);"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">
-          Sélectionnez les projets à inclure dans l'export. Laissez tout décoché pour exporter tous les projets.
+      <div class="modal-body" style="padding:1.5rem;">
+
+        <!-- Recherche projet -->
+        <div class="date-section-title" style="border-top:none;padding-top:0;margin-top:0;">
+          <i class="fas fa-search"></i>Rechercher un projet
         </div>
-        <div style="max-height:320px;overflow-y:auto;">
+        <div class="input-group mb-2">
+          <span class="input-group-text" style="background:rgba(255,255,255,.05);border-color:var(--border-md);color:var(--text-muted);">
+            <i class="fas fa-search" style="font-size:.8rem;"></i>
+          </span>
+          <input type="text" class="form-control" id="exportProjetSearch"
+                 placeholder="Tapez un nom de projet…" autocomplete="off">
+        </div>
+
+        <!-- Liste projets filtrée -->
+        <div id="exportProjetList" style="max-height:220px;overflow-y:auto;margin-bottom:.5rem;
+             border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-overlay);">
           {% for p in projets %}
-          <label style="display:flex;align-items:center;gap:.6rem;padding:.5rem .25rem;
-                 border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
+          <label class="export-proj-item"
+                 data-name="{{ p.nom.lower() }}"
+                 style="display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;
+                 border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:var(--t-fast);">
             <input type="checkbox" class="export-proj-check" value="{{ p.id }}"
-                   style="accent-color:#4f8ef7;width:15px;height:15px;">
+                   style="accent-color:#4f8ef7;width:15px;height:15px;flex-shrink:0;">
             <div>
-              <div style="font-weight:700;font-size:.85rem;color:var(--text-primary);">{{ p.nom }}</div>
-              <div style="font-size:.7rem;color:var(--text-muted);">{{ p.gouvernorat }}, {{ p.region }}</div>
+              <div style="font-weight:700;font-size:.83rem;color:var(--text-primary);">{{ p.nom }}</div>
+              <div style="font-size:.68rem;color:var(--text-muted);">
+                <span style="{% if p.etat == 'en_cours' %}color:#06d6a0;{% elif p.etat == 'planifie' %}color:#4f8ef7;{% else %}color:var(--text-disabled);{% endif %}">
+                  {% if p.etat == 'en_cours' %}● En cours{% elif p.etat == 'planifie' %}🕐 Planifié{% else %}✓ Terminé{% endif %}
+                </span>
+                · {{ p.gouvernorat }}, {{ p.region }}
+              </div>
             </div>
           </label>
           {% endfor %}
+        </div>
+        <div style="font-size:.73rem;color:var(--text-disabled);margin-bottom:1rem;">
+          <span id="exportProjetSelectedCount">0</span> projet(s) sélectionné(s) — laissez tout décoché pour tous exporter
+        </div>
+
+        <!-- Filtre dates déplacements -->
+        <div class="date-section-title">
+          <i class="fas fa-calendar-alt"></i>Période des déplacements
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Date début</label>
+            <input type="date" class="form-control" id="parProjetDateDebut" style="color-scheme:dark;">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Date fin</label>
+            <input type="date" class="form-control" id="parProjetDateFin" style="color-scheme:dark;">
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem;font-size:.75rem;color:var(--text-disabled);
+             background:rgba(79,142,247,.05);border:1px solid rgba(79,142,247,.15);
+             border-radius:var(--r-md);padding:.65rem .9rem;">
+          <i class="fas fa-info-circle me-1" style="color:#4f8ef7;"></i>
+          Chaque projet aura son propre bloc avec le détail par personnel. Un <strong>Total</strong> par bloc (HS + jours réels) sera ajouté en bas de chaque sous-tableau.
         </div>
       </div>
       <div class="modal-footer">
@@ -1525,34 +1651,58 @@ function exportStatsXlsx() {
 }
 
 /* ──────────────────────────────────────────
-   EXPORT 1 : résumé global (une ligne par projet)
-   Filtre date optionnel (issu du filtre stats courant)
+   EXPORT 1 : résumé global — modal avec filtres
    ────────────────────────────────────────── */
-function exportGlobalXlsx() {
-  const d1 = document.getElementById('statsDateDebut').value;
-  const d2 = document.getElementById('statsDateFin').value;
-  let url = '/projets/export-global';
+function doExportGlobal() {
+  const d1   = document.getElementById('globalExportDateDebut').value;
+  const d2   = document.getElementById('globalExportDateFin').value;
+  const etat = document.querySelector('input[name="globalExportEtat"]:checked')?.value || '';
   const params = [];
-  if (d1) params.push('date_debut=' + d1);
-  if (d2) params.push('date_fin='   + d2);
+  if (d1)   params.push('date_debut=' + d1);
+  if (d2)   params.push('date_fin='   + d2);
+  if (etat) params.push('etat='       + etat);
+  let url = '/projets/export-global';
   if (params.length) url += '?' + params.join('&');
   window.location.href = url;
+  bootstrap.Modal.getInstance(document.getElementById('exportGlobalModal'))?.hide();
 }
 
 /* ──────────────────────────────────────────
-   EXPORT 2 : détail par projet(s) sélectionnés
+   EXPORT 2 : détail par projet(s) — modal avec search + dates
    ────────────────────────────────────────── */
-function openExportParProjetModal() {
-  new bootstrap.Modal(document.getElementById('exportParProjetModal')).show();
-}
+// Live-search dans la liste du modal Export par projet
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('exportProjetSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      document.querySelectorAll('.export-proj-item').forEach(item => {
+        const name = item.dataset.name || '';
+        item.style.display = (!q || name.includes(q)) ? '' : 'none';
+      });
+    });
+  }
+
+  // Compteur de sélection
+  document.getElementById('exportProjetList')?.addEventListener('change', () => {
+    const cnt = document.querySelectorAll('.export-proj-check:checked').length;
+    const el = document.getElementById('exportProjetSelectedCount');
+    if (el) el.textContent = cnt;
+  });
+});
 
 function doExportParProjet() {
   const checked = document.querySelectorAll('.export-proj-check:checked');
-  let url = '/projets/export-par-projet';
+  const d1 = document.getElementById('parProjetDateDebut').value;
+  const d2 = document.getElementById('parProjetDateFin').value;
+  const params = [];
   if (checked.length > 0) {
-    const params = Array.from(checked).map(cb => `projet_ids[]=${cb.value}`).join('&');
-    url += '?' + params;
+    Array.from(checked).forEach(cb => params.push(`projet_ids[]=${cb.value}`));
   }
+  if (d1) params.push('date_debut=' + d1);
+  if (d2) params.push('date_fin='   + d2);
+  let url = '/projets/export-par-projet';
+  if (params.length) url += '?' + params.join('&');
   window.location.href = url;
   bootstrap.Modal.getInstance(document.getElementById('exportParProjetModal'))?.hide();
 }
