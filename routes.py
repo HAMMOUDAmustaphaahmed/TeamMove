@@ -282,6 +282,39 @@ def api_personnels_all():
     } for p in rows])
 
 
+@main.route('/api/personnels/projet-actif')
+@login_required
+def api_personnels_projet_actif():
+    """Retourne pour chaque personnel le nom du projet en cours à une date donnée.
+    Paramètre : ?date=YYYY-MM-DD  (défaut : aujourd'hui)
+    Réponse   : { personnel_id: nom_projet_ou_null, … }
+    """
+    date_str = request.args.get('date', '').strip()
+    try:
+        ref_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+    except ValueError:
+        ref_date = date.today()
+
+    rows = db.session.query(
+        Deplacement.personnel_id,
+        Projet.nom
+    ).join(Projet, Deplacement.projet_id == Projet.id)\
+     .filter(
+        Deplacement.date_debut <= ref_date,
+        Deplacement.date_fin   >= ref_date,
+        Deplacement.statut.in_(['valide', 'approuve']),
+        Projet.active == True
+     ).all()
+
+    # Si un personnel a plusieurs déplacements ce jour (cas rare), on garde le premier trouvé
+    result = {}
+    for pid, nom_projet in rows:
+        if pid not in result:
+            result[pid] = nom_projet
+
+    return jsonify(result)
+
+
 @main.route('/api/personnel/<int:id>')
 @login_required
 def api_personnel(id):
@@ -1244,7 +1277,7 @@ def api_deplacement(id):
 @main.route('/api/deplacement/<int:id>/detail')
 @login_required
 def api_deplacement_detail(id):
-    """Retourne le detail jour-par-jour d'un deplacement avec ses HS."""
+    """Retourne le detail jour-par-jour d'un deplacement avec ses HS (une entrée par jour)."""
     from models import HeureSupplementaire
     from datetime import timedelta as _td
 
@@ -1252,21 +1285,29 @@ def api_deplacement_detail(id):
     pers = dep.personnel
     proj = dep.projet
 
-    hs_obj = HeureSupplementaire.query.filter_by(deplacement_id=dep.id).first()
+    # Charger TOUTES les HS pour ce déplacement, indexées par date_jour
+    hs_list = HeureSupplementaire.query.filter_by(deplacement_id=dep.id).all()
+    hs_by_date = {}
+    for hs in hs_list:
+        if hs.date_jour:
+            hs_by_date[hs.date_jour] = hs
+        else:
+            # Rétrocompatibilité : si pas de date_jour, on l'attribue au premier jour
+            if dep.date_debut not in hs_by_date:
+                hs_by_date[dep.date_debut] = hs
 
     jours = []
     cur = dep.date_debut
-    first = True
     while cur <= dep.date_fin:
+        hs_obj = hs_by_date.get(cur)
         jours.append({
             'date':        cur.strftime('%d/%m/%Y'),
             'date_iso':    cur.isoformat(),
-            'heures':      float(hs_obj.heures) if (hs_obj and first) else None,
-            'commentaire': hs_obj.commentaire   if (hs_obj and first) else None,
-            'hs_id':       hs_obj.id            if (hs_obj and first) else None,
+            'heures':      float(hs_obj.heures) if hs_obj else None,
+            'commentaire': hs_obj.commentaire   if hs_obj else None,
+            'hs_id':       hs_obj.id            if hs_obj else None,
         })
         cur += _td(days=1)
-        first = False
 
     return jsonify({
         'deplacement': {
@@ -2348,13 +2389,19 @@ def heures_supplementaires():
     projet_ids    = request.args.getlist('projet_ids[]')
     fonctions     = request.args.getlist('fonctions[]')
 
-    # ── Requête de base : jointure Deplacement ↔ Personnel ↔ Projet ──
+    # ── Sous-requête : agrégation HS par déplacement (somme + nb jours avec HS) ──
+    hs_agg = db.session.query(
+        HeureSupplementaire.deplacement_id,
+        func.sum(HeureSupplementaire.heures).label('total_hs'),
+        func.count(HeureSupplementaire.id).label('nb_jours_hs'),
+    ).group_by(HeureSupplementaire.deplacement_id).subquery('hs_agg')
+
+    # ── Requête de base : jointure Deplacement ↔ Personnel ↔ Projet ↔ HS agrégé ──
     query = db.session.query(
-        Deplacement, Personnel, HeureSupplementaire
+        Deplacement, Personnel, hs_agg.c.total_hs, hs_agg.c.nb_jours_hs
     ).join(Personnel, Deplacement.personnel_id == Personnel.id)\
      .join(Projet, Deplacement.projet_id == Projet.id)\
-     .outerjoin(HeureSupplementaire,
-                HeureSupplementaire.deplacement_id == Deplacement.id)\
+     .outerjoin(hs_agg, hs_agg.c.deplacement_id == Deplacement.id)\
      .filter(Personnel.active == True,
              Deplacement.statut.in_(['valide', 'approuve']))
 
@@ -2400,12 +2447,14 @@ def heures_supplementaires():
     raw_rows = query.order_by(Deplacement.date_debut.desc()).all()
 
     # ── Convertir en 4-tuples (dep, pers, total_hs, nb_jours_hs) ──
-    from datetime import timedelta as _td
     rows = []
-    for dep, pers, hs_obj in raw_rows:
-        total_hs   = float(hs_obj.heures) if hs_obj else 0.0
-        nb_jours_hs = (dep.date_fin - dep.date_debut).days + 1
-        rows.append((dep, pers, total_hs if total_hs > 0 else None, nb_jours_hs))
+    for dep, pers, total_hs, nb_jours_hs in raw_rows:
+        rows.append((
+            dep,
+            pers,
+            float(total_hs) if total_hs else None,
+            int(nb_jours_hs) if nb_jours_hs else 0,
+        ))
 
     # ── Séances de travail configurées ──
     schedules = WorkSchedule.query.filter_by(is_active=True)\
@@ -2438,19 +2487,37 @@ def heures_supplementaires():
 @login_required
 @admin_required
 def add_heure_supplementaire():
-    """Ajoute ou met à jour les HS d'un déplacement."""
+    """Ajoute ou met à jour les HS d'un déplacement pour un jour précis."""
     from models import HeureSupplementaire
     try:
         dep_id      = int(request.form['deplacement_id'])
         heures      = float(request.form['heures'])
         commentaire = sanitize_input(request.form.get('commentaire', ''))
+        date_hs_str = request.form.get('date_hs', '').strip()
 
         if heures < 0:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': 'Le nombre d\'heures ne peut pas être négatif.'}), 400
             flash('Le nombre d\'heures ne peut pas être négatif.', 'danger')
             return redirect(url_for('main.heures_supplementaires'))
 
-        # Upsert : une seule entrée HS par déplacement
-        hs = HeureSupplementaire.query.filter_by(deplacement_id=dep_id).first()
+        # Parse date_jour (le jour précis pour lequel on saisit les HS)
+        date_jour = None
+        if date_hs_str:
+            try:
+                date_jour = datetime.strptime(date_hs_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        # Upsert : une entrée HS par (deplacement_id, date_jour)
+        if date_jour:
+            hs = HeureSupplementaire.query.filter_by(
+                deplacement_id=dep_id, date_jour=date_jour).first()
+        else:
+            # Fallback si pas de date (rétrocompat)
+            hs = HeureSupplementaire.query.filter_by(
+                deplacement_id=dep_id, date_jour=None).first()
+
         if hs:
             hs.heures      = heures
             hs.commentaire = commentaire
@@ -2459,6 +2526,7 @@ def add_heure_supplementaire():
         else:
             hs = HeureSupplementaire(
                 deplacement_id = dep_id,
+                date_jour      = date_jour,
                 heures         = heures,
                 commentaire    = commentaire,
                 created_by     = current_user.id,
