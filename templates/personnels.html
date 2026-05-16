@@ -377,6 +377,17 @@
               </select>
             </div>
           </th>
+          <th>
+            <div class="th-label" style="cursor:default;">
+              <i class="fas fa-briefcase" style="font-size:.6rem;margin-right:.25rem;color:#06d6a0;"></i>
+              Projet actif
+            </div>
+            <div class="col-filter" style="display:flex;align-items:center;gap:.3rem;">
+              <input type="date" id="f-date-projet" title="Date de référence"
+                     style="font-size:.72rem;padding:.28rem .4rem;flex:1;"
+                     onchange="fetchProjetActif(this.value)">
+            </div>
+          </th>
           <th style="text-align:right;">
             <div class="th-label" style="justify-content:flex-end; cursor:default;">Actions</div>
             <div class="col-filter-empty"></div>
@@ -385,7 +396,7 @@
       </thead>
       <tbody id="personnelsBody">
         <tr>
-          <td colspan="7" class="table-loading">
+          <td colspan="8" class="table-loading">
             <div class="spinner-border" style="width:1.4rem;height:1.4rem;border-width:2px;color:#4f8ef7;" role="status"></div>
             <span style="margin-left:.75rem;">Chargement des données…</span>
           </td>
@@ -605,8 +616,9 @@ const IS_ADMIN = {{ current_user.is_admin | tojson }};
 // ─────────────────────────────────────────────────────────
 // État global
 // ─────────────────────────────────────────────────────────
-let ALL_DATA    = [];   // tous les personnels (API)
-let FILTERED    = [];   // résultat après filtres
+let ALL_DATA         = [];   // tous les personnels (API)
+let FILTERED         = [];   // résultat après filtres
+let PROJET_ACTIF_MAP = {};   // { personnel_id: nom_projet } pour la date sélectionnée
 let sortCol     = -1;
 let sortAsc     = true;
 let currentPage = 1;
@@ -614,6 +626,35 @@ const PER_PAGE  = 10;
 
 // Lire le filtre d'état depuis l'URL (active | inactive | all)
 const ETAT_FILTER = new URLSearchParams(window.location.search).get('etat_filter') || 'active';
+
+// ─────────────────────────────────────────────────────────
+// Projet actif par date : chargement + mise à jour
+// ─────────────────────────────────────────────────────────
+function fetchProjetActif(dateStr) {
+  const url = '/api/personnels/projet-actif' + (dateStr ? `?date=${dateStr}` : '');
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      PROJET_ACTIF_MAP = {};
+      for (const [pid, nom] of Object.entries(data)) {
+        PROJET_ACTIF_MAP[parseInt(pid)] = nom;
+      }
+      renderTable();
+    })
+    .catch(() => {});
+}
+
+// Initialiser la date du filtre projet à aujourd'hui
+(function initProjetDateFilter() {
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const dd    = String(today.getDate()).padStart(2, '0');
+  const iso   = `${yyyy}-${mm}-${dd}`;
+  const input = document.getElementById('f-date-projet');
+  if (input) input.value = iso;
+  fetchProjetActif(iso);
+})();
 
 // ─────────────────────────────────────────────────────────
 // Chargement initial
@@ -637,7 +678,7 @@ fetch('/api/personnels/all')
   .catch(err => {
     console.error('Erreur chargement personnels :', err);
     document.getElementById('personnelsBody').innerHTML =
-      `<tr><td colspan="7" class="table-loading" style="color:#ff6b6b;">
+      `<tr><td colspan="8" class="table-loading" style="color:#ff6b6b;">
         <i class="fas fa-exclamation-circle me-2"></i>Impossible de charger les données. Rechargez la page.
       </td></tr>`;
   });
@@ -719,7 +760,7 @@ function renderTable() {
 
   if (FILTERED.length === 0) {
     tbody.innerHTML = `
-      <tr><td colspan="7" style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);">
+      <tr><td colspan="8" style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);">
         <i class="fas fa-search" style="font-size:1.8rem;opacity:.1;display:block;margin-bottom:.6rem;"></i>
         <div style="font-weight:700;color:var(--text-secondary);margin-bottom:.3rem;">Aucun résultat</div>
         <div style="font-size:.8rem;">Modifiez vos critères de filtre</div>
@@ -751,6 +792,17 @@ function renderTable() {
          </button>`
       : `<span style="font-size:.72rem;color:var(--text-disabled);">—</span>`;
 
+    // ── Projet actif à la date sélectionnée ──
+    const projetNom = PROJET_ACTIF_MAP[p.id];
+    const projetCell = projetNom
+      ? `<span style="font-size:.76rem;font-weight:700;background:rgba(6,214,160,.1);
+                      color:#06d6a0;border:1px solid rgba(6,214,160,.25);border-radius:8px;
+                      padding:.2em .6em;display:inline-flex;align-items:center;gap:.3rem;max-width:160px;
+                      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(projetNom)}">
+           <i class="fas fa-map-marker-alt" style="font-size:.6rem;flex-shrink:0;"></i>${esc(projetNom)}
+         </span>`
+      : `<span style="font-size:.72rem;color:var(--text-disabled);font-style:italic;">Aucun projet</span>`;
+
     return `
       <tr data-id="${p.id}" style="${isInactive ? 'opacity:.6;' : ''}">
         <td><span class="badge-matricule">${esc(p.matricule)}</span></td>
@@ -761,6 +813,7 @@ function renderTable() {
           ${sal} <span style="font-size:.7rem;color:var(--text-muted);">DT</span>
         </td>
         <td><span class="badge-${p.type_salaire}">${cap(p.type_salaire)}</span></td>
+        <td>${projetCell}</td>
         <td style="text-align:right;">
           <div class="d-flex gap-1 justify-content-end">${actions}</div>
         </td>
@@ -963,7 +1016,7 @@ function exportXlsx() {
     ['Exporté le', nowStr],
     [`${rows.length} résultat(s) sur ${ALL_DATA.length} total`],
     [],
-    ['Matricule','Nom','Prénom','Fonction','Société','Salaire (DT)','Type Salaire'],
+    ['Matricule','Nom','Prénom','Fonction','Société','Salaire (DT)','Type Salaire','Projet actif (date filtrée)'],
     ...rows.map(p => [
       (p.matricule || '').toUpperCase(),
       (p.nom       || '').toUpperCase(),
@@ -972,12 +1025,13 @@ function exportXlsx() {
        p.societe   || '',
       parseFloat(p.salaire) || 0,
       p.type_salaire || '',
+      PROJET_ACTIF_MAP[p.id] || '',
     ]),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:14},{wch:20},{wch:18},{wch:22},{wch:22},{wch:14},{wch:10}];
-  ['A','B','C','D','E','F','G'].forEach(col => {
+  ws['!cols'] = [{wch:14},{wch:20},{wch:18},{wch:22},{wch:22},{wch:14},{wch:10},{wch:28}];
+  ['A','B','C','D','E','F','G','H'].forEach(col => {
     const cell = ws[col + '5'];
     if (cell) cell.s = {
       font:      {bold:true, color:{rgb:'FFFFFF'}},
